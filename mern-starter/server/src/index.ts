@@ -11,7 +11,12 @@ import { connectDatabase } from './config/database';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
 import healthRoutes from './routes/health';
 import userRoutes from './routes/users';
-import itemRoutes from './routes/items';
+import clientRoutes from './routes/clients';
+import projectRoutes from './routes/projects';
+import taskTypeRoutes from './routes/taskTypes';
+import timeEntryRoutes from './routes/timeEntries';
+import reportRoutes from './routes/reports';
+import exportRoutes from './routes/export';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -31,7 +36,12 @@ app.use(express.urlencoded({ extended: true }));
 // Routes
 app.use('/api/health', healthRoutes);
 app.use('/api/users', userRoutes);
-app.use('/api/items', itemRoutes);
+app.use('/api/clients', clientRoutes);
+app.use('/api/projects', projectRoutes);
+app.use('/api/task-types', taskTypeRoutes);
+app.use('/api/time-entries', timeEntryRoutes);
+app.use('/api/reports', reportRoutes);
+app.use('/api/export', exportRoutes);
 
 // Error handling
 app.use(notFoundHandler);
@@ -44,12 +54,12 @@ const startServer = async () => {
     await connectDatabase();
     
     app.listen(PORT, () => {
-      console.log(`🚀 Server running on http://localhost:${PORT}`);
-      console.log(`📚 API available at http://localhost:${PORT}/api`);
-      console.log(`🔒 Environment: ${process.env.NODE_ENV || 'development'}`);
+      console.log(`Server running on http://localhost:${PORT}`);
+      console.log(`API available at http://localhost:${PORT}/api`);
+      console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
     });
   } catch (error) {
-    console.error('❌ Failed to start server:', error);
+    console.error('Failed to start server:', error);
     process.exit(1);
   }
 };

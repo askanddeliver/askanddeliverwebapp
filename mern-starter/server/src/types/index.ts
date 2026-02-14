@@ -8,7 +8,6 @@ export interface EnvConfig {
   MONGODB_URI: string;
   AUTH0_DOMAIN: string;
   AUTH0_AUDIENCE: string;
-  JWT_SECRET: string;
   CLIENT_URL?: string;
 }
 
@@ -31,19 +30,52 @@ export interface PaginatedResponse<T> {
 }
 
 // DTO types
-export interface CreateItemDto {
-  title: string;
-  description?: string;
+export interface CreateClientDto {
+  name: string;
+  company?: string;
+  email?: string;
+  taskDiscounts?: Record<string, number>;
 }
 
-export interface UpdateItemDto {
-  title?: string;
+export interface UpdateClientDto {
+  name?: string;
+  company?: string;
+  email?: string;
+  taskDiscounts?: Record<string, number>;
+}
+
+export interface CreateProjectDto {
+  clientId: string;
+  title: string;
   description?: string;
-  completed?: boolean;
+  status?: 'ACTIVE' | 'PAUSED' | 'COMPLETED';
+  budget?: number;
+}
+
+export interface CreateTaskTypeDto {
+  name: string;
+  rate: number;
+  color?: string;
+}
+
+export interface CreateTimeEntryDto {
+  projectId: string;
+  taskTypeId: string;
+  description?: string;
+  startTime: string;
+  endTime?: string;
+  duration?: number;
 }
 
 export interface UpdateUserDto {
   email?: string;
   name?: string;
   picture?: string;
+}
+
+export interface InvoiceRequest {
+  clientId?: string;
+  projectId?: string;
+  startDate: string;
+  endDate: string;
 }

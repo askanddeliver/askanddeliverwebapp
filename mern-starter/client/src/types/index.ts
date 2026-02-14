@@ -9,26 +9,75 @@ export interface User {
   updatedAt: string;
 }
 
-// Item types
-export interface Item {
+// Client types
+export interface Client {
   _id: string;
-  title: string;
-  description?: string;
-  completed: boolean;
-  user: string;
+  name: string;
+  company?: string;
+  email?: string;
+  taskDiscounts: Record<string, number>;
   createdAt: string;
   updatedAt: string;
 }
 
-export interface CreateItemDto {
+// Project types
+export interface Project {
+  _id: string;
+  clientId: string | Client;
   title: string;
   description?: string;
+  status: 'ACTIVE' | 'PAUSED' | 'COMPLETED';
+  budget?: number;
+  createdAt: string;
+  updatedAt: string;
 }
 
-export interface UpdateItemDto {
-  title?: string;
+// Task Type types
+export interface TaskType {
+  _id: string;
+  name: string;
+  rate: number;
+  color: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Time Entry types
+export interface TimeEntry {
+  _id: string;
+  projectId: string | Project;
+  taskTypeId: string | TaskType;
   description?: string;
-  completed?: boolean;
+  startTime: string;
+  endTime?: string;
+  duration: number;
+  isRunning: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Computed types
+export interface InvoiceLineItem {
+  taskTypeName: string;
+  taskTypeColor: string;
+  baseRate: number;
+  discount: number;
+  effectiveRate: number;
+  hours: number;
+  amount: number;
+  descriptions: string[];
+}
+
+export interface Invoice {
+  client?: Client;
+  items: InvoiceLineItem[];
+  total: number;
+  totalHours: number;
+  entryCount: number;
+  dateRange: {
+    start: string;
+    end: string;
+  };
 }
 
 // API Response types

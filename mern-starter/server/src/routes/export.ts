@@ -1,0 +1,101 @@
+import { Router, Response } from 'express';
+import { checkJwt, AuthRequest, extractUserId } from '../middleware/auth';
+import { asyncHandler, createError } from '../middleware/errorHandler';
+import { TimeEntry, Client, ITimeEntry, IProject, ITaskType } from '../models';
+
+const router = Router();
+
+// All routes require authentication
+router.use(checkJwt);
+
+// POST /api/export/csv - Export time entries as CSV
+router.post(
+  '/csv',
+  asyncHandler(async (req: AuthRequest, res: Response) => {
+    const userId = extractUserId(req);
+    if (!userId) throw createError('User ID not found in token', 401);
+
+    const { clientId, projectId, startDate, endDate } = req.body;
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const query: any = { userId, isRunning: false };
+
+    if (startDate || endDate) {
+      query.startTime = {};
+      if (startDate) query.startTime.$gte = new Date(startDate);
+      if (endDate) {
+        const end = new Date(endDate);
+        end.setHours(23, 59, 59, 999);
+        query.startTime.$lte = end;
+      }
+    }
+
+    if (projectId) {
+      query.projectId = projectId;
+    }
+
+    const entries = await TimeEntry.find(query)
+      .populate({
+        path: 'projectId',
+        populate: { path: 'clientId' },
+      })
+      .populate('taskTypeId')
+      .sort({ startTime: -1 });
+
+    // Filter by clientId if specified
+    let filteredEntries = entries;
+    if (clientId) {
+      filteredEntries = entries.filter((entry) => {
+        const project = entry.projectId as unknown as IProject & { clientId: { _id: string; name: string } };
+        return project?.clientId?._id?.toString() === clientId;
+      });
+    }
+
+    // Get client for discount info
+    let client = null;
+    if (clientId) {
+      client = await Client.findOne({ _id: clientId, userId });
+    }
+
+    const rows = filteredEntries.map((entry) => {
+      const project = entry.projectId as unknown as IProject & { clientId: { name: string } };
+      const taskType = entry.taskTypeId as unknown as ITaskType;
+      const hours = ((entry as ITimeEntry).duration / 3600).toFixed(2);
+      const clientName = project?.clientId?.name || 'Unknown';
+
+      // Calculate effective rate with discount
+      let effectiveRate = taskType?.rate || 0;
+      if (client && taskType) {
+        const discount = client.taskDiscounts?.get(taskType._id.toString()) || 0;
+        effectiveRate = taskType.rate * (1 - Math.min(100, Math.max(0, discount)) / 100);
+      }
+
+      const amount = (parseFloat(hours) * effectiveRate).toFixed(2);
+
+      return [
+        new Date((entry as ITimeEntry).startTime).toLocaleDateString(),
+        clientName,
+        project?.title || 'Unknown',
+        taskType?.name || 'Unknown',
+        hours,
+        `$${taskType?.rate || 0}`,
+        `$${effectiveRate.toFixed(2)}`,
+        `$${amount}`,
+        (entry as ITimeEntry).description || '',
+      ];
+    });
+
+    const csv = [
+      ['Date', 'Client', 'Project', 'Task', 'Hours', 'Base Rate', 'Effective Rate', 'Amount', 'Description'],
+      ...rows,
+    ]
+      .map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+      .join('\n');
+
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', 'attachment; filename=timesheet.csv');
+    res.send(csv);
+  })
+);
+
+export default router;

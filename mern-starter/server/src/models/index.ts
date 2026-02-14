@@ -1,2 +1,5 @@
 export { User, IUser } from './User';
-export { Item, IItem } from './Item';
+export { Client, IClient } from './Client';
+export { Project, IProject } from './Project';
+export { TaskType, ITaskType } from './TaskType';
+export { TimeEntry, ITimeEntry } from './TimeEntry';

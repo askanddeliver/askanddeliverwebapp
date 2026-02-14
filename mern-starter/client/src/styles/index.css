@@ -44,3 +44,24 @@ body {
     text-wrap: balance;
   }
 }
+
+/* Print styles for invoices */
+@media print {
+  body {
+    @apply bg-white;
+  }
+
+  nav,
+  footer,
+  .print\:hidden {
+    display: none !important;
+  }
+
+  main {
+    @apply p-0 m-0 max-w-none;
+  }
+
+  .card {
+    @apply shadow-none border-none p-0;
+  }
+}

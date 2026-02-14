@@ -1,4 +1,5 @@
 import axios from 'axios';
+import type { Client, Project, TaskType, TimeEntry, Invoice } from '../types';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
 
@@ -36,11 +37,95 @@ api.interceptors.response.use(
     if (error.response?.status === 401) {
       // Token expired or invalid, clear it
       setAuthToken(null);
-      // Optionally redirect to login
-      // window.location.href = '/';
     }
     return Promise.reject(error);
   }
 );
+
+// ---- API Service Methods ----
+
+// Clients
+export const clientsApi = {
+  getAll: () => api.get<Client[]>('/clients'),
+  getOne: (id: string) => api.get<Client>(`/clients/${id}`),
+  create: (data: Partial<Client>) => api.post<Client>('/clients', data),
+  update: (id: string, data: Partial<Client>) =>
+    api.put<Client>(`/clients/${id}`, data),
+  delete: (id: string) => api.delete(`/clients/${id}`),
+};
+
+// Projects
+export const projectsApi = {
+  getAll: () => api.get<Project[]>('/projects'),
+  getByClient: (clientId: string) =>
+    api.get<Project[]>(`/projects/client/${clientId}`),
+  create: (data: Partial<Project>) => api.post<Project>('/projects', data),
+  update: (id: string, data: Partial<Project>) =>
+    api.put<Project>(`/projects/${id}`, data),
+  delete: (id: string) => api.delete(`/projects/${id}`),
+};
+
+// Task Types
+export const taskTypesApi = {
+  getAll: () => api.get<TaskType[]>('/task-types'),
+  create: (data: Partial<TaskType>) =>
+    api.post<TaskType>('/task-types', data),
+  update: (id: string, data: Partial<TaskType>) =>
+    api.put<TaskType>(`/task-types/${id}`, data),
+  delete: (id: string) => api.delete(`/task-types/${id}`),
+  seedDefaults: () => api.post<TaskType[]>('/task-types/seed'),
+};
+
+// Time Entries
+export const timeEntriesApi = {
+  getAll: (params?: {
+    startDate?: string;
+    endDate?: string;
+    projectId?: string;
+  }) => api.get<TimeEntry[]>('/time-entries', { params }),
+  getActive: () => api.get<TimeEntry | null>('/time-entries/active'),
+  start: (data: {
+    projectId: string;
+    taskTypeId: string;
+    description?: string;
+  }) => api.post<TimeEntry>('/time-entries/start', data),
+  stop: () => api.post<TimeEntry>('/time-entries/stop'),
+  create: (data: {
+    projectId: string;
+    taskTypeId: string;
+    description?: string;
+    startTime: string;
+    endTime?: string;
+    duration?: number;
+  }) => api.post<TimeEntry>('/time-entries', data),
+  update: (id: string, data: Partial<TimeEntry>) =>
+    api.put<TimeEntry>(`/time-entries/${id}`, data),
+  delete: (id: string) => api.delete(`/time-entries/${id}`),
+};
+
+// Reports
+export const reportsApi = {
+  generateInvoice: (data: {
+    clientId?: string;
+    projectId?: string;
+    startDate: string;
+    endDate: string;
+  }) => api.post<Invoice>('/reports/generate-invoice', data),
+  getSummary: (params?: { startDate?: string; endDate?: string }) =>
+    api.get('/reports/summary', { params }),
+};
+
+// Export
+export const exportApi = {
+  csv: (data: {
+    clientId?: string;
+    projectId?: string;
+    startDate?: string;
+    endDate?: string;
+  }) =>
+    api.post('/export/csv', data, {
+      responseType: 'blob',
+    }),
+};
 
 export default api;

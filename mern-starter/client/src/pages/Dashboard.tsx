@@ -1,222 +1,245 @@
 import { useState, useEffect } from 'react';
 import { useAuth0 } from '@auth0/auth0-react';
-import api from '../services/api';
-
-interface Item {
-  _id: string;
-  title: string;
-  description: string;
-  completed: boolean;
-  createdAt: string;
-}
+import { TimerDisplay } from '../components/timer/TimerDisplay';
+import { TimerControls } from '../components/timer/TimerControls';
+import { QuickEntry } from '../components/timer/QuickEntry';
+import { EntryList } from '../components/entries/EntryList';
+import { timeEntriesApi, projectsApi, taskTypesApi } from '../services/api';
+import { formatDurationHuman } from '../utils/calculations';
+import type { TimeEntry, Project, TaskType } from '../types';
 
 function Dashboard() {
   const { user } = useAuth0();
-  const [items, setItems] = useState<Item[]>([]);
+  const [activeTimer, setActiveTimer] = useState<TimeEntry | null>(null);
+  const [recentEntries, setRecentEntries] = useState<TimeEntry[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [taskTypes, setTaskTypes] = useState<TaskType[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [newItem, setNewItem] = useState({ title: '', description: '' });
-  const [isAdding, setIsAdding] = useState(false);
 
   useEffect(() => {
-    fetchItems();
+    loadData();
   }, []);
 
-  const fetchItems = async () => {
+  const loadData = async () => {
     try {
       setLoading(true);
-      const response = await api.get('/items');
-      // API returns { items: [...], pagination: {...} }
-      setItems(response.data.items || []);
+      const [timerRes, entriesRes, projectsRes, taskTypesRes] =
+        await Promise.all([
+          timeEntriesApi.getActive(),
+          timeEntriesApi.getAll(),
+          projectsApi.getAll(),
+          taskTypesApi.getAll(),
+        ]);
+
+      setActiveTimer(timerRes.data);
+      setRecentEntries(
+        (entriesRes.data || []).filter((e: TimeEntry) => !e.isRunning).slice(0, 10)
+      );
+      setProjects(projectsRes.data || []);
+      setTaskTypes(taskTypesRes.data || []);
       setError(null);
     } catch (err) {
-      setError('Failed to load items. Make sure the server is running.');
-      console.error('Error fetching items:', err);
+      console.error('Failed to load data:', err);
+      setError('Failed to load data. Make sure the server is running.');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleAddItem = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newItem.title.trim()) return;
-
+  const handleStart = async (
+    projectId: string,
+    taskTypeId: string,
+    description?: string
+  ) => {
     try {
-      setIsAdding(true);
-      const response = await api.post('/items', newItem);
-      setItems([response.data, ...items]);
-      setNewItem({ title: '', description: '' });
-    } catch (err) {
-      setError('Failed to add item');
-      console.error('Error adding item:', err);
-    } finally {
-      setIsAdding(false);
-    }
-  };
-
-  const handleToggleComplete = async (item: Item) => {
-    try {
-      const response = await api.put(`/items/${item._id}`, {
-        completed: !item.completed,
+      const res = await timeEntriesApi.start({
+        projectId,
+        taskTypeId,
+        description,
       });
-      setItems(items.map((i) => (i._id === item._id ? response.data : i)));
+      setActiveTimer(res.data);
+      setError(null);
     } catch (err) {
-      setError('Failed to update item');
-      console.error('Error updating item:', err);
+      console.error('Failed to start timer:', err);
+      setError('Failed to start timer');
     }
   };
 
-  const handleDeleteItem = async (id: string) => {
+  const handleStop = async () => {
     try {
-      await api.delete(`/items/${id}`);
-      setItems(items.filter((i) => i._id !== id));
+      const res = await timeEntriesApi.stop();
+      setActiveTimer(null);
+      setRecentEntries([res.data, ...recentEntries.slice(0, 9)]);
+      setError(null);
     } catch (err) {
-      setError('Failed to delete item');
-      console.error('Error deleting item:', err);
+      console.error('Failed to stop timer:', err);
+      setError('Failed to stop timer');
     }
   };
+
+  const handleManualEntry = async (data: {
+    projectId: string;
+    taskTypeId: string;
+    description?: string;
+    startTime: string;
+    endTime: string;
+    duration: number;
+  }) => {
+    try {
+      const res = await timeEntriesApi.create(data);
+      setRecentEntries([res.data, ...recentEntries.slice(0, 9)]);
+      setError(null);
+    } catch (err) {
+      console.error('Failed to create entry:', err);
+      setError('Failed to create entry');
+    }
+  };
+
+  const handleDeleteEntry = async (id: string) => {
+    try {
+      await timeEntriesApi.delete(id);
+      setRecentEntries(recentEntries.filter((e) => e._id !== id));
+    } catch (err) {
+      console.error('Failed to delete entry:', err);
+    }
+  };
+
+  // Calculate today's stats
+  const todayEntries = recentEntries.filter((e) => {
+    const entryDate = new Date(e.startTime).toDateString();
+    return entryDate === new Date().toDateString();
+  });
+  const todaySeconds = todayEntries.reduce((sum, e) => sum + e.duration, 0);
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <div className="w-8 h-8 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-4xl mx-auto">
       {/* Welcome Header */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">
-          Welcome back, {user?.given_name || user?.name || 'User'}!
+      <div className="mb-6">
+        <h1 className="text-3xl font-bold text-gray-900">
+          Welcome back, {user?.given_name || user?.name || 'User'}
         </h1>
-        <p className="text-gray-600">
-          Manage your items and track your progress from your personal dashboard.
+        <p className="text-gray-500 mt-1">
+          {todaySeconds > 0
+            ? `${formatDurationHuman(todaySeconds)} tracked today`
+            : "Let's get to work"}
         </p>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <div className="card">
-          <p className="text-sm text-gray-600 mb-1">Total Items</p>
-          <p className="text-3xl font-bold text-gray-900">{items.length}</p>
-        </div>
-        <div className="card">
-          <p className="text-sm text-gray-600 mb-1">Completed</p>
-          <p className="text-3xl font-bold text-green-600">
-            {items.filter((i) => i.completed).length}
-          </p>
-        </div>
-        <div className="card">
-          <p className="text-sm text-gray-600 mb-1">Pending</p>
-          <p className="text-3xl font-bold text-orange-600">
-            {items.filter((i) => !i.completed).length}
-          </p>
-        </div>
-      </div>
-
-      {/* Add New Item Form */}
-      <div className="card mb-8">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">Add New Item</h2>
-        <form onSubmit={handleAddItem} className="space-y-4">
-          <div>
-            <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-1">
-              Title
-            </label>
-            <input
-              type="text"
-              id="title"
-              value={newItem.title}
-              onChange={(e) => setNewItem({ ...newItem, title: e.target.value })}
-              className="input"
-              placeholder="Enter item title..."
-              required
-            />
-          </div>
-          <div>
-            <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">
-              Description (optional)
-            </label>
-            <textarea
-              id="description"
-              value={newItem.description}
-              onChange={(e) => setNewItem({ ...newItem, description: e.target.value })}
-              className="input min-h-[100px]"
-              placeholder="Enter item description..."
-            />
-          </div>
-          <button type="submit" className="btn-primary" disabled={isAdding}>
-            {isAdding ? 'Adding...' : 'Add Item'}
-          </button>
-        </form>
-      </div>
-
-      {/* Error Message */}
+      {/* Error */}
       {error && (
         <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6">
           {error}
-          <button onClick={fetchItems} className="ml-4 underline">
+          <button onClick={loadData} className="ml-4 underline">
             Retry
           </button>
         </div>
       )}
 
-      {/* Items List */}
-      <div className="card">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">Your Items</h2>
-        {loading ? (
-          <div className="text-center py-8">
-            <div className="w-8 h-8 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin mx-auto mb-2"></div>
-            <p className="text-gray-600">Loading items...</p>
+      {/* Setup Prompts */}
+      {taskTypes.length === 0 && (
+        <div className="card bg-blue-50 border-blue-200 mb-6">
+          <h3 className="font-semibold text-blue-900 mb-2">
+            Get started with task types
+          </h3>
+          <p className="text-blue-700 text-sm mb-3">
+            Set up your task types and hourly rates before you can start tracking
+            time.
+          </p>
+          <a href="/task-types" className="btn-primary text-sm">
+            Configure Task Types
+          </a>
+        </div>
+      )}
+
+      {projects.length === 0 && taskTypes.length > 0 && (
+        <div className="card bg-blue-50 border-blue-200 mb-6">
+          <h3 className="font-semibold text-blue-900 mb-2">
+            Create your first project
+          </h3>
+          <p className="text-blue-700 text-sm mb-3">
+            Add a client and project to start tracking time.
+          </p>
+          <div className="flex gap-3">
+            <a href="/clients" className="btn-primary text-sm">
+              Add Client
+            </a>
+            <a href="/projects" className="btn-outline text-sm">
+              Add Project
+            </a>
           </div>
-        ) : items.length === 0 ? (
-          <div className="text-center py-8 text-gray-500">
-            <p>No items yet. Add your first item above!</p>
+        </div>
+      )}
+
+      {/* Timer Section */}
+      {projects.length > 0 && taskTypes.length > 0 && (
+        <div className="card mb-6">
+          <TimerDisplay
+            startTime={activeTimer?.startTime}
+            isRunning={activeTimer?.isRunning || false}
+            initialDuration={activeTimer?.duration || 0}
+          />
+
+          {activeTimer?.isRunning && (
+            <div className="text-center text-sm text-gray-500 mb-4">
+              {typeof activeTimer.projectId === 'object'
+                ? activeTimer.projectId.title
+                : 'Project'}{' '}
+              &mdash;{' '}
+              {typeof activeTimer.taskTypeId === 'object'
+                ? activeTimer.taskTypeId.name
+                : 'Task'}
+              {activeTimer.description && ` | ${activeTimer.description}`}
+            </div>
+          )}
+
+          <TimerControls
+            projects={projects}
+            taskTypes={taskTypes}
+            isRunning={activeTimer?.isRunning || false}
+            onStart={handleStart}
+            onStop={handleStop}
+          />
+        </div>
+      )}
+
+      {/* Quick Manual Entry */}
+      {projects.length > 0 && taskTypes.length > 0 && (
+        <div className="mb-6">
+          <QuickEntry
+            projects={projects}
+            taskTypes={taskTypes}
+            onSubmit={handleManualEntry}
+          />
+        </div>
+      )}
+
+      {/* Recent Entries */}
+      {recentEntries.length > 0 && (
+        <div className="card">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold text-gray-900">
+              Recent Entries
+            </h2>
+            <a href="/entries" className="link text-sm">
+              View all
+            </a>
           </div>
-        ) : (
-          <ul className="divide-y divide-gray-200">
-            {items.map((item) => (
-              <li key={item._id} className="py-4 flex items-start gap-4">
-                <button
-                  onClick={() => handleToggleComplete(item)}
-                  className={`mt-1 w-5 h-5 rounded border-2 flex-shrink-0 flex items-center justify-center transition-colors ${
-                    item.completed
-                      ? 'bg-green-500 border-green-500 text-white'
-                      : 'border-gray-300 hover:border-primary-500'
-                  }`}
-                >
-                  {item.completed && (
-                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                    </svg>
-                  )}
-                </button>
-                <div className="flex-1 min-w-0">
-                  <p
-                    className={`font-medium ${
-                      item.completed ? 'text-gray-400 line-through' : 'text-gray-900'
-                    }`}
-                  >
-                    {item.title}
-                  </p>
-                  {item.description && (
-                    <p className="text-sm text-gray-500 mt-1">{item.description}</p>
-                  )}
-                  <p className="text-xs text-gray-400 mt-1">
-                    {new Date(item.createdAt).toLocaleDateString()}
-                  </p>
-                </div>
-                <button
-                  onClick={() => handleDeleteItem(item._id)}
-                  className="text-gray-400 hover:text-red-500 transition-colors"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                    />
-                  </svg>
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
+          <EntryList
+            entries={recentEntries}
+            onEdit={() => {}}
+            onDelete={handleDeleteEntry}
+          />
+        </div>
+      )}
     </div>
   );
 }
