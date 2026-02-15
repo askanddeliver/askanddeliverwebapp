@@ -1,7 +1,18 @@
 import { Routes, Route } from 'react-router-dom';
 import { useAuth0 } from '@auth0/auth0-react';
+
+// Layouts
 import Layout from './components/Layout';
+import PublicLayout from './components/public/PublicLayout';
+
+// Public Pages
 import Home from './pages/Home';
+import Work from './pages/Work';
+import WorkDetail from './pages/WorkDetail';
+import About from './pages/About';
+import Contact from './pages/Contact';
+
+// Admin Pages (Protected)
 import Dashboard from './pages/Dashboard';
 import Profile from './pages/Profile';
 import Clients from './pages/Clients';
@@ -9,6 +20,9 @@ import Projects from './pages/Projects';
 import TaskTypes from './pages/TaskTypes';
 import TimeEntries from './pages/TimeEntries';
 import Reports from './pages/Reports';
+import PortfolioAdmin from './pages/PortfolioAdmin';
+
+// Components
 import ProtectedRoute from './components/ProtectedRoute';
 import Loading from './components/Loading';
 import { useApiAuth } from './hooks/useApiAuth';
@@ -24,67 +38,135 @@ function App() {
   }
 
   return (
-    <Layout>
-      <Routes>
-        <Route path="/" element={<Home />} />
-        <Route
-          path="/dashboard"
-          element={
+    <Routes>
+      {/* ============================================
+          PUBLIC ROUTES — PublicLayout (brand site)
+          ============================================ */}
+      <Route
+        path="/"
+        element={
+          <PublicLayout>
+            <Home />
+          </PublicLayout>
+        }
+      />
+      <Route
+        path="/work"
+        element={
+          <PublicLayout>
+            <Work />
+          </PublicLayout>
+        }
+      />
+      <Route
+        path="/work/:slug"
+        element={
+          <PublicLayout>
+            <WorkDetail />
+          </PublicLayout>
+        }
+      />
+      <Route
+        path="/about"
+        element={
+          <PublicLayout>
+            <About />
+          </PublicLayout>
+        }
+      />
+      <Route
+        path="/contact"
+        element={
+          <PublicLayout>
+            <Contact />
+          </PublicLayout>
+        }
+      />
+
+      {/* ============================================
+          ADMIN ROUTES — Admin Layout (protected)
+          ============================================ */}
+      <Route
+        path="/dashboard"
+        element={
+          <Layout>
             <ProtectedRoute>
               <Dashboard />
             </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/profile"
-          element={
+          </Layout>
+        }
+      />
+      <Route
+        path="/profile"
+        element={
+          <Layout>
             <ProtectedRoute>
               <Profile />
             </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/clients"
-          element={
+          </Layout>
+        }
+      />
+      <Route
+        path="/clients"
+        element={
+          <Layout>
             <ProtectedRoute>
               <Clients />
             </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/projects"
-          element={
+          </Layout>
+        }
+      />
+      <Route
+        path="/projects"
+        element={
+          <Layout>
             <ProtectedRoute>
               <Projects />
             </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/task-types"
-          element={
+          </Layout>
+        }
+      />
+      <Route
+        path="/task-types"
+        element={
+          <Layout>
             <ProtectedRoute>
               <TaskTypes />
             </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/entries"
-          element={
+          </Layout>
+        }
+      />
+      <Route
+        path="/entries"
+        element={
+          <Layout>
             <ProtectedRoute>
               <TimeEntries />
             </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/reports"
-          element={
+          </Layout>
+        }
+      />
+      <Route
+        path="/reports"
+        element={
+          <Layout>
             <ProtectedRoute>
               <Reports />
             </ProtectedRoute>
-          }
-        />
-      </Routes>
-    </Layout>
+          </Layout>
+        }
+      />
+      <Route
+        path="/portfolio-admin"
+        element={
+          <Layout>
+            <ProtectedRoute>
+              <PortfolioAdmin />
+            </ProtectedRoute>
+          </Layout>
+        }
+      />
+    </Routes>
   );
 }
 

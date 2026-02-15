@@ -7,6 +7,7 @@ import {
   FolderOpen,
   Tag,
   BarChart3,
+  Image,
   Menu,
   X,
 } from 'lucide-react';
@@ -19,6 +20,7 @@ const navLinks = [
   { to: '/projects', label: 'Projects', icon: FolderOpen },
   { to: '/task-types', label: 'Tasks', icon: Tag },
   { to: '/reports', label: 'Reports', icon: BarChart3 },
+  { to: '/portfolio-admin', label: 'Portfolio', icon: Image },
 ];
 
 function Navbar() {

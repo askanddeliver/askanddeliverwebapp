@@ -2,12 +2,32 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Base styles */
-body {
-  @apply bg-gray-50 text-gray-900 antialiased;
+/* ============================================
+   BASE STYLES
+   ============================================ */
+
+@layer base {
+  body {
+    @apply bg-gray-50 text-gray-900 antialiased;
+    font-optical-sizing: auto;
+    letter-spacing: -0.01em;
+  }
+
+  /* Public-facing pages get the warm cream background */
+  body.public-theme {
+    @apply bg-brand-cream text-brand-charcoal;
+  }
+
+  /* Display headings use Fraunces */
+  .font-display {
+    font-optical-sizing: auto;
+    letter-spacing: -0.02em;
+  }
 }
 
-/* Custom component classes */
+/* ============================================
+   ADMIN COMPONENT CLASSES (existing)
+   ============================================ */
 @layer components {
   .btn {
     @apply px-4 py-2 rounded-lg font-medium transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2;
@@ -36,16 +56,65 @@ body {
   .link {
     @apply text-primary-600 hover:text-primary-700 underline-offset-2 hover:underline;
   }
+
+  /* ============================================
+     PUBLIC SITE COMPONENT CLASSES
+     ============================================ */
+
+  /* Brand buttons */
+  .btn-brand {
+    @apply inline-flex items-center justify-center px-8 py-3.5 rounded-lg font-medium text-base
+           transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2;
+  }
+
+  .btn-brand-primary {
+    @apply btn-brand bg-brand-sage text-white hover:bg-brand-sage-dark focus:ring-brand-sage;
+  }
+
+  .btn-brand-secondary {
+    @apply btn-brand bg-transparent text-brand-charcoal border-2 border-brand-charcoal
+           hover:bg-brand-charcoal hover:text-white focus:ring-brand-charcoal;
+  }
+
+  .btn-brand-ghost {
+    @apply btn-brand bg-transparent text-brand-sage hover:bg-brand-sage/10 focus:ring-brand-sage;
+  }
+
+  /* Public input styles */
+  .input-brand {
+    @apply w-full px-4 py-3 bg-white border border-neutral-200 rounded-lg
+           text-brand-charcoal placeholder-neutral-400
+           focus:outline-none focus:ring-2 focus:ring-brand-sage focus:border-transparent
+           transition-all duration-200;
+  }
+
+  /* Monospace metadata labels */
+  .meta-label {
+    @apply text-xs font-mono uppercase tracking-wider text-neutral-500;
+  }
+
+  /* Section containers for public site */
+  .section-public {
+    @apply py-16 md:py-24 lg:py-30;
+  }
+
+  .container-public {
+    @apply container mx-auto px-6 lg:px-8 max-w-7xl;
+  }
 }
 
-/* Utility classes */
+/* ============================================
+   UTILITY CLASSES
+   ============================================ */
 @layer utilities {
   .text-balance {
     text-wrap: balance;
   }
 }
 
-/* Print styles for invoices */
+/* ============================================
+   PRINT STYLES (for invoices)
+   ============================================ */
 @media print {
   body {
     @apply bg-white;

@@ -105,6 +105,43 @@ export interface ApiError {
   status: number;
 }
 
+// Portfolio types
+export interface PortfolioImage {
+  url: string;
+  caption?: string;
+}
+
+export interface PortfolioTestimonial {
+  quote: string;
+  author: string;
+  role: string;
+}
+
+export interface PortfolioProject {
+  _id: string;
+  slug: string;
+  title: string;
+  client: string;
+  excerpt: string;
+  description: string;
+  categories: string[];
+  disciplines: string[];
+  year: number;
+  featuredImage: string;
+  images: PortfolioImage[];
+  challenge?: string;
+  solution?: string;
+  results?: string[];
+  testimonial?: PortfolioTestimonial;
+  liveUrl?: string;
+  featured: boolean;
+  published: boolean;
+  color: string;
+  order: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
 // Auth types
 export interface AuthState {
   isAuthenticated: boolean;

@@ -1,5 +1,5 @@
 import axios from 'axios';
-import type { Client, Project, TaskType, ProjectTask, TimeEntry, Invoice } from '../types';
+import type { Client, Project, TaskType, ProjectTask, TimeEntry, Invoice, PortfolioProject } from '../types';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
 
@@ -149,6 +149,33 @@ export const exportApi = {
     api.post('/export/csv', data, {
       responseType: 'blob',
     }),
+};
+
+// Portfolio (admin - authenticated)
+export const portfolioApi = {
+  getAll: () => api.get<PortfolioProject[]>('/portfolio'),
+  getOne: (id: string) => api.get<PortfolioProject>(`/portfolio/${id}`),
+  create: (data: Partial<PortfolioProject>) =>
+    api.post<PortfolioProject>('/portfolio', data),
+  update: (id: string, data: Partial<PortfolioProject>) =>
+    api.put<PortfolioProject>(`/portfolio/${id}`, data),
+  delete: (id: string) => api.delete(`/portfolio/${id}`),
+  togglePublish: (id: string) =>
+    api.patch<PortfolioProject>(`/portfolio/${id}/publish`),
+  toggleFeature: (id: string) =>
+    api.patch<PortfolioProject>(`/portfolio/${id}/feature`),
+  reorder: (projectIds: string[]) =>
+    api.put<PortfolioProject[]>('/portfolio/reorder', { projectIds }),
+  seed: (projects: Partial<PortfolioProject>[]) =>
+    api.post<PortfolioProject[]>('/portfolio/seed', { projects }),
+};
+
+// Portfolio (public - unauthenticated)
+export const portfolioPublicApi = {
+  getAll: () => api.get<PortfolioProject[]>('/portfolio/public'),
+  getFeatured: () => api.get<PortfolioProject[]>('/portfolio/public/featured'),
+  getBySlug: (slug: string) =>
+    api.get<PortfolioProject>(`/portfolio/public/${slug}`),
 };
 
 export default api;

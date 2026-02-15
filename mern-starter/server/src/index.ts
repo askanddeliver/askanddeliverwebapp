@@ -18,6 +18,7 @@ import timeEntryRoutes from './routes/timeEntries';
 import reportRoutes from './routes/reports';
 import projectTaskRoutes from './routes/projectTasks';
 import exportRoutes from './routes/export';
+import portfolioRoutes from './routes/portfolio';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -44,6 +45,7 @@ app.use('/api/time-entries', timeEntryRoutes);
 app.use('/api/project-tasks', projectTaskRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/export', exportRoutes);
+app.use('/api/portfolio', portfolioRoutes);
 
 // Error handling
 app.use(notFoundHandler);
