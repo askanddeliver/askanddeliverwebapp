@@ -1,14 +1,26 @@
 import { Pencil, Trash2 } from 'lucide-react';
 import type { TimeEntry, Project, TaskType, Client } from '../../types';
-import { formatDuration, formatDate } from '../../utils/calculations';
+import {
+  formatDurationHuman,
+  formatDate,
+  formatCurrency,
+  getEffectiveRate,
+  secondsToHours,
+} from '../../utils/calculations';
 
 interface EntryRowProps {
   entry: TimeEntry;
   onEdit: (entry: TimeEntry) => void;
   onDelete: (id: string) => void;
+  showAmount?: boolean;
 }
 
-export function EntryRow({ entry, onEdit, onDelete }: EntryRowProps) {
+export function EntryRow({
+  entry,
+  onEdit,
+  onDelete,
+  showAmount = true,
+}: EntryRowProps) {
   const project =
     typeof entry.projectId === 'object'
       ? (entry.projectId as Project)
@@ -22,42 +34,52 @@ export function EntryRow({ entry, onEdit, onDelete }: EntryRowProps) {
       ? (project.clientId as Client)
       : null;
 
+  // Calculate amount using effective rate (with client discount)
+  let amount: number | null = null;
+  if (showAmount && taskType && client) {
+    const effectiveRate = getEffectiveRate(taskType, client);
+    const hours = secondsToHours(entry.duration);
+    amount = Math.round(hours * effectiveRate * 100) / 100;
+  } else if (showAmount && taskType) {
+    // No client data available, use base rate
+    const hours = secondsToHours(entry.duration);
+    amount = Math.round(hours * taskType.rate * 100) / 100;
+  }
+
   return (
-    <div className="flex items-center gap-4 py-3 px-4 hover:bg-gray-50 rounded-lg transition-colors">
+    <div className="flex items-start gap-4 py-4 px-4 hover:bg-gray-50 rounded-lg transition-colors">
       {taskType && (
         <div
-          className="w-3 h-3 rounded-full flex-shrink-0"
+          className="w-3 h-3 rounded-full flex-shrink-0 mt-1.5"
           style={{ backgroundColor: taskType.color }}
         />
       )}
 
       <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2">
-          <span className="font-medium text-gray-900 text-sm truncate">
-            {project?.title || 'Unknown project'}
-          </span>
-          {client && (
-            <span className="text-xs text-gray-400">({client.name})</span>
-          )}
+        <div className="font-semibold text-gray-900 text-sm">
+          {project?.title || 'Unknown project'}
         </div>
-        <div className="flex items-center gap-2 text-xs text-gray-500 mt-0.5">
-          <span>{taskType?.name || 'Unknown task'}</span>
-          {entry.description && (
-            <>
-              <span className="text-gray-300">|</span>
-              <span className="truncate">{entry.description}</span>
-            </>
-          )}
+        <div className="text-xs text-gray-500 mt-0.5">
+          {client && <span>{client.name}</span>}
+          {taskType && <span>{client ? ` (${taskType.name})` : taskType.name}</span>}
+          <span> &middot; {formatDate(entry.startTime)}</span>
         </div>
+        {entry.description && (
+          <div className="text-xs text-gray-400 mt-1 line-clamp-2">
+            {entry.description}
+          </div>
+        )}
       </div>
 
       <div className="text-right flex-shrink-0">
-        <div className="font-mono text-sm font-semibold text-gray-800">
-          {formatDuration(entry.duration)}
+        <div className="font-semibold text-gray-800 text-sm">
+          {formatDurationHuman(entry.duration)}
         </div>
-        <div className="text-xs text-gray-400">
-          {formatDate(entry.startTime)}
-        </div>
+        {amount !== null && (
+          <div className="text-xs text-gray-500 mt-0.5">
+            {formatCurrency(amount)}
+          </div>
+        )}
       </div>
 
       <div className="flex items-center gap-1 flex-shrink-0">

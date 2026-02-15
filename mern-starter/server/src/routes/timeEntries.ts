@@ -36,7 +36,7 @@ router.get(
     }
 
     const entries = await TimeEntry.find(query)
-      .populate('projectId')
+      .populate({ path: 'projectId', populate: { path: 'clientId' } })
       .populate('taskTypeId')
       .sort({ startTime: -1 })
       .lean();
@@ -56,7 +56,7 @@ router.get(
       userId,
       isRunning: true,
     })
-      .populate('projectId')
+      .populate({ path: 'projectId', populate: { path: 'clientId' } })
       .populate('taskTypeId');
 
     res.json(activeTimer);
@@ -99,7 +99,7 @@ router.post(
       duration: 0,
     });
 
-    await timer.populate(['projectId', 'taskTypeId']);
+    await timer.populate([{ path: 'projectId', populate: { path: 'clientId' } }, 'taskTypeId']);
     res.status(201).json(timer);
   })
 );
@@ -130,7 +130,7 @@ router.post(
     timer.duration = duration;
 
     await timer.save();
-    await timer.populate(['projectId', 'taskTypeId']);
+    await timer.populate([{ path: 'projectId', populate: { path: 'clientId' } }, 'taskTypeId']);
 
     res.json(timer);
   })
@@ -169,7 +169,7 @@ router.post(
       isRunning: false,
     });
 
-    await entry.populate(['projectId', 'taskTypeId']);
+    await entry.populate([{ path: 'projectId', populate: { path: 'clientId' } }, 'taskTypeId']);
     res.status(201).json(entry);
   })
 );
@@ -196,7 +196,7 @@ router.put(
       { _id: req.params.id, userId },
       update,
       { new: true, runValidators: true }
-    ).populate(['projectId', 'taskTypeId']);
+    ).populate([{ path: 'projectId', populate: { path: 'clientId' } }, 'taskTypeId']);
 
     if (!entry) {
       throw createError('Time entry not found', 404);

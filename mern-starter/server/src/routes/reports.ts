@@ -1,12 +1,30 @@
 import { Router, Response } from 'express';
 import { checkJwt, AuthRequest, extractUserId } from '../middleware/auth';
 import { asyncHandler, createError } from '../middleware/errorHandler';
-import { TimeEntry, Client, ITimeEntry, IProject, ITaskType } from '../models';
+import { TimeEntry, Client, IClient, ITimeEntry, IProject, ITaskType } from '../models';
 
 const router = Router();
 
 // All routes require authentication
 router.use(checkJwt);
+
+/**
+ * Safely read a discount value from a client's taskDiscounts field.
+ * Handles both Mongoose Map objects and plain objects.
+ */
+function getDiscount(client: IClient | null, taskTypeId: string): number {
+  if (!client || !client.taskDiscounts) return 0;
+
+  // Try Mongoose Map .get() first
+  if (typeof client.taskDiscounts.get === 'function') {
+    return client.taskDiscounts.get(taskTypeId) || 0;
+  }
+
+  // Fallback: plain object access (e.g. from .lean() or JSON)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const discounts = client.taskDiscounts as any;
+  return discounts[taskTypeId] || 0;
+}
 
 // POST /api/reports/generate-invoice - Generate invoice data
 router.post(
@@ -56,11 +74,37 @@ router.post(
       });
     }
 
-    // Get the client for discount calculation
-    let client = null;
+    // Build a cache of client documents (with full Mongoose doc for Map access)
+    // We need the actual Mongoose documents to reliably read the Map field
+    const clientCache = new Map<string, IClient>();
+
+    // If a specific client is selected, pre-load it
     if (clientId) {
-      client = await Client.findOne({ _id: clientId, userId });
+      const c = await Client.findOne({ _id: clientId, userId });
+      if (c) clientCache.set(clientId, c);
     }
+
+    // For "All Clients" mode, collect unique client IDs from entries and load them
+    if (!clientId) {
+      const clientIds = new Set<string>();
+      for (const entry of filteredEntries) {
+        const project = entry.projectId as unknown as IProject & { clientId: { _id: string } };
+        const cId = project?.clientId?._id?.toString();
+        if (cId) clientIds.add(cId);
+      }
+      if (clientIds.size > 0) {
+        const clients = await Client.find({
+          _id: { $in: Array.from(clientIds) },
+          userId,
+        });
+        for (const c of clients) {
+          clientCache.set(c._id.toString(), c);
+        }
+      }
+    }
+
+    // Determine the single client to show on the invoice header (only when filtered)
+    const invoiceClient = clientId ? clientCache.get(clientId) || null : null;
 
     // Group entries by task type
     const lineItems = new Map<
@@ -81,15 +125,27 @@ router.post(
       const taskType = entry.taskTypeId as unknown as ITaskType;
       if (!taskType) continue;
 
-      const key = taskType._id.toString();
-      const discount = client?.taskDiscounts?.get(key) || 0;
+      // Resolve the client for THIS entry (each entry may belong to a different client)
+      const project = entry.projectId as unknown as IProject & { clientId: { _id: string } };
+      const entryClientId = project?.clientId?._id?.toString();
+      const entryClient = entryClientId ? clientCache.get(entryClientId) || null : null;
+
+      const taskTypeKey = taskType._id.toString();
+      const discount = getDiscount(entryClient, taskTypeKey);
       const clampedDiscount = Math.min(100, Math.max(0, discount));
       const effectiveRate = taskType.rate * (1 - clampedDiscount / 100);
       const hours = (entry as ITimeEntry).duration / 3600;
       const amount = hours * effectiveRate;
 
-      if (!lineItems.has(key)) {
-        lineItems.set(key, {
+      // When grouping by task type, we also need to account for different
+      // clients having different discounts on the same task type.
+      // Use a composite key of taskTypeId + clientId for accurate grouping.
+      const groupKey = clientId
+        ? taskTypeKey  // Single client: group by task type only
+        : `${taskTypeKey}:${entryClientId || 'unknown'}`; // Multi-client: group by task+client
+
+      if (!lineItems.has(groupKey)) {
+        lineItems.set(groupKey, {
           taskTypeName: taskType.name,
           taskTypeColor: taskType.color,
           baseRate: taskType.rate,
@@ -101,7 +157,7 @@ router.post(
         });
       }
 
-      const item = lineItems.get(key)!;
+      const item = lineItems.get(groupKey)!;
       item.hours += hours;
       item.amount += amount;
       if ((entry as ITimeEntry).description) {
@@ -125,7 +181,7 @@ router.post(
     ) / 100;
 
     res.json({
-      client: client || undefined,
+      client: invoiceClient || undefined,
       items,
       total,
       totalHours,
