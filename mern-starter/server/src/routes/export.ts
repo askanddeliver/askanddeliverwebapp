@@ -1,7 +1,7 @@
 import { Router, Response } from 'express';
 import { checkJwt, AuthRequest, extractUserId } from '../middleware/auth';
 import { asyncHandler, createError } from '../middleware/errorHandler';
-import { TimeEntry, Client, ITimeEntry, IProject, ITaskType } from '../models';
+import { TimeEntry, Client, ITimeEntry, IProject, ITaskType, IProjectTask } from '../models';
 
 const router = Router();
 
@@ -40,6 +40,7 @@ router.post(
         populate: { path: 'clientId' },
       })
       .populate('taskTypeId')
+      .populate('projectTaskId')
       .sort({ startTime: -1 });
 
     // Filter by clientId if specified
@@ -60,6 +61,7 @@ router.post(
     const rows = filteredEntries.map((entry) => {
       const project = entry.projectId as unknown as IProject & { clientId: { name: string } };
       const taskType = entry.taskTypeId as unknown as ITaskType;
+      const projectTask = entry.projectTaskId as unknown as IProjectTask | null;
       const hours = ((entry as ITimeEntry).duration / 3600).toFixed(2);
       const clientName = project?.clientId?.name || 'Unknown';
 
@@ -76,6 +78,7 @@ router.post(
         new Date((entry as ITimeEntry).startTime).toLocaleDateString(),
         clientName,
         project?.title || 'Unknown',
+        projectTask?.title || '',
         taskType?.name || 'Unknown',
         hours,
         `$${taskType?.rate || 0}`,
@@ -86,7 +89,7 @@ router.post(
     });
 
     const csv = [
-      ['Date', 'Client', 'Project', 'Task', 'Hours', 'Base Rate', 'Effective Rate', 'Amount', 'Description'],
+      ['Date', 'Client', 'Project', 'Project Task', 'Task Type', 'Hours', 'Base Rate', 'Effective Rate', 'Amount', 'Description'],
       ...rows,
     ]
       .map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(','))

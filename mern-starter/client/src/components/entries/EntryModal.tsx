@@ -1,16 +1,18 @@
 import { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
-import type { TimeEntry, Project, TaskType } from '../../types';
+import type { TimeEntry, Project, TaskType, ProjectTask } from '../../types';
 
 interface EntryModalProps {
   entry?: TimeEntry | null;
   projects: Project[];
   taskTypes: TaskType[];
+  projectTasks: ProjectTask[];
   isOpen: boolean;
   onClose: () => void;
   onSave: (data: {
     projectId: string;
     taskTypeId: string;
+    projectTaskId?: string;
     description?: string;
     startTime: string;
     endTime: string;
@@ -22,16 +24,26 @@ export function EntryModal({
   entry,
   projects,
   taskTypes,
+  projectTasks,
   isOpen,
   onClose,
   onSave,
 }: EntryModalProps) {
   const [projectId, setProjectId] = useState('');
   const [taskTypeId, setTaskTypeId] = useState('');
+  const [projectTaskId, setProjectTaskId] = useState('');
   const [description, setDescription] = useState('');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [hours, setHours] = useState('');
   const [minutes, setMinutes] = useState('');
+
+  // Filter project tasks by selected project
+  const filteredTasks = projectId
+    ? projectTasks.filter((t) => {
+        const pid = typeof t.projectId === 'object' ? t.projectId._id : t.projectId;
+        return pid === projectId;
+      })
+    : [];
 
   useEffect(() => {
     if (entry) {
@@ -39,9 +51,16 @@ export function EntryModal({
         typeof entry.projectId === 'object' ? entry.projectId : null;
       const taskType =
         typeof entry.taskTypeId === 'object' ? entry.taskTypeId : null;
+      const projectTask =
+        entry.projectTaskId && typeof entry.projectTaskId === 'object'
+          ? entry.projectTaskId
+          : null;
 
       setProjectId(project?._id || (entry.projectId as string));
       setTaskTypeId(taskType?._id || (entry.taskTypeId as string));
+      setProjectTaskId(
+        projectTask?._id || (entry.projectTaskId as string) || ''
+      );
       setDescription(entry.description || '');
 
       // Extract date from startTime
@@ -55,12 +74,20 @@ export function EntryModal({
     } else {
       setProjectId('');
       setTaskTypeId('');
+      setProjectTaskId('');
       setDescription('');
       setDate(new Date().toISOString().split('T')[0]);
       setHours('');
       setMinutes('');
     }
   }, [entry, isOpen]);
+
+  // Reset project task when project changes (only for new entries)
+  useEffect(() => {
+    if (!entry) {
+      setProjectTaskId('');
+    }
+  }, [projectId, entry]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -79,6 +106,7 @@ export function EntryModal({
     onSave({
       projectId,
       taskTypeId,
+      projectTaskId: projectTaskId || undefined,
       description: description.trim() || undefined,
       startTime: startTime.toISOString(),
       endTime: endTime.toISOString(),
@@ -143,6 +171,28 @@ export function EntryModal({
               ))}
             </select>
           </div>
+
+          {/* Project task dropdown */}
+          {projectId && filteredTasks.length > 0 && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Project Task{' '}
+                <span className="text-gray-400 font-normal">(optional)</span>
+              </label>
+              <select
+                value={projectTaskId}
+                onChange={(e) => setProjectTaskId(e.target.value)}
+                className="input"
+              >
+                <option value="">No specific task</option>
+                {filteredTasks.map((task) => (
+                  <option key={task._id} value={task._id}>
+                    {task.title}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">

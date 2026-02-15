@@ -16,6 +16,7 @@ import projectRoutes from './routes/projects';
 import taskTypeRoutes from './routes/taskTypes';
 import timeEntryRoutes from './routes/timeEntries';
 import reportRoutes from './routes/reports';
+import projectTaskRoutes from './routes/projectTasks';
 import exportRoutes from './routes/export';
 
 const app = express();
@@ -40,6 +41,7 @@ app.use('/api/clients', clientRoutes);
 app.use('/api/projects', projectRoutes);
 app.use('/api/task-types', taskTypeRoutes);
 app.use('/api/time-entries', timeEntryRoutes);
+app.use('/api/project-tasks', projectTaskRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/export', exportRoutes);
 

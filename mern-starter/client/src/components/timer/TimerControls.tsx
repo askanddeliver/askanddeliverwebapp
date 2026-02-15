@@ -1,14 +1,16 @@
 import { Play, Square } from 'lucide-react';
-import { useState } from 'react';
-import type { Project, TaskType } from '../../types';
+import { useState, useEffect } from 'react';
+import type { Project, TaskType, ProjectTask } from '../../types';
 
 interface TimerControlsProps {
   projects: Project[];
   taskTypes: TaskType[];
+  projectTasks: ProjectTask[];
   isRunning: boolean;
   onStart: (
     projectId: string,
     taskTypeId: string,
+    projectTaskId?: string,
     description?: string
   ) => void;
   onStop: () => void;
@@ -17,17 +19,37 @@ interface TimerControlsProps {
 export function TimerControls({
   projects,
   taskTypes,
+  projectTasks,
   isRunning,
   onStart,
   onStop,
 }: TimerControlsProps) {
   const [selectedProject, setSelectedProject] = useState('');
   const [selectedTaskType, setSelectedTaskType] = useState('');
+  const [selectedProjectTask, setSelectedProjectTask] = useState('');
   const [description, setDescription] = useState('');
+
+  // Filter project tasks by selected project
+  const filteredTasks = selectedProject
+    ? projectTasks.filter((t) => {
+        const pid = typeof t.projectId === 'object' ? t.projectId._id : t.projectId;
+        return pid === selectedProject && t.status !== 'COMPLETED';
+      })
+    : [];
+
+  // Reset project task when project changes
+  useEffect(() => {
+    setSelectedProjectTask('');
+  }, [selectedProject]);
 
   const handleStart = () => {
     if (selectedProject && selectedTaskType) {
-      onStart(selectedProject, selectedTaskType, description || undefined);
+      onStart(
+        selectedProject,
+        selectedTaskType,
+        selectedProjectTask || undefined,
+        description || undefined
+      );
       setDescription('');
     }
   };
@@ -79,6 +101,29 @@ export function TimerControls({
           </select>
         </div>
       </div>
+
+      {/* Project task dropdown - only shows when a project is selected and has tasks */}
+      {selectedProject && filteredTasks.length > 0 && (
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Project Task{' '}
+            <span className="text-gray-400 font-normal">(optional)</span>
+          </label>
+          <select
+            value={selectedProjectTask}
+            onChange={(e) => setSelectedProjectTask(e.target.value)}
+            disabled={isRunning}
+            className="input"
+          >
+            <option value="">No specific task</option>
+            {filteredTasks.map((task) => (
+              <option key={task._id} value={task._id}>
+                {task.title}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
 
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-1">

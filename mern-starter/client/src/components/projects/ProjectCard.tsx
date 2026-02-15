@@ -1,10 +1,22 @@
 import { Pencil, Trash2 } from 'lucide-react';
-import type { Project, Client } from '../../types';
+import type { Project, Client, ProjectTask } from '../../types';
+import { ProjectTaskList } from '../projectTasks/ProjectTaskList';
 
 interface ProjectCardProps {
   project: Project;
+  tasks: ProjectTask[];
   onEdit: (project: Project) => void;
   onDelete: (id: string) => void;
+  onCreateTask: (data: {
+    projectId: string;
+    title: string;
+    description?: string;
+    status: 'TODO' | 'IN_PROGRESS' | 'COMPLETED';
+    estimatedHours?: number;
+  }) => void;
+  onUpdateTask: (id: string, data: Partial<ProjectTask>) => void;
+  onToggleTaskStatus: (id: string, status: string) => void;
+  onDeleteTask: (id: string) => void;
 }
 
 const statusStyles: Record<string, string> = {
@@ -13,7 +25,16 @@ const statusStyles: Record<string, string> = {
   COMPLETED: 'bg-gray-50 text-gray-600 border-gray-200',
 };
 
-export function ProjectCard({ project, onEdit, onDelete }: ProjectCardProps) {
+export function ProjectCard({
+  project,
+  tasks,
+  onEdit,
+  onDelete,
+  onCreateTask,
+  onUpdateTask,
+  onToggleTaskStatus,
+  onDeleteTask,
+}: ProjectCardProps) {
   const client =
     typeof project.clientId === 'object'
       ? (project.clientId as Client)
@@ -75,6 +96,19 @@ export function ProjectCard({ project, onEdit, onDelete }: ProjectCardProps) {
             Budget: ${project.budget.toLocaleString()}
           </span>
         )}
+      </div>
+
+      {/* Project Task List */}
+      <div className="mt-3 pt-3 border-t border-gray-100">
+        <ProjectTaskList
+          tasks={tasks}
+          projectId={project._id}
+          projectTitle={project.title}
+          onCreateTask={onCreateTask}
+          onUpdateTask={onUpdateTask}
+          onToggleStatus={onToggleTaskStatus}
+          onDeleteTask={onDeleteTask}
+        />
       </div>
     </div>
   );

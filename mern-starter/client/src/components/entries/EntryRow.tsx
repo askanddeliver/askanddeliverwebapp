@@ -1,5 +1,5 @@
 import { Pencil, Trash2 } from 'lucide-react';
-import type { TimeEntry, Project, TaskType, Client } from '../../types';
+import type { TimeEntry, Project, TaskType, Client, ProjectTask } from '../../types';
 import {
   formatDurationHuman,
   formatDate,
@@ -33,6 +33,10 @@ export function EntryRow({
     project && typeof project.clientId === 'object'
       ? (project.clientId as Client)
       : null;
+  const projectTask =
+    entry.projectTaskId && typeof entry.projectTaskId === 'object'
+      ? (entry.projectTaskId as ProjectTask)
+      : null;
 
   // Calculate amount using effective rate (with client discount)
   let amount: number | null = null;
@@ -58,6 +62,12 @@ export function EntryRow({
       <div className="flex-1 min-w-0">
         <div className="font-semibold text-gray-900 text-sm">
           {project?.title || 'Unknown project'}
+          {projectTask && (
+            <span className="font-normal text-gray-500">
+              {' '}
+              &rsaquo; {projectTask.title}
+            </span>
+          )}
         </div>
         <div className="text-xs text-gray-500 mt-0.5">
           {client && <span>{client.name}</span>}

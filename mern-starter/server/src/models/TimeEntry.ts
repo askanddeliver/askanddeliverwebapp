@@ -4,6 +4,7 @@ export interface ITimeEntry extends Document {
   userId: string;
   projectId: mongoose.Types.ObjectId;
   taskTypeId: mongoose.Types.ObjectId;
+  projectTaskId?: mongoose.Types.ObjectId;
   description?: string;
   startTime: Date;
   endTime?: Date;
@@ -29,6 +30,10 @@ const TimeEntrySchema = new Schema<ITimeEntry>(
       type: Schema.Types.ObjectId,
       ref: 'TaskType',
       required: [true, 'Task type is required'],
+    },
+    projectTaskId: {
+      type: Schema.Types.ObjectId,
+      ref: 'ProjectTask',
     },
     description: {
       type: String,

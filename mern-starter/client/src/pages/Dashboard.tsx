@@ -4,9 +4,9 @@ import { TimerDisplay } from '../components/timer/TimerDisplay';
 import { TimerControls } from '../components/timer/TimerControls';
 import { QuickEntry } from '../components/timer/QuickEntry';
 import { EntryList } from '../components/entries/EntryList';
-import { timeEntriesApi, projectsApi, taskTypesApi } from '../services/api';
+import { timeEntriesApi, projectsApi, taskTypesApi, projectTasksApi } from '../services/api';
 import { formatDurationHuman } from '../utils/calculations';
-import type { TimeEntry, Project, TaskType } from '../types';
+import type { TimeEntry, Project, TaskType, ProjectTask } from '../types';
 
 function Dashboard() {
   const { user } = useAuth0();
@@ -14,6 +14,7 @@ function Dashboard() {
   const [recentEntries, setRecentEntries] = useState<TimeEntry[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [taskTypes, setTaskTypes] = useState<TaskType[]>([]);
+  const [projectTasks, setProjectTasks] = useState<ProjectTask[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -24,12 +25,13 @@ function Dashboard() {
   const loadData = async () => {
     try {
       setLoading(true);
-      const [timerRes, entriesRes, projectsRes, taskTypesRes] =
+      const [timerRes, entriesRes, projectsRes, taskTypesRes, projectTasksRes] =
         await Promise.all([
           timeEntriesApi.getActive(),
           timeEntriesApi.getAll(),
           projectsApi.getAll(),
           taskTypesApi.getAll(),
+          projectTasksApi.getAll(),
         ]);
 
       setActiveTimer(timerRes.data);
@@ -38,6 +40,7 @@ function Dashboard() {
       );
       setProjects(projectsRes.data || []);
       setTaskTypes(taskTypesRes.data || []);
+      setProjectTasks(projectTasksRes.data || []);
       setError(null);
     } catch (err) {
       console.error('Failed to load data:', err);
@@ -50,12 +53,14 @@ function Dashboard() {
   const handleStart = async (
     projectId: string,
     taskTypeId: string,
+    projectTaskId?: string,
     description?: string
   ) => {
     try {
       const res = await timeEntriesApi.start({
         projectId,
         taskTypeId,
+        projectTaskId,
         description,
       });
       setActiveTimer(res.data);
@@ -81,6 +86,7 @@ function Dashboard() {
   const handleManualEntry = async (data: {
     projectId: string;
     taskTypeId: string;
+    projectTaskId?: string;
     description?: string;
     startTime: string;
     endTime: string;
@@ -193,6 +199,13 @@ function Dashboard() {
               {typeof activeTimer.projectId === 'object'
                 ? activeTimer.projectId.title
                 : 'Project'}{' '}
+              {activeTimer.projectTaskId &&
+                typeof activeTimer.projectTaskId === 'object' && (
+                  <span>
+                    &rsaquo;{' '}
+                    {(activeTimer.projectTaskId as ProjectTask).title}{' '}
+                  </span>
+                )}
               &mdash;{' '}
               {typeof activeTimer.taskTypeId === 'object'
                 ? activeTimer.taskTypeId.name
@@ -204,6 +217,7 @@ function Dashboard() {
           <TimerControls
             projects={projects}
             taskTypes={taskTypes}
+            projectTasks={projectTasks}
             isRunning={activeTimer?.isRunning || false}
             onStart={handleStart}
             onStop={handleStop}
@@ -217,6 +231,7 @@ function Dashboard() {
           <QuickEntry
             projects={projects}
             taskTypes={taskTypes}
+            projectTasks={projectTasks}
             onSubmit={handleManualEntry}
           />
         </div>

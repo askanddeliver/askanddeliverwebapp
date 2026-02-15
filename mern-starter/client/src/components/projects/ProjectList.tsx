@@ -1,14 +1,34 @@
 import { FolderOpen } from 'lucide-react';
-import type { Project } from '../../types';
+import type { Project, ProjectTask } from '../../types';
 import { ProjectCard } from './ProjectCard';
 
 interface ProjectListProps {
   projects: Project[];
+  tasksByProject: Record<string, ProjectTask[]>;
   onEdit: (project: Project) => void;
   onDelete: (id: string) => void;
+  onCreateTask: (data: {
+    projectId: string;
+    title: string;
+    description?: string;
+    status: 'TODO' | 'IN_PROGRESS' | 'COMPLETED';
+    estimatedHours?: number;
+  }) => void;
+  onUpdateTask: (id: string, data: Partial<ProjectTask>) => void;
+  onToggleTaskStatus: (id: string, status: string) => void;
+  onDeleteTask: (id: string) => void;
 }
 
-export function ProjectList({ projects, onEdit, onDelete }: ProjectListProps) {
+export function ProjectList({
+  projects,
+  tasksByProject,
+  onEdit,
+  onDelete,
+  onCreateTask,
+  onUpdateTask,
+  onToggleTaskStatus,
+  onDeleteTask,
+}: ProjectListProps) {
   if (projects.length === 0) {
     return (
       <div className="text-center py-12">
@@ -29,8 +49,13 @@ export function ProjectList({ projects, onEdit, onDelete }: ProjectListProps) {
         <ProjectCard
           key={project._id}
           project={project}
+          tasks={tasksByProject[project._id] || []}
           onEdit={onEdit}
           onDelete={onDelete}
+          onCreateTask={onCreateTask}
+          onUpdateTask={onUpdateTask}
+          onToggleTaskStatus={onToggleTaskStatus}
+          onDeleteTask={onDeleteTask}
         />
       ))}
     </div>

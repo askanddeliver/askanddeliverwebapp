@@ -42,11 +42,25 @@ export interface TaskType {
   updatedAt: string;
 }
 
+// Project Task types
+export interface ProjectTask {
+  _id: string;
+  projectId: string | Project;
+  title: string;
+  description?: string;
+  status: 'TODO' | 'IN_PROGRESS' | 'COMPLETED';
+  order: number;
+  estimatedHours?: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
 // Time Entry types
 export interface TimeEntry {
   _id: string;
   projectId: string | Project;
   taskTypeId: string | TaskType;
+  projectTaskId?: string | ProjectTask;
   description?: string;
   startTime: string;
   endTime?: string;

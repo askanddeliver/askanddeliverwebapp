@@ -38,6 +38,7 @@ router.get(
     const entries = await TimeEntry.find(query)
       .populate({ path: 'projectId', populate: { path: 'clientId' } })
       .populate('taskTypeId')
+      .populate('projectTaskId')
       .sort({ startTime: -1 })
       .lean();
 
@@ -57,7 +58,8 @@ router.get(
       isRunning: true,
     })
       .populate({ path: 'projectId', populate: { path: 'clientId' } })
-      .populate('taskTypeId');
+      .populate('taskTypeId')
+      .populate('projectTaskId');
 
     res.json(activeTimer);
   })
@@ -70,7 +72,7 @@ router.post(
     const userId = extractUserId(req);
     if (!userId) throw createError('User ID not found in token', 401);
 
-    const { projectId, taskTypeId, description } = req.body;
+    const { projectId, taskTypeId, projectTaskId, description } = req.body;
 
     if (!projectId) throw createError('Project is required', 400);
     if (!taskTypeId) throw createError('Task type is required', 400);
@@ -93,13 +95,14 @@ router.post(
       userId,
       projectId,
       taskTypeId,
+      projectTaskId: projectTaskId || undefined,
       description: description?.trim(),
       startTime: new Date(),
       isRunning: true,
       duration: 0,
     });
 
-    await timer.populate([{ path: 'projectId', populate: { path: 'clientId' } }, 'taskTypeId']);
+    await timer.populate([{ path: 'projectId', populate: { path: 'clientId' } }, 'taskTypeId', 'projectTaskId']);
     res.status(201).json(timer);
   })
 );
@@ -130,7 +133,7 @@ router.post(
     timer.duration = duration;
 
     await timer.save();
-    await timer.populate([{ path: 'projectId', populate: { path: 'clientId' } }, 'taskTypeId']);
+    await timer.populate([{ path: 'projectId', populate: { path: 'clientId' } }, 'taskTypeId', 'projectTaskId']);
 
     res.json(timer);
   })
@@ -143,7 +146,7 @@ router.post(
     const userId = extractUserId(req);
     if (!userId) throw createError('User ID not found in token', 401);
 
-    const { projectId, taskTypeId, description, startTime, endTime, duration } =
+    const { projectId, taskTypeId, projectTaskId, description, startTime, endTime, duration } =
       req.body;
 
     if (!projectId) throw createError('Project is required', 400);
@@ -162,6 +165,7 @@ router.post(
       userId,
       projectId,
       taskTypeId,
+      projectTaskId: projectTaskId || undefined,
       description: description?.trim(),
       startTime: new Date(startTime),
       endTime: endTime ? new Date(endTime) : undefined,
@@ -169,7 +173,7 @@ router.post(
       isRunning: false,
     });
 
-    await entry.populate([{ path: 'projectId', populate: { path: 'clientId' } }, 'taskTypeId']);
+    await entry.populate([{ path: 'projectId', populate: { path: 'clientId' } }, 'taskTypeId', 'projectTaskId']);
     res.status(201).json(entry);
   })
 );
@@ -181,12 +185,13 @@ router.put(
     const userId = extractUserId(req);
     if (!userId) throw createError('User ID not found in token', 401);
 
-    const { projectId, taskTypeId, description, startTime, endTime, duration } =
+    const { projectId, taskTypeId, projectTaskId, description, startTime, endTime, duration } =
       req.body;
 
     const update: Record<string, unknown> = {};
     if (projectId !== undefined) update.projectId = projectId;
     if (taskTypeId !== undefined) update.taskTypeId = taskTypeId;
+    if (projectTaskId !== undefined) update.projectTaskId = projectTaskId || null;
     if (description !== undefined) update.description = description?.trim();
     if (startTime !== undefined) update.startTime = new Date(startTime);
     if (endTime !== undefined) update.endTime = new Date(endTime);
@@ -196,7 +201,7 @@ router.put(
       { _id: req.params.id, userId },
       update,
       { new: true, runValidators: true }
-    ).populate([{ path: 'projectId', populate: { path: 'clientId' } }, 'taskTypeId']);
+    ).populate([{ path: 'projectId', populate: { path: 'clientId' } }, 'taskTypeId', 'projectTaskId']);
 
     if (!entry) {
       throw createError('Time entry not found', 404);

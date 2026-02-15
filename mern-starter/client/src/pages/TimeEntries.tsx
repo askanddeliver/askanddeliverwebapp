@@ -6,14 +6,16 @@ import {
   timeEntriesApi,
   projectsApi,
   taskTypesApi,
+  projectTasksApi,
 } from '../services/api';
 import { formatDurationHuman, getDaysAgoString, getTodayString } from '../utils/calculations';
-import type { TimeEntry, Project, TaskType } from '../types';
+import type { TimeEntry, Project, TaskType, ProjectTask } from '../types';
 
 function TimeEntries() {
   const [entries, setEntries] = useState<TimeEntry[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [taskTypes, setTaskTypes] = useState<TaskType[]>([]);
+  const [projectTasks, setProjectTasks] = useState<ProjectTask[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
@@ -32,7 +34,7 @@ function TimeEntries() {
   const loadData = async () => {
     try {
       setLoading(true);
-      const [entriesRes, projectsRes, taskTypesRes] = await Promise.all([
+      const [entriesRes, projectsRes, taskTypesRes, projectTasksRes] = await Promise.all([
         timeEntriesApi.getAll({
           startDate,
           endDate,
@@ -40,6 +42,7 @@ function TimeEntries() {
         }),
         projectsApi.getAll(),
         taskTypesApi.getAll(),
+        projectTasksApi.getAll(),
       ]);
 
       setEntries(
@@ -47,6 +50,7 @@ function TimeEntries() {
       );
       setProjects(projectsRes.data || []);
       setTaskTypes(taskTypesRes.data || []);
+      setProjectTasks(projectTasksRes.data || []);
       setError(null);
     } catch (err) {
       console.error('Failed to load data:', err);
@@ -79,6 +83,7 @@ function TimeEntries() {
   const handleSave = async (data: {
     projectId: string;
     taskTypeId: string;
+    projectTaskId?: string;
     description?: string;
     startTime: string;
     endTime: string;
@@ -224,6 +229,7 @@ function TimeEntries() {
         entry={editingEntry}
         projects={projects}
         taskTypes={taskTypes}
+        projectTasks={projectTasks}
         isOpen={modalOpen}
         onClose={() => {
           setModalOpen(false);

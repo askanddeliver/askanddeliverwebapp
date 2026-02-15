@@ -1,13 +1,15 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Plus } from 'lucide-react';
-import type { Project, TaskType } from '../../types';
+import type { Project, TaskType, ProjectTask } from '../../types';
 
 interface QuickEntryProps {
   projects: Project[];
   taskTypes: TaskType[];
+  projectTasks: ProjectTask[];
   onSubmit: (data: {
     projectId: string;
     taskTypeId: string;
+    projectTaskId?: string;
     description?: string;
     startTime: string;
     endTime: string;
@@ -15,14 +17,28 @@ interface QuickEntryProps {
   }) => void;
 }
 
-export function QuickEntry({ projects, taskTypes, onSubmit }: QuickEntryProps) {
+export function QuickEntry({ projects, taskTypes, projectTasks, onSubmit }: QuickEntryProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [projectId, setProjectId] = useState('');
   const [taskTypeId, setTaskTypeId] = useState('');
+  const [projectTaskId, setProjectTaskId] = useState('');
   const [description, setDescription] = useState('');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [hours, setHours] = useState('');
   const [minutes, setMinutes] = useState('');
+
+  // Filter project tasks by selected project
+  const filteredTasks = projectId
+    ? projectTasks.filter((t) => {
+        const pid = typeof t.projectId === 'object' ? t.projectId._id : t.projectId;
+        return pid === projectId && t.status !== 'COMPLETED';
+      })
+    : [];
+
+  // Reset project task when project changes
+  useEffect(() => {
+    setProjectTaskId('');
+  }, [projectId]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -40,6 +56,7 @@ export function QuickEntry({ projects, taskTypes, onSubmit }: QuickEntryProps) {
     onSubmit({
       projectId,
       taskTypeId,
+      projectTaskId: projectTaskId || undefined,
       description: description || undefined,
       startTime: startTime.toISOString(),
       endTime: endTime.toISOString(),
@@ -49,6 +66,7 @@ export function QuickEntry({ projects, taskTypes, onSubmit }: QuickEntryProps) {
     // Reset form
     setProjectId('');
     setTaskTypeId('');
+    setProjectTaskId('');
     setDescription('');
     setHours('');
     setMinutes('');
@@ -118,6 +136,28 @@ export function QuickEntry({ projects, taskTypes, onSubmit }: QuickEntryProps) {
             </select>
           </div>
         </div>
+
+        {/* Project task dropdown */}
+        {projectId && filteredTasks.length > 0 && (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Project Task{' '}
+              <span className="text-gray-400 font-normal">(optional)</span>
+            </label>
+            <select
+              value={projectTaskId}
+              onChange={(e) => setProjectTaskId(e.target.value)}
+              className="input"
+            >
+              <option value="">No specific task</option>
+              {filteredTasks.map((task) => (
+                <option key={task._id} value={task._id}>
+                  {task.title}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">

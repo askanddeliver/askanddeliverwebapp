@@ -1,5 +1,5 @@
 import axios from 'axios';
-import type { Client, Project, TaskType, TimeEntry, Invoice } from '../types';
+import type { Client, Project, TaskType, ProjectTask, TimeEntry, Invoice } from '../types';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
 
@@ -76,6 +76,27 @@ export const taskTypesApi = {
   seedDefaults: () => api.post<TaskType[]>('/task-types/seed'),
 };
 
+// Project Tasks
+export const projectTasksApi = {
+  getAll: (params?: { projectId?: string }) =>
+    api.get<ProjectTask[]>('/project-tasks', { params }),
+  getOne: (id: string) => api.get<ProjectTask>(`/project-tasks/${id}`),
+  create: (data: {
+    projectId: string;
+    title: string;
+    description?: string;
+    status?: string;
+    estimatedHours?: number;
+  }) => api.post<ProjectTask>('/project-tasks', data),
+  update: (id: string, data: Partial<ProjectTask>) =>
+    api.put<ProjectTask>(`/project-tasks/${id}`, data),
+  updateStatus: (id: string, status: string) =>
+    api.patch<ProjectTask>(`/project-tasks/${id}/status`, { status }),
+  reorder: (projectId: string, taskIds: string[]) =>
+    api.put<ProjectTask[]>('/project-tasks/reorder', { projectId, taskIds }),
+  delete: (id: string) => api.delete(`/project-tasks/${id}`),
+};
+
 // Time Entries
 export const timeEntriesApi = {
   getAll: (params?: {
@@ -87,12 +108,14 @@ export const timeEntriesApi = {
   start: (data: {
     projectId: string;
     taskTypeId: string;
+    projectTaskId?: string;
     description?: string;
   }) => api.post<TimeEntry>('/time-entries/start', data),
   stop: () => api.post<TimeEntry>('/time-entries/stop'),
   create: (data: {
     projectId: string;
     taskTypeId: string;
+    projectTaskId?: string;
     description?: string;
     startTime: string;
     endTime?: string;
