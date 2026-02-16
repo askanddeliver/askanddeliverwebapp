@@ -127,6 +127,7 @@ export const timeEntriesApi = {
     description?: string;
   }) => api.post<TimeEntry>('/time-entries/start', data),
   stop: () => api.post<TimeEntry>('/time-entries/stop'),
+  continue: (id: string) => api.post<TimeEntry>(`/time-entries/${id}/continue`),
   create: (data: {
     projectId: string;
     taskTypeId: string;

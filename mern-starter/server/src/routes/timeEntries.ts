@@ -76,16 +76,16 @@ router.post(
     if (!projectId) throw createError('Project is required', 400);
     if (!taskTypeId) throw createError('Task type is required', 400);
 
-    // Stop any existing running timers for this user
+    // Stop any existing running timers for this user (accumulate duration)
     const runningTimers = await TimeEntry.find({ userId, isRunning: true });
     for (const timer of runningTimers) {
       const endTime = new Date();
-      const duration = Math.floor(
+      const sessionDuration = Math.floor(
         (endTime.getTime() - timer.startTime.getTime()) / 1000
       );
       timer.isRunning = false;
       timer.endTime = endTime;
-      timer.duration = duration;
+      timer.duration = timer.duration + sessionDuration;
       await timer.save();
     }
 
@@ -123,18 +123,58 @@ router.post(
     }
 
     const endTime = new Date();
-    const duration = Math.floor(
+    const sessionDuration = Math.floor(
       (endTime.getTime() - timer.startTime.getTime()) / 1000
     );
 
     timer.isRunning = false;
     timer.endTime = endTime;
-    timer.duration = duration;
+    timer.duration = timer.duration + sessionDuration;
 
     await timer.save();
     await timer.populate([{ path: 'projectId', populate: { path: 'clientId' } }, 'taskTypeId', 'projectTaskId']);
 
     res.json(timer);
+  })
+);
+
+// POST /api/time-entries/:id/continue - Resume an existing entry
+router.post(
+  '/:id/continue',
+  asyncHandler(async (req: AuthRequest, res: Response) => {
+    const userId = extractUserId(req);
+    if (!userId) throw createError('User ID not found in token', 401);
+
+    const entry = await TimeEntry.findOne({ _id: req.params.id, userId });
+    if (!entry) throw createError('Time entry not found', 404);
+    if (entry.isRunning) throw createError('This entry is already running', 400);
+
+    // Stop any existing running timers first (accumulate their duration)
+    const runningTimers = await TimeEntry.find({ userId, isRunning: true });
+    for (const timer of runningTimers) {
+      const endTime = new Date();
+      const sessionDuration = Math.floor(
+        (endTime.getTime() - timer.startTime.getTime()) / 1000
+      );
+      timer.isRunning = false;
+      timer.endTime = endTime;
+      timer.duration = timer.duration + sessionDuration;
+      await timer.save();
+    }
+
+    // Resume this entry: set running, record new session start, keep accumulated duration
+    entry.isRunning = true;
+    entry.startTime = new Date();
+    entry.endTime = undefined;
+    await entry.save();
+
+    await entry.populate([
+      { path: 'projectId', populate: { path: 'clientId' } },
+      'taskTypeId',
+      'projectTaskId',
+    ]);
+
+    res.json(entry);
   })
 );
 

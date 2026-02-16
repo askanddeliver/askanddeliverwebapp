@@ -25,7 +25,7 @@ export function TimerDisplay({
     const updateTimer = () => {
       const now = Date.now();
       const elapsed = Math.floor((now - start) / 1000);
-      setSeconds(elapsed);
+      setSeconds(initialDuration + elapsed);
     };
 
     updateTimer();

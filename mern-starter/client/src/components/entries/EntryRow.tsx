@@ -1,4 +1,4 @@
-import { Pencil, Trash2 } from 'lucide-react';
+import { Play, Pencil, Trash2 } from 'lucide-react';
 import type { TimeEntry, Project, TaskType, Client, ProjectTask } from '../../types';
 import {
   formatDurationHuman,
@@ -12,6 +12,7 @@ interface EntryRowProps {
   entry: TimeEntry;
   onEdit: (entry: TimeEntry) => void;
   onDelete: (id: string) => void;
+  onContinue?: (entry: TimeEntry) => void;
   showAmount?: boolean;
 }
 
@@ -19,6 +20,7 @@ export function EntryRow({
   entry,
   onEdit,
   onDelete,
+  onContinue,
   showAmount = true,
 }: EntryRowProps) {
   const project =
@@ -93,6 +95,15 @@ export function EntryRow({
       </div>
 
       <div className="flex items-center gap-1 flex-shrink-0 print:hidden">
+        {onContinue && (
+          <button
+            onClick={() => onContinue(entry)}
+            className="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded transition-colors"
+            title="Continue this task"
+          >
+            <Play className="w-3.5 h-3.5" />
+          </button>
+        )}
         <button
           onClick={() => onEdit(entry)}
           className="p-1.5 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded transition-colors"

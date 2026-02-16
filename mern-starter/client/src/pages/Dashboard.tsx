@@ -118,6 +118,18 @@ function Dashboard() {
     }
   };
 
+  const handleContinueEntry = async (entry: TimeEntry) => {
+    try {
+      const res = await timeEntriesApi.continue(entry._id);
+      setActiveTimer(res.data);
+      setAllEntries(allEntries.filter((e) => e._id !== entry._id));
+      setError(null);
+    } catch (err) {
+      console.error('Failed to continue entry:', err);
+      setError('Failed to continue entry');
+    }
+  };
+
   const handleEditEntry = (entry: TimeEntry) => {
     setEditingEntry(entry);
     setEditModalOpen(true);
@@ -351,6 +363,7 @@ function Dashboard() {
             entries={recentEntries}
             onEdit={handleEditEntry}
             onDelete={handleDeleteEntry}
+            onContinue={!activeTimer?.isRunning ? handleContinueEntry : undefined}
           />
         </div>
       )}
