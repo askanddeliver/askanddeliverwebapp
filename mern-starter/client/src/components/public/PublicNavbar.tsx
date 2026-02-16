@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth0 } from '@auth0/auth0-react';
-import { Menu, X, LogIn, LayoutDashboard } from 'lucide-react';
+import { Menu, X, LayoutDashboard } from 'lucide-react';
 
 const publicNavLinks = [
   { to: '/work', label: 'Work' },
@@ -9,7 +9,7 @@ const publicNavLinks = [
 ];
 
 function PublicNavbar() {
-  const { isAuthenticated, loginWithRedirect, logout, user } = useAuth0();
+  const { isAuthenticated, logout, user } = useAuth0();
   const location = useLocation();
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -85,8 +85,8 @@ function PublicNavbar() {
               Start a Project
             </Link>
 
-            {/* Admin access */}
-            {isAuthenticated ? (
+            {/* Admin access - only shown when already authenticated */}
+            {isAuthenticated && (
               <div className="flex items-center gap-3 ml-2 pl-4 border-l border-neutral-200">
                 {user?.picture && (
                   <img
@@ -111,14 +111,6 @@ function PublicNavbar() {
                   Sign Out
                 </button>
               </div>
-            ) : (
-              <button
-                onClick={() => loginWithRedirect()}
-                className="inline-flex items-center gap-1.5 text-xs font-mono text-neutral-400 hover:text-brand-sage transition-colors ml-2 pl-4 border-l border-neutral-200"
-              >
-                <LogIn className="w-3.5 h-3.5" />
-                Admin
-              </button>
             )}
           </div>
 
@@ -155,9 +147,9 @@ function PublicNavbar() {
               >
                 Start a Project
               </Link>
-              {/* Mobile admin access */}
-              <div className="mt-4 pt-4 border-t border-neutral-200/50">
-                {isAuthenticated ? (
+              {/* Mobile admin access - only shown when already authenticated */}
+              {isAuthenticated && (
+                <div className="mt-4 pt-4 border-t border-neutral-200/50">
                   <div className="space-y-1">
                     <div className="flex items-center gap-3 px-4 py-2">
                       {user?.picture && (
@@ -185,16 +177,8 @@ function PublicNavbar() {
                       Sign Out
                     </button>
                   </div>
-                ) : (
-                  <button
-                    onClick={() => loginWithRedirect()}
-                    className="flex items-center gap-2 w-full text-left px-4 py-3 text-sm font-medium text-neutral-500 rounded-lg hover:bg-neutral-50 transition-colors"
-                  >
-                    <LogIn className="w-4 h-4" />
-                    Admin Login
-                  </button>
-                )}
-              </div>
+                </div>
+              )}
             </div>
           </div>
         )}
