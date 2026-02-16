@@ -136,7 +136,7 @@ function About() {
                       </span>
                     </div>
                     <div>
-                      <h3 className="font-display font-semibold text-brand-charcoal mb-1">
+                      <h3 className="font-display font-bold text-brand-charcoal mb-1">
                         {item.label}
                       </h3>
                       <p className="text-neutral-600 text-sm leading-relaxed">{item.text}</p>
@@ -178,7 +178,7 @@ function About() {
                 <span className="meta-label text-brand-sage block mb-4">
                   0{index + 1}
                 </span>
-                <h3 className="font-display text-xl font-semibold text-brand-charcoal mb-3">
+                <h3 className="font-display text-xl font-bold text-brand-charcoal mb-3">
                   {value.title}
                 </h3>
                 <p className="text-neutral-600 text-sm leading-relaxed">{value.description}</p>
@@ -213,7 +213,7 @@ function About() {
                 viewport={{ once: true, margin: '-50px' }}
                 transition={{ duration: 0.5, delay: index * 0.1 }}
               >
-                <h3 className="font-display font-semibold text-brand-charcoal mb-4 pb-3 border-b border-neutral-200">
+                <h3 className="font-display font-bold text-brand-charcoal mb-4 pb-3 border-b border-neutral-200">
                   {group.category}
                 </h3>
                 <ul className="space-y-2">

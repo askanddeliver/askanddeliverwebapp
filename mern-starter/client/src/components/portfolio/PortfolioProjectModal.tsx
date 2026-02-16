@@ -1,6 +1,7 @@
 import { useState, useEffect, FormEvent } from 'react';
 import { X, Plus, Trash2 } from 'lucide-react';
 import type { PortfolioProject, PortfolioImage, PortfolioTestimonial } from '../../types';
+import { ImageUpload } from './ImageUpload';
 
 interface PortfolioProjectModalProps {
   project: PortfolioProject | null;
@@ -209,7 +210,7 @@ export function PortfolioProjectModal({
       <div className="bg-white rounded-xl shadow-xl w-full max-w-3xl my-8">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
-          <h2 className="text-lg font-semibold text-gray-900">
+          <h2 className="text-lg font-bold text-gray-900">
             {project ? 'Edit Portfolio Project' : 'New Portfolio Project'}
           </h2>
           <button
@@ -517,26 +518,18 @@ export function PortfolioProjectModal({
 
             {/* Media Tab */}
             {activeTab === 'media' && (
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Featured Image URL
-                  </label>
-                  <input
-                    type="text"
-                    value={featuredImage}
-                    onChange={(e) => setFeaturedImage(e.target.value)}
-                    className="input text-sm"
-                    placeholder="/portfolio/project-name/hero.jpg"
-                  />
-                  <p className="text-xs text-gray-400 mt-1">
-                    Path to the hero image for this project
-                  </p>
-                </div>
+              <div className="space-y-6">
+                <ImageUpload
+                  label="Featured Image"
+                  value={featuredImage}
+                  projectSlug={slug || 'temp'}
+                  onChange={(url) => setFeaturedImage(url)}
+                  placeholder="Drop a hero image here or click to upload"
+                />
 
                 {/* Image Gallery */}
                 <div>
-                  <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center justify-between mb-3">
                     <label className="text-sm font-medium text-gray-700">
                       Image Gallery
                     </label>
@@ -552,38 +545,40 @@ export function PortfolioProjectModal({
 
                   {images.length === 0 ? (
                     <p className="text-sm text-gray-400 bg-gray-50 rounded-lg p-4 text-center">
-                      No gallery images. Click "Add Image" to start.
+                      No gallery images. Click &ldquo;Add Image&rdquo; to start.
                     </p>
                   ) : (
-                    <div className="space-y-3">
+                    <div className="space-y-4">
                       {images.map((img, i) => (
                         <div
                           key={i}
-                          className="flex items-start gap-3 bg-gray-50 rounded-lg p-3"
+                          className="bg-gray-50 rounded-lg p-4 space-y-3"
                         >
-                          <div className="flex-1 space-y-2">
-                            <input
-                              type="text"
-                              value={img.url}
-                              onChange={(e) => updateImage(i, 'url', e.target.value)}
-                              className="input text-sm"
-                              placeholder="Image URL"
-                            />
-                            <input
-                              type="text"
-                              value={img.caption || ''}
-                              onChange={(e) => updateImage(i, 'caption', e.target.value)}
-                              className="input text-sm"
-                              placeholder="Caption (optional)"
-                            />
+                          <div className="flex items-start justify-between">
+                            <span className="text-xs font-medium text-gray-500">
+                              Image {i + 1}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => removeImage(i)}
+                              className="p-1 text-gray-400 hover:text-red-500"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
                           </div>
-                          <button
-                            type="button"
-                            onClick={() => removeImage(i)}
-                            className="p-2 text-gray-400 hover:text-red-500"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                          <ImageUpload
+                            value={img.url}
+                            projectSlug={slug || 'temp'}
+                            onChange={(url) => updateImage(i, 'url', url)}
+                            placeholder="Drop a gallery image here"
+                          />
+                          <input
+                            type="text"
+                            value={img.caption || ''}
+                            onChange={(e) => updateImage(i, 'caption', e.target.value)}
+                            className="input text-sm"
+                            placeholder="Caption (optional)"
+                          />
                         </div>
                       ))}
                     </div>

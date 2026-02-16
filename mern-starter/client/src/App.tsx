@@ -15,6 +15,7 @@ import Contact from './pages/Contact';
 // Admin Pages (Protected)
 import Dashboard from './pages/Dashboard';
 import Profile from './pages/Profile';
+import Leads from './pages/Leads';
 import Clients from './pages/Clients';
 import Projects from './pages/Projects';
 import TaskTypes from './pages/TaskTypes';
@@ -102,6 +103,16 @@ function App() {
           <Layout>
             <ProtectedRoute>
               <Profile />
+            </ProtectedRoute>
+          </Layout>
+        }
+      />
+      <Route
+        path="/leads"
+        element={
+          <Layout>
+            <ProtectedRoute>
+              <Leads />
             </ProtectedRoute>
           </Layout>
         }

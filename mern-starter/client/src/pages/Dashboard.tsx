@@ -153,7 +153,7 @@ function Dashboard() {
       {/* Setup Prompts */}
       {taskTypes.length === 0 && (
         <div className="card bg-blue-50 border-blue-200 mb-6">
-          <h3 className="font-semibold text-blue-900 mb-2">
+          <h3 className="font-bold text-blue-900 mb-2">
             Get started with task types
           </h3>
           <p className="text-blue-700 text-sm mb-3">
@@ -168,7 +168,7 @@ function Dashboard() {
 
       {projects.length === 0 && taskTypes.length > 0 && (
         <div className="card bg-blue-50 border-blue-200 mb-6">
-          <h3 className="font-semibold text-blue-900 mb-2">
+          <h3 className="font-bold text-blue-900 mb-2">
             Create your first project
           </h3>
           <p className="text-blue-700 text-sm mb-3">
@@ -241,7 +241,7 @@ function Dashboard() {
       {recentEntries.length > 0 && (
         <div className="card">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-gray-900">
+            <h2 className="text-lg font-bold text-gray-900">
               Recent Entries
             </h2>
             <a href="/entries" className="link text-sm">

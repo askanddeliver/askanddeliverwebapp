@@ -8,6 +8,7 @@ import {
   Tag,
   BarChart3,
   Image,
+  Inbox,
   Menu,
   X,
 } from 'lucide-react';
@@ -15,6 +16,7 @@ import { useState } from 'react';
 
 const navLinks = [
   { to: '/dashboard', label: 'Timer', icon: Clock },
+  { to: '/leads', label: 'Leads', icon: Inbox },
   { to: '/entries', label: 'Entries', icon: FileText },
   { to: '/clients', label: 'Clients', icon: Users },
   { to: '/projects', label: 'Projects', icon: FolderOpen },
@@ -39,7 +41,7 @@ function Navbar() {
             <div className="w-8 h-8 bg-primary-600 rounded-lg flex items-center justify-center">
               <span className="text-white font-bold text-sm">A&D</span>
             </div>
-            <span className="font-semibold text-gray-900 hidden sm:inline">
+            <span className="font-bold text-gray-900 hidden sm:inline">
               Ask & Deliver
             </span>
           </Link>

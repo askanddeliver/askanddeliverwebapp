@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { usePublicPortfolio } from '../hooks/usePublicPortfolio';
+import { PortfolioImage } from '../components/public/PortfolioImage';
 import type { PortfolioProject } from '../types';
 
 function PortfolioCard({ project, index }: { project: PortfolioProject; index: number }) {
@@ -14,25 +15,17 @@ function PortfolioCard({ project, index }: { project: PortfolioProject; index: n
       transition={{ duration: 0.5, delay: index * 0.05 }}
     >
       <Link to={`/work/${project.slug}`} className="group block">
-        {/* Image placeholder — replace with actual images when available */}
         <div
           className="relative aspect-[4/3] overflow-hidden rounded-lg mb-5"
-          style={{ backgroundColor: project.color + '12' }}
+          style={{ backgroundColor: project.color + '10' }}
         >
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div
-              className="w-20 h-20 rounded-full opacity-15 group-hover:opacity-25 group-hover:scale-110 transition-all duration-700"
-              style={{ backgroundColor: project.color }}
-            />
-          </div>
-          <div className="absolute inset-0 flex items-center justify-center px-6">
-            <span
-              className="font-display text-xl font-semibold opacity-25 text-center"
-              style={{ color: project.color }}
-            >
-              {project.client}
-            </span>
-          </div>
+          <PortfolioImage
+            src={project.featuredImage}
+            alt={project.title}
+            fallbackColor={project.color}
+            fallbackLabel={project.client}
+            className="group-hover:scale-105 transition-transform duration-700"
+          />
 
           {/* Hover overlay */}
           <div className="absolute inset-0 bg-gradient-to-t from-neutral-900/70 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300">
@@ -55,7 +48,7 @@ function PortfolioCard({ project, index }: { project: PortfolioProject; index: n
           <span className="meta-label">{project.year}</span>
         </div>
 
-        <h3 className="font-display text-xl font-semibold text-brand-charcoal mb-2 group-hover:text-brand-sage transition-colors">
+        <h3 className="font-display text-xl font-bold text-brand-charcoal mb-2 group-hover:text-brand-sage transition-colors">
           {project.title}
         </h3>
 

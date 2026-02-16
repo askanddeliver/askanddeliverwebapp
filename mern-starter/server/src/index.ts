@@ -1,4 +1,5 @@
 import express from 'express';
+import path from 'path';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
@@ -19,12 +20,16 @@ import reportRoutes from './routes/reports';
 import projectTaskRoutes from './routes/projectTasks';
 import exportRoutes from './routes/export';
 import portfolioRoutes from './routes/portfolio';
+import uploadRoutes from './routes/uploads';
+import leadRoutes from './routes/leads';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
 
 // Middleware
-app.use(helmet());
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: 'cross-origin' },
+}));
 app.use(cors({
   origin: process.env.NODE_ENV === 'production' 
     ? process.env.CLIENT_URL 
@@ -46,6 +51,11 @@ app.use('/api/project-tasks', projectTaskRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/export', exportRoutes);
 app.use('/api/portfolio', portfolioRoutes);
+app.use('/api/uploads', uploadRoutes);
+app.use('/api/leads', leadRoutes);
+
+// Serve uploaded files as static assets
+app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
 
 // Error handling
 app.use(notFoundHandler);

@@ -38,7 +38,7 @@ export function TaskTypeList({
             style={{ backgroundColor: taskType.color }}
           />
           <div className="flex-1">
-            <h3 className="font-semibold text-gray-900">{taskType.name}</h3>
+            <h3 className="font-bold text-gray-900">{taskType.name}</h3>
           </div>
           <div className="text-lg font-bold text-gray-700">
             ${taskType.rate}

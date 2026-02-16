@@ -142,6 +142,60 @@ export interface PortfolioProject {
   updatedAt: string;
 }
 
+// Lead types
+export type LeadStatus = 'NEW' | 'CONTACTED' | 'QUALIFIED' | 'PROPOSAL' | 'WON' | 'LOST';
+export type LeadPriority = 'LOW' | 'MEDIUM' | 'HIGH';
+export type ConfidenceLevel = 'YES' | 'MAYBE' | 'UNSURE';
+
+export interface LeadNote {
+  _id: string;
+  text: string;
+  createdAt: string;
+  createdBy: string;
+}
+
+export interface Lead {
+  _id: string;
+  // Intake form data
+  confidence: ConfidenceLevel;
+  projectType: string;
+  description: string;
+  budget: string;
+  timeline: string;
+  name: string;
+  email: string;
+  company: string;
+  message: string;
+  // Pipeline management
+  status: LeadStatus;
+  priority: LeadPriority;
+  notes: LeadNote[];
+  // Conversion tracking
+  convertedClientId?: string | Client;
+  convertedProjectId?: string | Project;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface LeadStats {
+  NEW: number;
+  CONTACTED: number;
+  QUALIFIED: number;
+  PROPOSAL: number;
+  WON: number;
+  LOST: number;
+  TOTAL: number;
+}
+
+export interface ConvertLeadPayload {
+  clientName: string;
+  clientCompany?: string;
+  clientEmail?: string;
+  projectTitle: string;
+  projectDescription?: string;
+  projectBudget?: number;
+}
+
 // Auth types
 export interface AuthState {
   isAuthenticated: boolean;

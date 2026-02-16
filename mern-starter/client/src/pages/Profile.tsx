@@ -21,7 +21,7 @@ function Profile() {
             />
           )}
           <div className="flex-1">
-            <h2 className="text-2xl font-semibold text-gray-900 mb-1">
+            <h2 className="text-2xl font-bold text-gray-900 mb-1">
               {user.name}
             </h2>
             <p className="text-gray-600 mb-4">{user.email}</p>
@@ -44,7 +44,7 @@ function Profile() {
         <hr className="my-6" />
 
         <div className="space-y-4">
-          <h3 className="text-lg font-semibold text-gray-900">Account Details</h3>
+          <h3 className="text-lg font-bold text-gray-900">Account Details</h3>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
@@ -87,7 +87,7 @@ function Profile() {
         <hr className="my-6" />
 
         <div className="space-y-4">
-          <h3 className="text-lg font-semibold text-gray-900">Raw User Data</h3>
+          <h3 className="text-lg font-bold text-gray-900">Raw User Data</h3>
           <p className="text-sm text-gray-500">
             This is the full user object from Auth0. Useful for debugging.
           </p>

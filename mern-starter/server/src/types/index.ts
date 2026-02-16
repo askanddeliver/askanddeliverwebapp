@@ -79,3 +79,38 @@ export interface InvoiceRequest {
   startDate: string;
   endDate: string;
 }
+
+// Lead DTOs
+export interface CreateLeadDto {
+  confidence: 'YES' | 'MAYBE' | 'UNSURE';
+  projectType?: string;
+  description?: string;
+  budget?: string;
+  timeline?: string;
+  name: string;
+  email: string;
+  company?: string;
+  message?: string;
+}
+
+export interface UpdateLeadDto {
+  status?: 'NEW' | 'CONTACTED' | 'QUALIFIED' | 'PROPOSAL' | 'WON' | 'LOST';
+  priority?: 'LOW' | 'MEDIUM' | 'HIGH';
+  projectType?: string;
+  description?: string;
+  budget?: string;
+  timeline?: string;
+  name?: string;
+  email?: string;
+  company?: string;
+  message?: string;
+}
+
+export interface ConvertLeadDto {
+  clientName: string;
+  clientCompany?: string;
+  clientEmail?: string;
+  projectTitle: string;
+  projectDescription?: string;
+  projectBudget?: number;
+}

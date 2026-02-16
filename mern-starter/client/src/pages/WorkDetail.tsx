@@ -2,6 +2,7 @@ import { useParams, Link, Navigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ArrowLeft, ArrowRight, ExternalLink } from 'lucide-react';
 import { usePublicPortfolio, usePublicPortfolioProject } from '../hooks/usePublicPortfolio';
+import { PortfolioImage } from '../components/public/PortfolioImage';
 
 function WorkDetail() {
   const { slug } = useParams<{ slug: string }>();
@@ -78,22 +79,14 @@ function WorkDetail() {
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.6, delay: 0.2 }}
             className="aspect-[16/9] rounded-xl overflow-hidden"
-            style={{ backgroundColor: project.color + '15' }}
+            style={{ backgroundColor: project.color + '10' }}
           >
-            <div className="w-full h-full flex items-center justify-center">
-              <div className="text-center">
-                <div
-                  className="w-32 h-32 rounded-full mx-auto mb-6 opacity-20"
-                  style={{ backgroundColor: project.color }}
-                />
-                <span
-                  className="font-display text-3xl font-semibold opacity-20"
-                  style={{ color: project.color }}
-                >
-                  {project.client}
-                </span>
-              </div>
-            </div>
+            <PortfolioImage
+              src={project.featuredImage}
+              alt={project.title}
+              fallbackColor={project.color}
+              fallbackLabel={project.client}
+            />
           </motion.div>
         </div>
       </section>
@@ -176,28 +169,38 @@ function WorkDetail() {
                 </motion.div>
               )}
 
-              {/* Image Gallery placeholder */}
+              {/* Image Gallery */}
               {project.images.length > 0 && (
                 <motion.div
                   initial={{ opacity: 0, y: 20 }}
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true }}
                   transition={{ duration: 0.5 }}
-                  className="grid grid-cols-1 md:grid-cols-2 gap-6"
+                  className="space-y-6"
                 >
-                  {project.images.map((img, i) => (
-                    <div
-                      key={i}
-                      className="aspect-[4/3] rounded-lg overflow-hidden"
-                      style={{ backgroundColor: project.color + '10' }}
-                    >
-                      <div className="w-full h-full flex items-center justify-center p-6">
-                        <span className="text-sm text-neutral-400 font-mono text-center">
-                          {img.caption || `Project image ${i + 1}`}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {project.images.map((img, i) => (
+                      <figure key={i} className="group">
+                        <div
+                          className="aspect-[4/3] rounded-lg overflow-hidden"
+                          style={{ backgroundColor: project.color + '08' }}
+                        >
+                          <PortfolioImage
+                            src={img.url}
+                            alt={img.caption || `${project.title} — image ${i + 1}`}
+                            fallbackColor={project.color}
+                            fallbackLabel={img.caption}
+                            className="group-hover:scale-105 transition-transform duration-500"
+                          />
+                        </div>
+                        {img.caption && (
+                          <figcaption className="mt-2 text-sm text-neutral-500 italic">
+                            {img.caption}
+                          </figcaption>
+                        )}
+                      </figure>
+                    ))}
+                  </div>
                 </motion.div>
               )}
 

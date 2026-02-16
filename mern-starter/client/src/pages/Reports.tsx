@@ -123,7 +123,7 @@ function Reports() {
 
   return (
     <div className="max-w-5xl mx-auto">
-      <div className="mb-6">
+      <div className="mb-6 print:hidden">
         <h1 className="text-3xl font-bold text-gray-900">
           Reports & Invoicing
         </h1>
@@ -140,7 +140,7 @@ function Reports() {
 
       {/* Filters & Export */}
       <div className="card space-y-4 mb-6 print:hidden">
-        <h3 className="text-lg font-semibold text-gray-900">Filter & Export</h3>
+        <h3 className="text-lg font-bold text-gray-900">Filter & Export</h3>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <div>
@@ -318,7 +318,7 @@ function Reports() {
       )}
 
       {invoice && invoice.items.length === 0 && (
-        <div className="card text-center py-12 mb-6">
+        <div className="card text-center py-12 mb-6 print:hidden">
           <p className="text-gray-500">
             No time entries found for the selected filters.
           </p>
@@ -330,9 +330,9 @@ function Reports() {
 
       {/* Filtered Entries List */}
       {filteredEntries.length > 0 && (
-        <div className="card">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">
-            Filtered Entries ({filteredEntries.length})
+        <div className="card print:mt-2 print:pt-2">
+          <h3 className="text-lg font-bold text-gray-900 mb-4 print:text-sm print:mb-1">
+            Entries ({filteredEntries.length})
           </h3>
           <div className="divide-y divide-gray-100">
             {filteredEntries.map((entry) => (

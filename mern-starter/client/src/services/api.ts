@@ -1,5 +1,18 @@
 import axios from 'axios';
-import type { Client, Project, TaskType, ProjectTask, TimeEntry, Invoice, PortfolioProject } from '../types';
+import type {
+  Client,
+  Project,
+  TaskType,
+  ProjectTask,
+  TimeEntry,
+  Invoice,
+  PortfolioProject,
+  Lead,
+  LeadStats,
+  LeadStatus,
+  LeadPriority,
+  ConvertLeadPayload,
+} from '../types';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
 
@@ -176,6 +189,85 @@ export const portfolioPublicApi = {
   getFeatured: () => api.get<PortfolioProject[]>('/portfolio/public/featured'),
   getBySlug: (slug: string) =>
     api.get<PortfolioProject>(`/portfolio/public/${slug}`),
+};
+
+// Leads (admin - authenticated)
+export const leadsApi = {
+  getAll: (params?: {
+    status?: LeadStatus | 'ALL';
+    priority?: LeadPriority;
+    search?: string;
+    sort?: string;
+  }) => api.get<Lead[]>('/leads', { params }),
+  getOne: (id: string) => api.get<Lead>(`/leads/${id}`),
+  getStats: () => api.get<LeadStats>('/leads/stats'),
+  update: (id: string, data: Partial<Lead>) =>
+    api.put<Lead>(`/leads/${id}`, data),
+  addNote: (id: string, text: string) =>
+    api.post<Lead>(`/leads/${id}/notes`, { text }),
+  convert: (
+    id: string,
+    data: ConvertLeadPayload
+  ) =>
+    api.post<{ message: string; lead: Lead; client: Client; project: Project }>(
+      `/leads/${id}/convert`,
+      data
+    ),
+  delete: (id: string) => api.delete(`/leads/${id}`),
+};
+
+// Leads (public - unauthenticated, uses raw axios to skip auth header)
+export const leadsPublicApi = {
+  submit: (data: {
+    confidence: string;
+    projectType?: string;
+    description?: string;
+    budget?: string;
+    timeline?: string;
+    name: string;
+    email: string;
+    company?: string;
+    message?: string;
+  }) =>
+    axios.post<{ message: string; leadId: string }>(
+      `${API_URL}/leads/public`,
+      data,
+      { headers: { 'Content-Type': 'application/json' } }
+    ),
+};
+
+// Uploads
+export interface UploadedFile {
+  filename: string;
+  originalName: string;
+  mimetype: string;
+  size: number;
+  url: string;
+}
+
+export const uploadsApi = {
+  uploadSingle: (projectSlug: string, file: File) => {
+    const formData = new FormData();
+    formData.append('image', file);
+    return api.post<UploadedFile>(`/uploads/portfolio/${projectSlug}/single`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  },
+  uploadMultiple: (projectSlug: string, files: File[]) => {
+    const formData = new FormData();
+    files.forEach((file) => formData.append('images', file));
+    return api.post<{ message: string; files: UploadedFile[] }>(
+      `/uploads/portfolio/${projectSlug}`,
+      formData,
+      { headers: { 'Content-Type': 'multipart/form-data' } }
+    );
+  },
+  listFiles: (projectSlug: string) =>
+    api.get<{ files: { filename: string; url: string; size: number; modified: string }[] }>(
+      `/uploads/portfolio/${projectSlug}`
+    ),
+  deleteFile: (projectSlug: string, filename: string) =>
+    api.delete(`/uploads/portfolio/${projectSlug}/${filename}`),
 };
 
 export default api;

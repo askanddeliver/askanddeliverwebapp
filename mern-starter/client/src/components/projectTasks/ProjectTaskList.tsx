@@ -96,7 +96,7 @@ export function ProjectTaskList({
       <div className="flex items-center justify-between mb-3">
         <button
           onClick={() => setExpanded(!expanded)}
-          className="flex items-center gap-2 text-sm font-semibold text-gray-700 hover:text-gray-900 transition-colors"
+          className="flex items-center gap-2 text-sm font-bold text-gray-700 hover:text-gray-900 transition-colors"
         >
           {expanded ? (
             <ChevronUp className="w-4 h-4" />

@@ -123,7 +123,7 @@ function TaskTypes() {
 
       {taskTypes.length === 0 && (
         <div className="card bg-blue-50 border-blue-200 mb-6">
-          <h3 className="font-semibold text-blue-900 mb-2">Quick start</h3>
+          <h3 className="font-bold text-blue-900 mb-2">Quick start</h3>
           <p className="text-blue-700 text-sm mb-3">
             Seed default task types (Design, Development, Strategy, Meeting,
             Admin) or create your own.

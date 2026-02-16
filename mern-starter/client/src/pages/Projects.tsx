@@ -212,7 +212,7 @@ function Projects() {
         <div className="card bg-yellow-50 border-yellow-200 mb-6">
           <p className="text-yellow-800 text-sm">
             You need at least one client before you can create projects.{' '}
-            <a href="/clients" className="font-semibold underline">
+            <a href="/clients" className="font-bold underline">
               Add a client
             </a>
           </p>

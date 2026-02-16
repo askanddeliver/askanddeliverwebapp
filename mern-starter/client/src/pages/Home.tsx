@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ArrowRight, Palette, Globe, BarChart3, Lightbulb, PenTool, Users } from 'lucide-react';
 import { usePublicPortfolio } from '../hooks/usePublicPortfolio';
+import { PortfolioImage } from '../components/public/PortfolioImage';
 
 const fadeUpVariant = {
   hidden: { opacity: 0, y: 30 },
@@ -162,25 +163,17 @@ function Home() {
                 transition={{ duration: 0.6, delay: index * 0.1 }}
               >
                 <Link to={`/work/${project.slug}`} className="group block">
-                  {/* Image placeholder */}
                   <div
                     className="relative aspect-[4/3] overflow-hidden rounded-lg mb-5"
-                    style={{ backgroundColor: project.color + '15' }}
+                    style={{ backgroundColor: project.color + '10' }}
                   >
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <div
-                        className="w-24 h-24 rounded-full opacity-20 group-hover:opacity-30 group-hover:scale-110 transition-all duration-700"
-                        style={{ backgroundColor: project.color }}
-                      />
-                    </div>
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <span
-                        className="font-display text-2xl font-semibold opacity-30"
-                        style={{ color: project.color }}
-                      >
-                        {project.client}
-                      </span>
-                    </div>
+                    <PortfolioImage
+                      src={project.featuredImage}
+                      alt={project.title}
+                      fallbackColor={project.color}
+                      fallbackLabel={project.client}
+                      className="group-hover:scale-105 transition-transform duration-700"
+                    />
                     {/* Hover overlay */}
                     <div className="absolute inset-0 bg-gradient-to-t from-neutral-900/70 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                       <div className="absolute bottom-5 left-5 text-white">
@@ -199,7 +192,7 @@ function Home() {
                       </span>
                     ))}
                   </div>
-                  <h3 className="font-display text-xl font-semibold text-brand-charcoal mb-2 group-hover:text-brand-sage transition-colors">
+                  <h3 className="font-display text-xl font-bold text-brand-charcoal mb-2 group-hover:text-brand-sage transition-colors">
                     {project.title}
                   </h3>
                   <p className="text-neutral-600 text-sm leading-relaxed">
@@ -270,7 +263,7 @@ function Home() {
                 </blockquote>
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-full bg-brand-sage/10 flex items-center justify-center">
-                    <span className="font-display text-brand-sage font-semibold text-sm">A+D</span>
+                    <span className="font-display text-brand-sage font-bold text-sm">A+D</span>
                   </div>
                   <div>
                     <p className="text-sm font-medium text-brand-charcoal">Ask+Deliver</p>
@@ -322,7 +315,7 @@ function Home() {
                   <div className="w-12 h-12 rounded-lg bg-brand-sage/10 flex items-center justify-center mb-5 group-hover:bg-brand-sage/20 transition-colors">
                     <Icon className="w-6 h-6 text-brand-sage" />
                   </div>
-                  <h3 className="font-display text-lg font-semibold text-brand-charcoal mb-2">
+                  <h3 className="font-display text-lg font-bold text-brand-charcoal mb-2">
                     {service.title}
                   </h3>
                   <p className="text-neutral-600 text-sm leading-relaxed">
@@ -368,7 +361,7 @@ function Home() {
                     {index + 1}
                   </span>
                 </div>
-                <h3 className="font-display text-xl font-semibold text-brand-charcoal mb-2">
+                <h3 className="font-display text-xl font-bold text-brand-charcoal mb-2">
                   {item.label}
                 </h3>
                 <p className="text-neutral-600 text-sm leading-relaxed max-w-xs mx-auto">

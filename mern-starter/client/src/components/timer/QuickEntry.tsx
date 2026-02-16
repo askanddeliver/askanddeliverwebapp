@@ -91,7 +91,7 @@ export function QuickEntry({ projects, taskTypes, projectTasks, onSubmit }: Quic
 
   return (
     <div className="card border-primary-200">
-      <h3 className="text-lg font-semibold text-gray-900 mb-4">
+      <h3 className="text-lg font-bold text-gray-900 mb-4">
         Add Manual Entry
       </h3>
       <form onSubmit={handleSubmit} className="space-y-4">

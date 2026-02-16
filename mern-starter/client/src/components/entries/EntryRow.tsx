@@ -51,16 +51,16 @@ export function EntryRow({
   }
 
   return (
-    <div className="flex items-start gap-4 py-4 px-4 hover:bg-gray-50 rounded-lg transition-colors">
+    <div className="flex items-start gap-4 py-4 px-4 hover:bg-gray-50 rounded-lg transition-colors print:gap-2 print:py-1.5 print:px-0">
       {taskType && (
         <div
-          className="w-3 h-3 rounded-full flex-shrink-0 mt-1.5"
+          className="w-3 h-3 rounded-full flex-shrink-0 mt-1.5 print:w-2 print:h-2 print:mt-1"
           style={{ backgroundColor: taskType.color }}
         />
       )}
 
       <div className="flex-1 min-w-0">
-        <div className="font-semibold text-gray-900 text-sm">
+        <div className="font-bold text-gray-900 text-sm print:text-xs">
           {project?.title || 'Unknown project'}
           {projectTask && (
             <span className="font-normal text-gray-500">
@@ -69,30 +69,30 @@ export function EntryRow({
             </span>
           )}
         </div>
-        <div className="text-xs text-gray-500 mt-0.5">
+        <div className="text-xs text-gray-500 mt-0.5 print:text-[10px] print:mt-0">
           {client && <span>{client.name}</span>}
           {taskType && <span>{client ? ` (${taskType.name})` : taskType.name}</span>}
           <span> &middot; {formatDate(entry.startTime)}</span>
         </div>
         {entry.description && (
-          <div className="text-xs text-gray-400 mt-1 line-clamp-2">
+          <div className="text-xs text-gray-400 mt-1 line-clamp-2 print:text-[10px] print:mt-0 print:line-clamp-1">
             {entry.description}
           </div>
         )}
       </div>
 
       <div className="text-right flex-shrink-0">
-        <div className="font-semibold text-gray-800 text-sm">
+        <div className="font-bold text-gray-800 text-sm print:text-xs">
           {formatDurationHuman(entry.duration)}
         </div>
         {amount !== null && (
-          <div className="text-xs text-gray-500 mt-0.5">
+          <div className="text-xs text-gray-500 mt-0.5 print:text-[10px] print:mt-0">
             {formatCurrency(amount)}
           </div>
         )}
       </div>
 
-      <div className="flex items-center gap-1 flex-shrink-0">
+      <div className="flex items-center gap-1 flex-shrink-0 print:hidden">
         <button
           onClick={() => onEdit(entry)}
           className="p-1.5 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded transition-colors"

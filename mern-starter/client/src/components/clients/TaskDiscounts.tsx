@@ -100,7 +100,7 @@ export function TaskDiscounts({
                 />
                 <span className="text-gray-500 text-xs">%</span>
               </div>
-              <div className="font-semibold text-green-600 w-24 text-right">
+              <div className="font-bold text-green-600 w-24 text-right">
                 ${effectiveRate.toFixed(2)}/hr
               </div>
             </div>

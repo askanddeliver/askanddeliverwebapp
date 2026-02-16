@@ -9,8 +9,8 @@
 @layer base {
   body {
     @apply bg-gray-50 text-gray-900 antialiased;
-    font-optical-sizing: auto;
-    letter-spacing: -0.01em;
+    font-weight: 400;
+    letter-spacing: 0;
   }
 
   /* Public-facing pages get the warm cream background */
@@ -18,10 +18,10 @@
     @apply bg-brand-cream text-brand-charcoal;
   }
 
-  /* Display headings use Fraunces */
+  /* Display headings use Bitter Bold */
   .font-display {
-    font-optical-sizing: auto;
-    letter-spacing: -0.02em;
+    font-weight: 700;
+    letter-spacing: -0.01em;
   }
 }
 
@@ -116,8 +116,15 @@
    PRINT STYLES (for invoices)
    ============================================ */
 @media print {
+  @page {
+    margin: 0.5in 0.6in;
+    size: letter;
+  }
+
   body {
-    @apply bg-white;
+    @apply bg-white text-sm;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
 
   nav,
@@ -132,5 +139,25 @@
 
   .card {
     @apply shadow-none border-none p-0;
+  }
+
+  #invoice-preview {
+    @apply text-xs;
+  }
+
+  #invoice-preview table {
+    @apply text-xs;
+  }
+
+  #invoice-preview th,
+  #invoice-preview td {
+    padding-top: 0.35rem;
+    padding-bottom: 0.35rem;
+  }
+
+  /* Compact entry list dividers for print */
+  .divide-y > * + * {
+    border-top-width: 1px;
+    border-color: #e5e7eb;
   }
 }

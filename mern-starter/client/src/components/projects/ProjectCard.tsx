@@ -44,7 +44,7 @@ export function ProjectCard({
     <div className="card hover:shadow-md transition-shadow">
       <div className="flex items-start justify-between">
         <div className="flex-1 min-w-0">
-          <h3 className="text-lg font-semibold text-gray-900 truncate">
+          <h3 className="text-lg font-bold text-gray-900 truncate">
             {project.title}
           </h3>
           {client && (

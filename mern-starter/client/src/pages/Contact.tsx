@@ -1,6 +1,7 @@
 import { useState, FormEvent } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, ArrowRight, CheckCircle, Target, Compass, HelpCircle } from 'lucide-react';
+import { ArrowLeft, ArrowRight, CheckCircle, Target, Compass, HelpCircle, AlertCircle, Loader2 } from 'lucide-react';
+import { leadsPublicApi } from '../services/api';
 
 type ConfidenceLevel = 'YES' | 'MAYBE' | 'UNSURE';
 
@@ -62,6 +63,8 @@ function Contact() {
   const [currentStep, setCurrentStep] = useState(0);
   const [formData, setFormData] = useState<FormData>(initialFormData);
   const [submitted, setSubmitted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const totalSteps = 4;
 
@@ -96,11 +99,31 @@ function Contact() {
     }
   };
 
-  const handleSubmit = (e: FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    // In a future phase, this will POST to the API
-    console.log('Form submitted:', formData);
-    setSubmitted(true);
+    setSubmitting(true);
+    setSubmitError(null);
+
+    try {
+      await leadsPublicApi.submit({
+        confidence: formData.confidence,
+        projectType: formData.projectType || undefined,
+        description: formData.description || undefined,
+        budget: formData.budget || undefined,
+        timeline: formData.timeline || undefined,
+        name: formData.name,
+        email: formData.email,
+        company: formData.company || undefined,
+        message: formData.message || undefined,
+      });
+      setSubmitted(true);
+    } catch (err: unknown) {
+      const errorMessage =
+        err instanceof Error ? err.message : 'Something went wrong. Please try again.';
+      setSubmitError(errorMessage);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   if (submitted) {
@@ -453,12 +476,29 @@ function Contact() {
               )}
             </AnimatePresence>
 
+            {/* Error Message */}
+            {submitError && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="mt-6 p-4 bg-red-50 border border-red-200 rounded-xl flex items-start gap-3"
+              >
+                <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-sm font-medium text-red-800">
+                    Unable to submit your inquiry
+                  </p>
+                  <p className="text-sm text-red-600 mt-1">{submitError}</p>
+                </div>
+              </motion.div>
+            )}
+
             {/* Navigation */}
             <div className="flex items-center justify-between mt-12 pt-8 border-t border-neutral-200">
               <button
                 type="button"
                 onClick={handlePrev}
-                disabled={currentStep === 0}
+                disabled={currentStep === 0 || submitting}
                 className={`btn-brand-ghost ${
                   currentStep === 0 ? 'opacity-0 pointer-events-none' : ''
                 }`}
@@ -483,13 +523,24 @@ function Contact() {
                 ) : (
                   <button
                     type="submit"
-                    disabled={!canProceed()}
+                    disabled={!canProceed() || submitting}
                     className={`btn-brand-primary ${
-                      !canProceed() ? 'opacity-50 cursor-not-allowed' : ''
+                      !canProceed() || submitting
+                        ? 'opacity-50 cursor-not-allowed'
+                        : ''
                     }`}
                   >
-                    Send Inquiry
-                    <ArrowRight className="w-4 h-4 ml-2" />
+                    {submitting ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Sending...
+                      </>
+                    ) : (
+                      <>
+                        Send Inquiry
+                        <ArrowRight className="w-4 h-4 ml-2" />
+                      </>
+                    )}
                   </button>
                 )}
               </div>
