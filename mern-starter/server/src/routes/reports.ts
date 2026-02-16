@@ -39,18 +39,14 @@ router.post(
       throw createError('Start date and end date are required', 400);
     }
 
-    // Build query
+    // Build query — parse dates with explicit time to avoid UTC/local mismatch
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const query: any = {
       userId,
       isRunning: false,
       startTime: {
-        $gte: new Date(startDate),
-        $lte: (() => {
-          const end = new Date(endDate);
-          end.setHours(23, 59, 59, 999);
-          return end;
-        })(),
+        $gte: new Date(startDate + 'T00:00:00'),
+        $lte: new Date(endDate + 'T23:59:59.999'),
       },
     };
 
@@ -205,11 +201,11 @@ router.get(
 
     if (startDate || endDate) {
       query.startTime = {};
-      if (startDate) query.startTime.$gte = new Date(startDate as string);
+      if (startDate) {
+        query.startTime.$gte = new Date((startDate as string) + 'T00:00:00');
+      }
       if (endDate) {
-        const end = new Date(endDate as string);
-        end.setHours(23, 59, 59, 999);
-        query.startTime.$lte = end;
+        query.startTime.$lte = new Date((endDate as string) + 'T23:59:59.999');
       }
     }
 

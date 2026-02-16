@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth0 } from '@auth0/auth0-react';
 import { Clock, CalendarDays, FolderOpen, Inbox } from 'lucide-react';
 import { TimerDisplay } from '../components/timer/TimerDisplay';
 import { TimerControls } from '../components/timer/TimerControls';
 import { QuickEntry } from '../components/timer/QuickEntry';
 import { EntryList } from '../components/entries/EntryList';
+import { EntryModal } from '../components/entries/EntryModal';
 import { timeEntriesApi, projectsApi, taskTypesApi, projectTasksApi, leadsApi } from '../services/api';
 import { formatDurationHuman } from '../utils/calculations';
 import type { TimeEntry, Project, TaskType, ProjectTask, LeadStats } from '../types';
@@ -19,6 +21,8 @@ function Dashboard() {
   const [leadStats, setLeadStats] = useState<LeadStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [editingEntry, setEditingEntry] = useState<TimeEntry | null>(null);
 
   useEffect(() => {
     loadData();
@@ -111,6 +115,33 @@ function Dashboard() {
       setAllEntries(allEntries.filter((e) => e._id !== id));
     } catch (err) {
       console.error('Failed to delete entry:', err);
+    }
+  };
+
+  const handleEditEntry = (entry: TimeEntry) => {
+    setEditingEntry(entry);
+    setEditModalOpen(true);
+  };
+
+  const handleSaveEdit = async (data: {
+    projectId: string;
+    taskTypeId: string;
+    projectTaskId?: string;
+    description?: string;
+    startTime: string;
+    endTime: string;
+    duration: number;
+  }) => {
+    if (!editingEntry) return;
+    try {
+      const res = await timeEntriesApi.update(editingEntry._id, data);
+      setAllEntries(allEntries.map((e) => (e._id === editingEntry._id ? res.data : e)));
+      setEditModalOpen(false);
+      setEditingEntry(null);
+      setError(null);
+    } catch (err) {
+      console.error('Failed to update entry:', err);
+      setError('Failed to update entry');
     }
   };
 
@@ -228,9 +259,9 @@ function Dashboard() {
             Set up your task types and hourly rates before you can start tracking
             time.
           </p>
-          <a href="/task-types" className="btn-primary text-sm">
+          <Link to="/task-types" className="btn-primary text-sm">
             Configure Task Types
-          </a>
+          </Link>
         </div>
       )}
 
@@ -243,12 +274,12 @@ function Dashboard() {
             Add a client and project to start tracking time.
           </p>
           <div className="flex gap-3">
-            <a href="/clients" className="btn-primary text-sm">
+            <Link to="/clients" className="btn-primary text-sm">
               Add Client
-            </a>
-            <a href="/projects" className="btn-outline text-sm">
+            </Link>
+            <Link to="/projects" className="btn-outline text-sm">
               Add Project
-            </a>
+            </Link>
           </div>
         </div>
       )}
@@ -312,17 +343,30 @@ function Dashboard() {
             <h2 className="text-lg font-bold text-gray-900">
               Recent Entries
             </h2>
-            <a href="/entries" className="link text-sm">
+            <Link to="/entries" className="link text-sm">
               View all
-            </a>
+            </Link>
           </div>
           <EntryList
             entries={recentEntries}
-            onEdit={() => {}}
+            onEdit={handleEditEntry}
             onDelete={handleDeleteEntry}
           />
         </div>
       )}
+
+      <EntryModal
+        entry={editingEntry}
+        projects={projects}
+        taskTypes={taskTypes}
+        projectTasks={projectTasks}
+        isOpen={editModalOpen}
+        onClose={() => {
+          setEditModalOpen(false);
+          setEditingEntry(null);
+        }}
+        onSave={handleSaveEdit}
+      />
     </div>
   );
 }

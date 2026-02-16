@@ -22,12 +22,11 @@ router.get(
 
     if (startDate || endDate) {
       query.startTime = {};
-      if (startDate) query.startTime.$gte = new Date(startDate as string);
+      if (startDate) {
+        query.startTime.$gte = new Date((startDate as string) + 'T00:00:00');
+      }
       if (endDate) {
-        // Set endDate to end of day
-        const end = new Date(endDate as string);
-        end.setHours(23, 59, 59, 999);
-        query.startTime.$lte = end;
+        query.startTime.$lte = new Date((endDate as string) + 'T23:59:59.999');
       }
     }
 

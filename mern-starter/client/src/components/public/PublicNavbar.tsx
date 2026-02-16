@@ -41,19 +41,19 @@ function PublicNavbar() {
           : 'bg-brand-cream/95 backdrop-blur-md'
       }`}
     >
-      <div className="container-public">
-        <div className="flex items-center justify-between h-20">
-          {/* Logo */}
-          <Link to="/" className="flex items-center flex-shrink-0">
-            <img
-              src="/brand/logo-header.svg"
-              alt="Ask+Deliver"
-              className={`h-8 transition-opacity duration-300 ${
-                scrolled || !isHome ? 'opacity-100' : 'opacity-90'
-              }`}
-            />
-          </Link>
+      {/* Logo - flush top-left corner */}
+      <Link to="/" className="absolute top-0 left-0 z-10">
+        <img
+          src="/brand/logo-header.svg"
+          alt="Ask+Deliver"
+          className={`h-16 md:h-20 w-auto transition-opacity duration-300 ${
+            scrolled || !isHome ? 'opacity-100' : 'opacity-90'
+          }`}
+        />
+      </Link>
 
+      <div className="container-public">
+        <div className="flex items-center justify-end h-20">
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center gap-8">
             {publicNavLinks.map(({ to, label }) => (
