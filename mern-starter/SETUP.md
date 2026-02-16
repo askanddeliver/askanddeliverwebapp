@@ -1,8 +1,6 @@
-# MERN Starter Setup Instructions
+# Ask And Deliver — Setup Instructions
 
-## For Cursor IDE + Claude Opus 4.5
-
-Follow these steps to set up your development environment and connect with GitHub.
+Complete setup guide for running the Ask And Deliver time tracking and invoicing system locally.
 
 ---
 
@@ -27,64 +25,13 @@ git --version
 
 ---
 
-## Step 2: Create GitHub Repository
-
-### Option A: GitHub Web Interface
-1. Go to https://github.com/new
-2. Name your repository (e.g., `my-mern-app`)
-3. Keep it private or public as preferred
-4. **Do NOT** initialize with README, .gitignore, or license (we have these)
-5. Click "Create repository"
-6. Copy the repository URL
-
-### Option B: GitHub CLI
-```bash
-# Install GitHub CLI if needed: https://cli.github.com
-gh repo create my-mern-app --private --source=. --remote=origin
-```
-
----
-
-## Step 3: Initialize Project in Cursor
-
-### Open Cursor IDE and create project folder:
+## Step 2: Clone and Install
 
 ```bash
-# Create and navigate to your project directory
-mkdir my-mern-app
-cd my-mern-app
-```
+# Clone the repository
+git clone https://github.com/misterlinderman/askanddeliverwebapp.git
+cd askanddeliverwebapp/mern-starter
 
-### Copy all starter files into this directory
-
-You can either:
-1. Download and extract the starter template
-2. Or have Claude generate the files directly in Cursor
-
-### Initialize Git and connect to GitHub:
-
-```bash
-# Initialize git repository
-git init
-
-# Add all files
-git add .
-
-# Create initial commit
-git commit -m "Initial commit: MERN starter template"
-
-# Add remote (replace with your repo URL)
-git remote add origin https://github.com/YOUR_USERNAME/my-mern-app.git
-
-# Push to GitHub
-git push -u origin main
-```
-
----
-
-## Step 4: Install Dependencies
-
-```bash
 # Install all dependencies (root, client, and server)
 npm run install:all
 ```
@@ -93,171 +40,218 @@ This runs `npm install` in the root, client, and server directories.
 
 ---
 
-## Step 5: Configure Environment Variables
+## Step 3: Create a GitHub Repository (Optional)
 
-### Copy example files:
+If you want to push to your own repository:
+
+### Option A: GitHub Web Interface
+1. Go to https://github.com/new
+2. Name your repository (e.g., `ask-and-deliver`)
+3. Keep it private or public as preferred
+4. **Do NOT** initialize with README, .gitignore, or license (we have these)
+5. Click "Create repository"
+
+### Option B: GitHub CLI
+```bash
+gh repo create ask-and-deliver --private --source=. --remote=origin
+```
+
+### Connect and push:
+```bash
+git remote set-url origin https://github.com/YOUR_USERNAME/ask-and-deliver.git
+git push -u origin main
+```
+
+---
+
+## Step 4: Configure MongoDB Atlas
+
+1. Go to [MongoDB Atlas](https://www.mongodb.com/atlas) and sign up or log in
+2. Create a new project (e.g., "Ask And Deliver")
+3. Build a Database — choose the **FREE** tier
+4. Create a cluster (default settings are fine)
+5. Set up database access:
+   - Security → Database Access → Add New Database User
+   - Choose Password authentication
+   - Save the username and password
+6. Set up network access:
+   - Security → Network Access → Add IP Address
+   - Click "Allow Access from Anywhere" (for development)
+7. Get your connection string:
+   - Deployment → Database → Connect → Connect your application
+   - Copy the connection string
+8. The connection string will look like:
+   ```
+   mongodb+srv://USERNAME:PASSWORD@cluster0.xxxxx.mongodb.net/askanddeliver?retryWrites=true&w=majority
+   ```
+   Replace `USERNAME` and `PASSWORD` with your database user credentials, and set the database name to `askanddeliver`.
+
+---
+
+## Step 5: Configure Auth0
+
+### Create an Application
+
+1. Go to [Auth0](https://auth0.com) and sign up or log in
+2. Create a new Application:
+   - Applications → Create Application
+   - Name: **"Ask And Deliver"**
+   - Type: **Single Page Application**
+   - Click Create
+3. In the application Settings tab, configure:
+   - **Allowed Callback URLs:** `http://localhost:5173`
+   - **Allowed Logout URLs:** `http://localhost:5173`
+   - **Allowed Web Origins:** `http://localhost:5173`
+   - Save Changes
+4. Note down these values from the Settings tab:
+   - **Domain** (e.g., `your-tenant.auth0.com`)
+   - **Client ID**
+
+### Create an API
+
+1. Applications → APIs → Create API
+2. Name: **"Ask And Deliver API"**
+3. Identifier: `http://localhost:3001/api`
+4. Click Create
+
+The identifier value becomes your `AUTH0_AUDIENCE`.
+
+---
+
+## Step 6: Set Up Environment Variables
+
+### Copy the template files:
 ```bash
 cp .env.example .env
 cp client/.env.example client/.env
 cp server/.env.example server/.env
 ```
 
-### Configure MongoDB Atlas:
+### Configure `client/.env`:
+```env
+VITE_API_URL=http://localhost:3001/api
+VITE_AUTH0_DOMAIN=your-tenant.auth0.com
+VITE_AUTH0_CLIENT_ID=your-client-id-from-auth0-settings
+VITE_AUTH0_AUDIENCE=http://localhost:3001/api
+```
 
-1. Go to https://www.mongodb.com/atlas
-2. Sign up or log in
-3. Create a new project
-4. Build a Database → Choose FREE tier
-5. Create a cluster (default settings are fine)
-6. Set up database access:
-   - Security → Database Access → Add New Database User
-   - Choose Password authentication
-   - Save the username and password
-7. Set up network access:
-   - Security → Network Access → Add IP Address
-   - Click "Allow Access from Anywhere" (for development)
-8. Get connection string:
-   - Deployment → Database → Connect → Connect your application
-   - Copy the connection string
-9. Add to `server/.env`:
-   ```
-   MONGODB_URI=mongodb+srv://USERNAME:PASSWORD@cluster.mongodb.net/mern-starter?retryWrites=true&w=majority
-   ```
-   Replace USERNAME and PASSWORD with your database user credentials.
+### Configure `server/.env`:
+```env
+PORT=3001
+NODE_ENV=development
+MONGODB_URI=mongodb+srv://USERNAME:PASSWORD@cluster0.xxxxx.mongodb.net/askanddeliver?retryWrites=true&w=majority
+AUTH0_DOMAIN=your-tenant.auth0.com
+AUTH0_AUDIENCE=http://localhost:3001/api
+```
 
-### Configure Auth0:
-
-1. Go to https://auth0.com and sign up/log in
-2. Create a new Application:
-   - Applications → Create Application
-   - Name: "MERN Starter" (or your app name)
-   - Type: Single Page Application
-   - Click Create
-3. Configure application settings:
-   - Allowed Callback URLs: `http://localhost:5173`
-   - Allowed Logout URLs: `http://localhost:5173`
-   - Allowed Web Origins: `http://localhost:5173`
-   - Save Changes
-4. Create an API:
-   - Applications → APIs → Create API
-   - Name: "MERN Starter API"
-   - Identifier: `http://localhost:3001/api`
-   - Click Create
-5. Update environment files:
-
-   **client/.env:**
-   ```
-   VITE_API_URL=http://localhost:3001/api
-   VITE_AUTH0_DOMAIN=your-tenant.auth0.com
-   VITE_AUTH0_CLIENT_ID=your-client-id-from-application-settings
-   VITE_AUTH0_AUDIENCE=http://localhost:3001/api
-   ```
-
-   **server/.env:**
-   ```
-   PORT=3001
-   NODE_ENV=development
-   MONGODB_URI=your-mongodb-connection-string
-   AUTH0_DOMAIN=your-tenant.auth0.com
-   AUTH0_AUDIENCE=http://localhost:3001/api
-   ```
+### Root `.env` (usually no changes needed):
+```env
+NODE_ENV=development
+```
 
 ---
 
-## Step 6: Start Development
+## Step 7: Start Development
 
 ```bash
-# Start both client and server in development mode
+# Start both client and server
 npm run dev
 ```
 
 This will start:
-- Frontend: http://localhost:5173
-- Backend: http://localhost:3001
+- **Frontend:** http://localhost:5173
+- **Backend:** http://localhost:3001
+
+You can also run them independently:
+```bash
+npm run dev:client    # Frontend only
+npm run dev:server    # Backend only
+```
 
 ---
 
-## Step 7: Verify Setup
+## Step 8: Verify Setup
 
-1. Open http://localhost:5173 in your browser
-2. You should see the MERN Starter home page
-3. Click "Get Started" to test Auth0 login
-4. After logging in, you should be redirected to the Dashboard
-5. Try adding an item to verify MongoDB is working
+### 1. Check the public site
+Open http://localhost:5173. You should see the Ask And Deliver landing page with navigation to Work (portfolio), About, and Contact pages.
+
+### 2. Test authentication
+Click "Login" or navigate to the Dashboard. You'll be redirected to Auth0's login page. After authenticating, you'll land on the Dashboard.
+
+### 3. Set up task types
+On your first login, the Dashboard will prompt you to configure task types. Navigate to **Task Types** and either:
+- Click "Seed Defaults" to create common task types (Design, Development, Strategy, etc.)
+- Or create your own with custom names, hourly rates, and colors
+
+### 4. Create a client and project
+- Go to **Clients** → create your first client
+- Optionally configure per-task-type discounts for the client
+- Go to **Projects** → create a project linked to the client
+
+### 5. Start tracking time
+Return to the **Dashboard**. The timer controls will now appear. Select a project and task type, then start the timer.
+
+### 6. Test the public intake form
+Navigate to http://localhost:5173/contact and submit a test inquiry. You should see it appear in the **Leads** section of the admin area.
 
 ---
 
-## Step 8: Configure Cursor AI
+## Step 9: Configure Cursor IDE (Optional)
 
-### Enable Claude in Cursor:
-1. Open Cursor Settings (Cmd/Ctrl + ,)
-2. Go to AI → Models
-3. Select Claude as your preferred model
+### Use the `.cursorrules` file
+The project includes a `.cursorrules` file that provides context to Cursor's AI about the project structure, conventions, and patterns. It's loaded automatically when you open the project.
 
-### Use the .cursorrules file:
-The project includes a `.cursorrules` file that provides context to Claude about:
-- Project structure
-- Code conventions
-- Common patterns
-- How to add new features
-
-When asking Claude to help with code, it will follow these patterns automatically.
-
-### Example prompts for Cursor AI:
-
-**Add a new feature:**
-```
-Add a new "Notes" feature with:
-- A Note model (title, content, user reference)
-- CRUD API routes at /api/notes
-- A Notes page with list view and create form
-```
-
-**Create a new component:**
-```
-Create a reusable Card component with:
-- Title, subtitle, and children props
-- Hover effect
-- Optional action button
-```
-
-**Debug an issue:**
-```
-The items aren't loading on the Dashboard. 
-Check the API call and auth token handling.
-```
+### Recommended extensions
+- ESLint
+- Prettier
+- Tailwind CSS IntelliSense
 
 ---
 
 ## Common Issues & Solutions
 
 ### "Cannot connect to MongoDB"
-- Verify your IP is whitelisted in MongoDB Atlas Network Access
-- Check the connection string has correct username/password
+- Verify your IP is whitelisted in MongoDB Atlas (Network Access → Allow Access from Anywhere for dev)
+- Check the connection string has the correct username and password
 - Ensure the database user has read/write permissions
+- Make sure the cluster isn't paused (free tier clusters pause after inactivity)
 
 ### "Auth0 login redirects to error"
-- Verify callback URLs match exactly (including trailing slashes)
-- Check that your Auth0 domain doesn't include `https://`
-- Ensure the audience in client matches the API identifier
+- Verify callback URLs match exactly (no trailing slashes unless you added them)
+- Check that `AUTH0_DOMAIN` does **not** include `https://`
+- Ensure `AUTH0_AUDIENCE` matches the API identifier exactly on both client and server
 
 ### "API returns 401 Unauthorized"
-- Make sure you're logged in
-- Check that the token is being sent in requests
-- Verify AUTH0_AUDIENCE matches on both client and server
+- Make sure you're logged in (check browser console for token errors)
+- Verify the `useApiAuth` hook is injecting the token (check Network tab in browser dev tools)
+- Confirm `AUTH0_AUDIENCE` is identical in `client/.env` and `server/.env`
+
+### Timer won't start
+- You need at least one Task Type and one Project before the timer controls appear
+- The Dashboard shows setup prompts if these are missing
 
 ### Port already in use
 - Kill the process: `lsof -ti:3001 | xargs kill` (macOS/Linux)
-- Or change ports in the respective .env files
+- Or change ports in the respective `.env` files and update Auth0 callback URLs to match
+
+### Uploads not working
+- Ensure the `server/uploads/` directory exists (it should be created automatically)
+- Check that `multer` is installed (`npm list multer` in the server directory)
 
 ---
 
-## Next Steps
+## Application Workflow
 
-1. **Customize the UI**: Edit Tailwind classes and components
-2. **Add new features**: Use the patterns in `.cursorrules`
-3. **Deploy**: See README.md for deployment instructions
-4. **Shopify integration**: See docs/SHOPIFY_AUTH.md (coming soon)
+Here's the typical workflow for using Ask And Deliver:
+
+1. **Configure task types** — Set up your billable categories and hourly rates
+2. **Add clients** — Create client records with optional per-task-type discounts
+3. **Create projects** — Link projects to clients, set budgets, add project tasks
+4. **Track time** — Use the live timer or manual entry on the Dashboard
+5. **Generate invoices** — Use Reports to generate invoices with automatic discount calculations
+6. **Export data** — Export billing data as CSV for external accounting
+7. **Manage leads** — Review intake form submissions, track through your pipeline, convert to clients
+8. **Showcase work** — Manage your public portfolio from the Portfolio Admin page
 
 ---
 
@@ -269,12 +263,8 @@ Check the API call and auth token handling.
 | `npm run dev:client` | Start only frontend |
 | `npm run dev:server` | Start only backend |
 | `npm run build` | Build for production |
+| `npm run start` | Run production server |
 | `npm run lint` | Run ESLint |
 | `npm run format` | Format code with Prettier |
 | `npm run install:all` | Install all dependencies |
-
----
-
-## Project Conventions
-
-See `.cursorrules` for detailed coding conventions and patterns to follow when extending this project.
+| `npm run clean` | Remove node_modules and build artifacts |
