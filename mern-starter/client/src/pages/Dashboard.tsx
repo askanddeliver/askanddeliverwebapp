@@ -1,20 +1,22 @@
 import { useState, useEffect } from 'react';
 import { useAuth0 } from '@auth0/auth0-react';
+import { Clock, CalendarDays, FolderOpen, Inbox } from 'lucide-react';
 import { TimerDisplay } from '../components/timer/TimerDisplay';
 import { TimerControls } from '../components/timer/TimerControls';
 import { QuickEntry } from '../components/timer/QuickEntry';
 import { EntryList } from '../components/entries/EntryList';
-import { timeEntriesApi, projectsApi, taskTypesApi, projectTasksApi } from '../services/api';
+import { timeEntriesApi, projectsApi, taskTypesApi, projectTasksApi, leadsApi } from '../services/api';
 import { formatDurationHuman } from '../utils/calculations';
-import type { TimeEntry, Project, TaskType, ProjectTask } from '../types';
+import type { TimeEntry, Project, TaskType, ProjectTask, LeadStats } from '../types';
 
 function Dashboard() {
   const { user } = useAuth0();
   const [activeTimer, setActiveTimer] = useState<TimeEntry | null>(null);
-  const [recentEntries, setRecentEntries] = useState<TimeEntry[]>([]);
+  const [allEntries, setAllEntries] = useState<TimeEntry[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [taskTypes, setTaskTypes] = useState<TaskType[]>([]);
   const [projectTasks, setProjectTasks] = useState<ProjectTask[]>([]);
+  const [leadStats, setLeadStats] = useState<LeadStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -25,22 +27,23 @@ function Dashboard() {
   const loadData = async () => {
     try {
       setLoading(true);
-      const [timerRes, entriesRes, projectsRes, taskTypesRes, projectTasksRes] =
+      const [timerRes, entriesRes, projectsRes, taskTypesRes, projectTasksRes, leadStatsRes] =
         await Promise.all([
           timeEntriesApi.getActive(),
           timeEntriesApi.getAll(),
           projectsApi.getAll(),
           taskTypesApi.getAll(),
           projectTasksApi.getAll(),
+          leadsApi.getStats().catch(() => ({ data: null })),
         ]);
 
       setActiveTimer(timerRes.data);
-      setRecentEntries(
-        (entriesRes.data || []).filter((e: TimeEntry) => !e.isRunning).slice(0, 10)
-      );
+      const entries = (entriesRes.data || []).filter((e: TimeEntry) => !e.isRunning);
+      setAllEntries(entries);
       setProjects(projectsRes.data || []);
       setTaskTypes(taskTypesRes.data || []);
       setProjectTasks(projectTasksRes.data || []);
+      setLeadStats(leadStatsRes.data);
       setError(null);
     } catch (err) {
       console.error('Failed to load data:', err);
@@ -75,7 +78,7 @@ function Dashboard() {
     try {
       const res = await timeEntriesApi.stop();
       setActiveTimer(null);
-      setRecentEntries([res.data, ...recentEntries.slice(0, 9)]);
+      setAllEntries([res.data, ...allEntries]);
       setError(null);
     } catch (err) {
       console.error('Failed to stop timer:', err);
@@ -94,7 +97,7 @@ function Dashboard() {
   }) => {
     try {
       const res = await timeEntriesApi.create(data);
-      setRecentEntries([res.data, ...recentEntries.slice(0, 9)]);
+      setAllEntries([res.data, ...allEntries]);
       setError(null);
     } catch (err) {
       console.error('Failed to create entry:', err);
@@ -105,18 +108,36 @@ function Dashboard() {
   const handleDeleteEntry = async (id: string) => {
     try {
       await timeEntriesApi.delete(id);
-      setRecentEntries(recentEntries.filter((e) => e._id !== id));
+      setAllEntries(allEntries.filter((e) => e._id !== id));
     } catch (err) {
       console.error('Failed to delete entry:', err);
     }
   };
 
-  // Calculate today's stats
-  const todayEntries = recentEntries.filter((e) => {
-    const entryDate = new Date(e.startTime).toDateString();
-    return entryDate === new Date().toDateString();
-  });
+  // --- Stats calculations ---
+  const now = new Date();
+  const todayStr = now.toDateString();
+
+  const todayEntries = allEntries.filter(
+    (e) => new Date(e.startTime).toDateString() === todayStr
+  );
   const todaySeconds = todayEntries.reduce((sum, e) => sum + e.duration, 0);
+
+  const startOfWeek = new Date(now);
+  startOfWeek.setDate(now.getDate() - now.getDay());
+  startOfWeek.setHours(0, 0, 0, 0);
+  const weekEntries = allEntries.filter(
+    (e) => new Date(e.startTime) >= startOfWeek
+  );
+  const weekSeconds = weekEntries.reduce((sum, e) => sum + e.duration, 0);
+
+  const activeProjects = projects.filter((p) => p.status === 'ACTIVE').length;
+
+  const newLeads = leadStats
+    ? (leadStats.NEW || 0) + (leadStats.CONTACTED || 0) + (leadStats.QUALIFIED || 0)
+    : 0;
+
+  const recentEntries = allEntries.slice(0, 10);
 
   if (loading) {
     return (
@@ -149,6 +170,53 @@ function Dashboard() {
           </button>
         </div>
       )}
+
+      {/* Summary Stat Cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+        <div className="card !p-4 flex items-center gap-3">
+          <div className="w-10 h-10 rounded-lg bg-primary-50 flex items-center justify-center flex-shrink-0">
+            <Clock className="w-5 h-5 text-primary-600" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Today</p>
+            <p className="text-lg font-bold text-gray-900 truncate">
+              {todaySeconds > 0 ? formatDurationHuman(todaySeconds) : '0h'}
+            </p>
+          </div>
+        </div>
+
+        <div className="card !p-4 flex items-center gap-3">
+          <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0">
+            <CalendarDays className="w-5 h-5 text-blue-600" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">This Week</p>
+            <p className="text-lg font-bold text-gray-900 truncate">
+              {weekSeconds > 0 ? formatDurationHuman(weekSeconds) : '0h'}
+            </p>
+          </div>
+        </div>
+
+        <div className="card !p-4 flex items-center gap-3">
+          <div className="w-10 h-10 rounded-lg bg-green-50 flex items-center justify-center flex-shrink-0">
+            <FolderOpen className="w-5 h-5 text-green-600" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Active Projects</p>
+            <p className="text-lg font-bold text-gray-900">{activeProjects}</p>
+          </div>
+        </div>
+
+        <div className="card !p-4 flex items-center gap-3">
+          <div className="w-10 h-10 rounded-lg bg-amber-50 flex items-center justify-center flex-shrink-0">
+            <Inbox className="w-5 h-5 text-amber-600" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Open Leads</p>
+            <p className="text-lg font-bold text-gray-900">{newLeads}</p>
+          </div>
+        </div>
+      </div>
 
       {/* Setup Prompts */}
       {taskTypes.length === 0 && (
