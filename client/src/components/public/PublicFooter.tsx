@@ -96,6 +96,7 @@ function PublicFooter() {
                       src={user.picture}
                       alt={user.name || 'User'}
                       className="w-7 h-7 rounded-full ring-2 ring-neutral-700"
+                      referrerPolicy="no-referrer"
                     />
                   )}
                   <span className="text-neutral-400 text-xs">

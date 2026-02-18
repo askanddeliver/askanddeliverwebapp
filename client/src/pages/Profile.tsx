@@ -18,6 +18,7 @@ function Profile() {
               src={user.picture}
               alt={user.name || 'User'}
               className="w-24 h-24 rounded-full"
+              referrerPolicy="no-referrer"
             />
           )}
           <div className="flex-1">

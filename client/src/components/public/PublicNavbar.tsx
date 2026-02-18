@@ -104,6 +104,7 @@ function PublicNavbar() {
                     src={user.picture}
                     alt={user.name || 'User'}
                     className="w-6 h-6 rounded-full"
+                    referrerPolicy="no-referrer"
                   />
                 )}
                 <Link
@@ -168,6 +169,7 @@ function PublicNavbar() {
                           src={user.picture}
                           alt={user.name || 'User'}
                           className="w-6 h-6 rounded-full"
+                          referrerPolicy="no-referrer"
                         />
                       )}
                       <span className="text-xs text-neutral-500">{user?.name || user?.email}</span>

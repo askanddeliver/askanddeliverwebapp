@@ -76,6 +76,7 @@ function Navbar() {
                       src={user.picture}
                       alt={user.name || 'User'}
                       className="w-8 h-8 rounded-full"
+                      referrerPolicy="no-referrer"
                     />
                   )}
                   <span className="text-sm font-medium text-gray-700 hidden md:inline">
