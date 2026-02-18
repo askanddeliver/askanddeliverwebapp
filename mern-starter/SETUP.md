@@ -194,6 +194,9 @@ Return to the **Dashboard**. The timer controls will now appear. Select a projec
 ### 6. Test the public intake form
 Navigate to http://localhost:5173/contact and submit a test inquiry. You should see it appear in the **Leads** section of the admin area.
 
+### 7. Customize your theme (optional)
+Go to **Site Config** to adjust your brand colors. You can tweak the sage, charcoal, cream, and accent colors, preview changes live, and save named palettes for quick switching.
+
 ---
 
 ## Step 9: Configure Cursor IDE (Optional)
@@ -247,11 +250,12 @@ Here's the typical workflow for using Ask And Deliver:
 1. **Configure task types** — Set up your billable categories and hourly rates
 2. **Add clients** — Create client records with optional per-task-type discounts
 3. **Create projects** — Link projects to clients, set budgets, add project tasks
-4. **Track time** — Use the live timer or manual entry on the Dashboard
+4. **Track time** — Use the live timer, resume a previous entry, or add manual entries from the Dashboard
 5. **Generate invoices** — Use Reports to generate invoices with automatic discount calculations
 6. **Export data** — Export billing data as CSV for external accounting
 7. **Manage leads** — Review intake form submissions, track through your pipeline, convert to clients
-8. **Showcase work** — Manage your public portfolio from the Portfolio Admin page
+8. **Showcase work** — Manage your public portfolio from the Portfolio Admin page (drag-and-drop ordering, publish/feature toggles)
+9. **Customize branding** — Use Site Config to adjust theme colors and save named palettes
 
 ---
 
