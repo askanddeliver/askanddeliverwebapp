@@ -41,14 +41,25 @@ function PublicNavbar() {
           : 'bg-brand-cream/95 backdrop-blur-md'
       }`}
     >
-      {/* Logo - flush top-left corner */}
+      {/* Logo - flush top-left corner, uses mask-image so color follows CSS variable */}
       <Link to="/" className="absolute top-0 left-0 z-10">
-        <img
-          src="/brand/logo-header.svg"
-          alt="Ask+Deliver"
-          className={`h-16 md:h-20 w-auto transition-opacity duration-300 ${
+        <span
+          role="img"
+          aria-label="Ask+Deliver"
+          className={`block h-16 md:h-20 w-[210px] md:w-[260px] transition-opacity duration-300 ${
             scrolled || !isHome ? 'opacity-100' : 'opacity-90'
           }`}
+          style={{
+            backgroundColor: 'var(--brand-sage, #5B7765)',
+            maskImage: 'url(/brand/logo-header.svg)',
+            WebkitMaskImage: 'url(/brand/logo-header.svg)',
+            maskSize: 'contain',
+            WebkitMaskSize: 'contain',
+            maskRepeat: 'no-repeat',
+            WebkitMaskRepeat: 'no-repeat',
+            maskPosition: 'left top',
+            WebkitMaskPosition: 'left top',
+          }}
         />
       </Link>
 

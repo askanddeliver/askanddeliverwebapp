@@ -2,6 +2,8 @@ import axios from 'axios';
 import type {
   Client,
   Project,
+  ProjectStatus,
+  ProjectCounts,
   TaskType,
   ProjectTask,
   TimeEntry,
@@ -12,6 +14,8 @@ import type {
   LeadStatus,
   LeadPriority,
   ConvertLeadPayload,
+  SiteConfig,
+  ThemeColors,
 } from '../types';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
@@ -71,12 +75,19 @@ export const clientsApi = {
 
 // Projects
 export const projectsApi = {
-  getAll: () => api.get<Project[]>('/projects'),
+  getAll: (params?: {
+    status?: ProjectStatus | 'ALL';
+    search?: string;
+    sort?: string;
+    clientId?: string;
+  }) => api.get<Project[]>('/projects', { params }),
+  getCounts: () => api.get<ProjectCounts>('/projects/counts'),
   getByClient: (clientId: string) =>
     api.get<Project[]>(`/projects/client/${clientId}`),
   create: (data: Partial<Project>) => api.post<Project>('/projects', data),
   update: (id: string, data: Partial<Project>) =>
     api.put<Project>(`/projects/${id}`, data),
+  archive: (id: string) => api.put<Project>(`/projects/${id}/archive`),
   delete: (id: string) => api.delete(`/projects/${id}`),
 };
 
@@ -271,6 +282,26 @@ export const uploadsApi = {
     ),
   deleteFile: (projectSlug: string, filename: string) =>
     api.delete(`/uploads/portfolio/${projectSlug}/${filename}`),
+};
+
+// Site Config (admin - authenticated)
+export const siteConfigApi = {
+  get: () => api.get<SiteConfig>('/site-config'),
+  updateColors: (colors: ThemeColors) =>
+    api.put<SiteConfig>('/site-config/colors', { colors }),
+  reset: () => api.put<SiteConfig>('/site-config/reset'),
+  savePalette: (name: string, colors: ThemeColors) =>
+    api.post<SiteConfig>('/site-config/palettes', { name, colors }),
+  renamePalette: (paletteId: string, name: string) =>
+    api.put<SiteConfig>(`/site-config/palettes/${paletteId}`, { name }),
+  deletePalette: (paletteId: string) =>
+    api.delete<SiteConfig>(`/site-config/palettes/${paletteId}`),
+};
+
+// Site Config (public - unauthenticated)
+export const siteConfigPublicApi = {
+  getColors: () =>
+    axios.get<ThemeColors>(`${API_URL}/site-config/public`),
 };
 
 export default api;

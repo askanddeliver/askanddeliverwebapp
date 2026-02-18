@@ -7,6 +7,20 @@
    ============================================ */
 
 @layer base {
+  /* Default theme color CSS variables (overridden dynamically from Site Config) */
+  :root {
+    --brand-sage: #5B7765;
+    --brand-sage-light: #7A9A87;
+    --brand-sage-dark: #3D5446;
+    --brand-charcoal: #2A2A2A;
+    --brand-cream: #F7F5F2;
+    --brand-cream-dark: #EDE9E3;
+    --accent-warm: #E8A87C;
+    --accent-warm-light: #F2C9A8;
+    --accent-cool: #6B9BAE;
+    --accent-cool-light: #9DC0CE;
+  }
+
   body {
     @apply bg-gray-50 text-gray-900 antialiased;
     font-weight: 400;
@@ -77,7 +91,11 @@
   }
 
   .btn-brand-ghost {
-    @apply btn-brand bg-transparent text-brand-sage hover:bg-brand-sage/10 focus:ring-brand-sage;
+    @apply btn-brand bg-transparent text-brand-sage focus:ring-brand-sage;
+  }
+
+  .btn-brand-ghost:hover {
+    background-color: color-mix(in srgb, var(--brand-sage) 10%, transparent);
   }
 
   /* Public input styles */

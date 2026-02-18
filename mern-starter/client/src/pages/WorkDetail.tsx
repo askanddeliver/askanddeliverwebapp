@@ -1,13 +1,40 @@
+import { useState, useMemo } from 'react';
 import { useParams, Link, Navigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ArrowLeft, ArrowRight, ExternalLink } from 'lucide-react';
 import { usePublicPortfolio, usePublicPortfolioProject } from '../hooks/usePublicPortfolio';
 import { PortfolioImage } from '../components/public/PortfolioImage';
+import { Lightbox, ZoomHint } from '../components/public/Lightbox';
+import type { LightboxImage } from '../components/public/Lightbox';
 
 function WorkDetail() {
   const { slug } = useParams<{ slug: string }>();
   const { project, loading } = usePublicPortfolioProject(slug);
   const { projects: allProjects } = usePublicPortfolio();
+
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [lightboxIndex, setLightboxIndex] = useState(0);
+
+  // Build a combined image list: hero first, then gallery images
+  const allImages: LightboxImage[] = useMemo(() => {
+    if (!project) return [];
+    const imgs: LightboxImage[] = [];
+    if (project.featuredImage) {
+      imgs.push({ url: project.featuredImage, caption: project.title });
+    }
+    project.images.forEach((img) => {
+      if (img.url) {
+        imgs.push({ url: img.url, caption: img.caption });
+      }
+    });
+    return imgs;
+  }, [project]);
+
+  const openLightbox = (imageUrl: string) => {
+    const idx = allImages.findIndex((img) => img.url === imageUrl);
+    setLightboxIndex(idx >= 0 ? idx : 0);
+    setLightboxOpen(true);
+  };
 
   if (loading) {
     return (
@@ -28,6 +55,14 @@ function WorkDetail() {
 
   return (
     <div>
+      {/* Lightbox */}
+      <Lightbox
+        images={allImages}
+        initialIndex={lightboxIndex}
+        isOpen={lightboxOpen}
+        onClose={() => setLightboxOpen(false)}
+      />
+
       {/* Back link */}
       <section className="pt-28 pb-4">
         <div className="container-public">
@@ -78,8 +113,9 @@ function WorkDetail() {
             initial={{ opacity: 0, scale: 0.98 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.6, delay: 0.2 }}
-            className="aspect-[16/9] rounded-xl overflow-hidden"
+            className="aspect-[16/9] rounded-xl overflow-hidden group relative cursor-pointer"
             style={{ backgroundColor: project.color + '10' }}
+            onClick={() => project.featuredImage && openLightbox(project.featuredImage)}
           >
             <PortfolioImage
               src={project.featuredImage}
@@ -87,6 +123,7 @@ function WorkDetail() {
               fallbackColor={project.color}
               fallbackLabel={project.client}
             />
+            {project.featuredImage && <ZoomHint />}
           </motion.div>
         </div>
       </section>
@@ -182,8 +219,9 @@ function WorkDetail() {
                     {project.images.map((img, i) => (
                       <figure key={i} className="group">
                         <div
-                          className="aspect-[4/3] rounded-lg overflow-hidden"
+                          className="aspect-[4/3] rounded-lg overflow-hidden relative cursor-pointer"
                           style={{ backgroundColor: project.color + '08' }}
+                          onClick={() => img.url && openLightbox(img.url)}
                         >
                           <PortfolioImage
                             src={img.url}
@@ -192,6 +230,7 @@ function WorkDetail() {
                             fallbackLabel={img.caption}
                             className="group-hover:scale-105 transition-transform duration-500"
                           />
+                          {img.url && <ZoomHint />}
                         </div>
                         {img.caption && (
                           <figcaption className="mt-2 text-sm text-neutral-500 italic">

@@ -20,14 +20,14 @@ export default {
           800: '#1e40af',
           900: '#1e3a8a',
         },
-        // Brand colors for public-facing site
+        // Brand colors for public-facing site (driven by CSS variables for dynamic theming)
         brand: {
-          sage: '#5B7765',
-          'sage-light': '#7A9A87',
-          'sage-dark': '#3D5446',
-          charcoal: '#2A2A2A',
-          cream: '#F7F5F2',
-          'cream-dark': '#EDE9E3',
+          sage: 'var(--brand-sage, #5B7765)',
+          'sage-light': 'var(--brand-sage-light, #7A9A87)',
+          'sage-dark': 'var(--brand-sage-dark, #3D5446)',
+          charcoal: 'var(--brand-charcoal, #2A2A2A)',
+          cream: 'var(--brand-cream, #F7F5F2)',
+          'cream-dark': 'var(--brand-cream-dark, #EDE9E3)',
         },
         neutral: {
           50: '#FAFAFA',
@@ -42,10 +42,10 @@ export default {
           900: '#1A1A1A',
         },
         accent: {
-          warm: '#E8A87C',
-          'warm-light': '#F2C9A8',
-          cool: '#6B9BAE',
-          'cool-light': '#9DC0CE',
+          warm: 'var(--accent-warm, #E8A87C)',
+          'warm-light': 'var(--accent-warm-light, #F2C9A8)',
+          cool: 'var(--accent-cool, #6B9BAE)',
+          'cool-light': 'var(--accent-cool-light, #9DC0CE)',
         },
       },
       fontFamily: {

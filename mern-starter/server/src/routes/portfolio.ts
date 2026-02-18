@@ -186,6 +186,36 @@ router.post(
   })
 );
 
+// PUT /api/portfolio/reorder - Reorder portfolio projects
+// (must be registered before /:id to avoid matching "reorder" as a param)
+router.put(
+  '/reorder',
+  asyncHandler(async (req: AuthRequest, res: Response) => {
+    const userId = extractUserId(req);
+    if (!userId) throw createError('User ID not found in token', 401);
+
+    const { projectIds } = req.body;
+    if (!Array.isArray(projectIds)) {
+      throw createError('projectIds must be an array', 400);
+    }
+
+    const bulkOps = projectIds.map((id: string, index: number) => ({
+      updateOne: {
+        filter: { _id: new mongoose.Types.ObjectId(id), userId },
+        update: { $set: { order: index } },
+      },
+    }));
+
+    await PortfolioProject.bulkWrite(bulkOps);
+
+    const projects = await PortfolioProject.find({ userId })
+      .sort({ order: 1 })
+      .lean();
+
+    res.json(projects);
+  })
+);
+
 // PUT /api/portfolio/:id - Update portfolio project
 router.put(
   '/:id',
@@ -305,35 +335,6 @@ router.patch(
     await project.save();
 
     res.json(project);
-  })
-);
-
-// PUT /api/portfolio/reorder - Reorder portfolio projects
-router.put(
-  '/reorder',
-  asyncHandler(async (req: AuthRequest, res: Response) => {
-    const userId = extractUserId(req);
-    if (!userId) throw createError('User ID not found in token', 401);
-
-    const { projectIds } = req.body;
-    if (!Array.isArray(projectIds)) {
-      throw createError('projectIds must be an array', 400);
-    }
-
-    const bulkOps = projectIds.map((id: string, index: number) => ({
-      updateOne: {
-        filter: { _id: new mongoose.Types.ObjectId(id), userId },
-        update: { $set: { order: index } },
-      },
-    }));
-
-    await PortfolioProject.bulkWrite(bulkOps);
-
-    const projects = await PortfolioProject.find({ userId })
-      .sort({ order: 1 })
-      .lean();
-
-    res.json(projects);
   })
 );
 

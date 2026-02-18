@@ -1,4 +1,5 @@
-import { Routes, Route } from 'react-router-dom';
+import { useEffect } from 'react';
+import { Routes, Route, useLocation } from 'react-router-dom';
 import { useAuth0 } from '@auth0/auth0-react';
 
 // Layouts
@@ -22,11 +23,20 @@ import TaskTypes from './pages/TaskTypes';
 import TimeEntries from './pages/TimeEntries';
 import Reports from './pages/Reports';
 import PortfolioAdmin from './pages/PortfolioAdmin';
+import SiteConfig from './pages/SiteConfig';
 
 // Components
 import ProtectedRoute from './components/ProtectedRoute';
 import Loading from './components/Loading';
 import { useApiAuth } from './hooks/useApiAuth';
+
+function ScrollToTop() {
+  const { pathname } = useLocation();
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [pathname]);
+  return null;
+}
 
 function App() {
   const { isLoading } = useAuth0();
@@ -39,6 +49,8 @@ function App() {
   }
 
   return (
+    <>
+    <ScrollToTop />
     <Routes>
       {/* ============================================
           PUBLIC ROUTES — PublicLayout (brand site)
@@ -177,7 +189,18 @@ function App() {
           </Layout>
         }
       />
+      <Route
+        path="/site-config"
+        element={
+          <Layout>
+            <ProtectedRoute>
+              <SiteConfig />
+            </ProtectedRoute>
+          </Layout>
+        }
+      />
     </Routes>
+    </>
   );
 }
 

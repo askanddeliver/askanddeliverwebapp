@@ -9,6 +9,7 @@ import {
   Image,
   Tag,
   UserCircle,
+  Palette,
   X,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
@@ -58,6 +59,7 @@ const settingsSection: NavSection = {
   label: 'Settings',
   items: [
     { to: '/task-types', label: 'Task Types', icon: Tag },
+    { to: '/site-config', label: 'Site Config', icon: Palette },
     { to: '/profile', label: 'Profile', icon: UserCircle },
   ],
 };

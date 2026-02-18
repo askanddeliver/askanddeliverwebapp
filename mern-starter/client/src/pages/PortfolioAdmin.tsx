@@ -117,6 +117,16 @@ function PortfolioAdmin() {
     }
   };
 
+  const handleReorder = async (projectIds: string[]) => {
+    try {
+      const res = await portfolioApi.reorder(projectIds);
+      setProjects(res.data || []);
+    } catch (err) {
+      console.error('Failed to reorder projects:', err);
+      setError('Failed to reorder projects');
+    }
+  };
+
   const handleNewProject = () => {
     setEditingProject(null);
     setModalOpen(true);
@@ -209,6 +219,7 @@ function PortfolioAdmin() {
         onDelete={handleDelete}
         onTogglePublish={handleTogglePublish}
         onToggleFeature={handleToggleFeature}
+        onReorder={handleReorder}
       />
 
       <PortfolioProjectModal

@@ -48,7 +48,7 @@ export interface CreateProjectDto {
   clientId: string;
   title: string;
   description?: string;
-  status?: 'ACTIVE' | 'PAUSED' | 'COMPLETED';
+  status?: 'ACTIVE' | 'PAUSED' | 'COMPLETED' | 'ARCHIVED';
   budget?: number;
 }
 

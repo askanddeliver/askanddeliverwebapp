@@ -1,5 +1,5 @@
-import { useState, useEffect, FormEvent } from 'react';
-import { X, Plus, Trash2 } from 'lucide-react';
+import { useState, useEffect, useRef, FormEvent, DragEvent } from 'react';
+import { X, Plus, Trash2, GripVertical, ChevronUp, ChevronDown } from 'lucide-react';
 import type { PortfolioProject, PortfolioImage, PortfolioTestimonial } from '../../types';
 import { ImageUpload } from './ImageUpload';
 
@@ -160,6 +160,40 @@ export function PortfolioProjectModal({
 
   const removeImage = (index: number) => {
     setImages(images.filter((_, i) => i !== index));
+  };
+
+  // Drag-to-reorder state
+  const dragIndexRef = useRef<number | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+
+  const handleImageDragStart = (index: number) => {
+    dragIndexRef.current = index;
+  };
+
+  const handleImageDragOver = (e: DragEvent<HTMLDivElement>, index: number) => {
+    e.preventDefault();
+    if (dragIndexRef.current !== null && dragIndexRef.current !== index) {
+      setDragOverIndex(index);
+    }
+  };
+
+  const handleImageDragEnd = () => {
+    if (dragIndexRef.current !== null && dragOverIndex !== null && dragIndexRef.current !== dragOverIndex) {
+      const reordered = [...images];
+      const [moved] = reordered.splice(dragIndexRef.current, 1);
+      reordered.splice(dragOverIndex, 0, moved);
+      setImages(reordered);
+    }
+    dragIndexRef.current = null;
+    setDragOverIndex(null);
+  };
+
+  const moveImage = (from: number, to: number) => {
+    if (to < 0 || to >= images.length) return;
+    const reordered = [...images];
+    const [moved] = reordered.splice(from, 1);
+    reordered.splice(to, 0, moved);
+    setImages(reordered);
   };
 
   const handleSubmit = (e: FormEvent) => {
@@ -548,23 +582,60 @@ export function PortfolioProjectModal({
                       No gallery images. Click &ldquo;Add Image&rdquo; to start.
                     </p>
                   ) : (
-                    <div className="space-y-4">
+                    <div className="space-y-3">
                       {images.map((img, i) => (
                         <div
                           key={i}
-                          className="bg-gray-50 rounded-lg p-4 space-y-3"
+                          draggable
+                          onDragStart={() => handleImageDragStart(i)}
+                          onDragOver={(e) => handleImageDragOver(e, i)}
+                          onDragEnd={handleImageDragEnd}
+                          className={`bg-gray-50 rounded-lg p-4 space-y-3 transition-all ${
+                            dragOverIndex === i
+                              ? 'ring-2 ring-primary-400 ring-offset-1 bg-primary-50'
+                              : ''
+                          }`}
                         >
-                          <div className="flex items-start justify-between">
-                            <span className="text-xs font-medium text-gray-500">
-                              Image {i + 1}
-                            </span>
-                            <button
-                              type="button"
-                              onClick={() => removeImage(i)}
-                              className="p-1 text-gray-400 hover:text-red-500"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <div
+                                className="cursor-grab active:cursor-grabbing p-0.5 text-gray-400 hover:text-gray-600"
+                                title="Drag to reorder"
+                              >
+                                <GripVertical className="w-4 h-4" />
+                              </div>
+                              <span className="text-xs font-medium text-gray-500">
+                                Image {i + 1}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <button
+                                type="button"
+                                onClick={() => moveImage(i, i - 1)}
+                                disabled={i === 0}
+                                className="p-1 text-gray-400 hover:text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed"
+                                title="Move up"
+                              >
+                                <ChevronUp className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => moveImage(i, i + 1)}
+                                disabled={i === images.length - 1}
+                                className="p-1 text-gray-400 hover:text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed"
+                                title="Move down"
+                              >
+                                <ChevronDown className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => removeImage(i)}
+                                className="p-1 text-gray-400 hover:text-red-500"
+                                title="Remove image"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
                           </div>
                           <ImageUpload
                             value={img.url}

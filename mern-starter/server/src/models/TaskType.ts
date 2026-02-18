@@ -36,6 +36,4 @@ const TaskTypeSchema = new Schema<ITaskType>(
   }
 );
 
-TaskTypeSchema.index({ userId: 1 });
-
 export const TaskType = mongoose.model<ITaskType>('TaskType', TaskTypeSchema);

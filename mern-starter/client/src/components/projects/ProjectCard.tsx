@@ -1,4 +1,4 @@
-import { Pencil, Trash2 } from 'lucide-react';
+import { Pencil, Trash2, Archive } from 'lucide-react';
 import type { Project, Client, ProjectTask } from '../../types';
 import { ProjectTaskList } from '../projectTasks/ProjectTaskList';
 
@@ -7,6 +7,7 @@ interface ProjectCardProps {
   tasks: ProjectTask[];
   onEdit: (project: Project) => void;
   onDelete: (id: string) => void;
+  onArchive: (id: string) => void;
   onCreateTask: (data: {
     projectId: string;
     title: string;
@@ -23,6 +24,7 @@ const statusStyles: Record<string, string> = {
   ACTIVE: 'bg-green-50 text-green-700 border-green-200',
   PAUSED: 'bg-yellow-50 text-yellow-700 border-yellow-200',
   COMPLETED: 'bg-gray-50 text-gray-600 border-gray-200',
+  ARCHIVED: 'bg-gray-100 text-gray-400 border-gray-200',
 };
 
 export function ProjectCard({
@@ -30,6 +32,7 @@ export function ProjectCard({
   tasks,
   onEdit,
   onDelete,
+  onArchive,
   onCreateTask,
   onUpdateTask,
   onToggleTaskStatus,
@@ -40,8 +43,10 @@ export function ProjectCard({
       ? (project.clientId as Client)
       : null;
 
+  const isArchived = project.status === 'ARCHIVED';
+
   return (
-    <div className="card hover:shadow-md transition-shadow">
+    <div className={`card hover:shadow-md transition-shadow ${isArchived ? 'opacity-60' : ''}`}>
       <div className="flex items-start justify-between">
         <div className="flex-1 min-w-0">
           <h3 className="text-lg font-bold text-gray-900 truncate">
@@ -58,6 +63,23 @@ export function ProjectCard({
         </div>
 
         <div className="flex items-center gap-1 ml-4">
+          {project.status === 'COMPLETED' && (
+            <button
+              onClick={() => {
+                if (
+                  window.confirm(
+                    `Archive "${project.title}"? It will move to the Archived tab.`
+                  )
+                ) {
+                  onArchive(project._id);
+                }
+              }}
+              className="p-2 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
+              title="Archive project"
+            >
+              <Archive className="w-4 h-4" />
+            </button>
+          )}
           <button
             onClick={() => onEdit(project)}
             className="p-2 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"

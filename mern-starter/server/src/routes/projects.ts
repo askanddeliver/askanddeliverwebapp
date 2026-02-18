@@ -8,16 +8,72 @@ const router = Router();
 // All routes require authentication
 router.use(checkJwt);
 
-// GET /api/projects - Get all projects for current user
+// GET /api/projects/counts - Get project counts per status
+router.get(
+  '/counts',
+  asyncHandler(async (req: AuthRequest, res: Response) => {
+    const userId = extractUserId(req);
+    if (!userId) throw createError('User ID not found in token', 401);
+
+    const counts = await Project.aggregate([
+      { $match: { userId } },
+      { $group: { _id: '$status', count: { $sum: 1 } } },
+    ]);
+
+    const result: Record<string, number> = {
+      ACTIVE: 0,
+      PAUSED: 0,
+      COMPLETED: 0,
+      ARCHIVED: 0,
+      TOTAL: 0,
+    };
+    for (const c of counts) {
+      result[c._id] = c.count;
+      result.TOTAL += c.count;
+    }
+
+    res.json(result);
+  })
+);
+
+// GET /api/projects - Get all projects for current user (with filters)
 router.get(
   '/',
   asyncHandler(async (req: AuthRequest, res: Response) => {
     const userId = extractUserId(req);
     if (!userId) throw createError('User ID not found in token', 401);
 
-    const projects = await Project.find({ userId })
+    const { status, search, sort, clientId } = req.query;
+
+    const filter: Record<string, unknown> = { userId };
+
+    if (status && status !== 'ALL') {
+      filter.status = status;
+    }
+
+    if (clientId) {
+      filter.clientId = clientId;
+    }
+
+    if (search && typeof search === 'string' && search.trim()) {
+      const searchRegex = new RegExp(search.trim(), 'i');
+      filter.$or = [{ title: searchRegex }, { description: searchRegex }];
+    }
+
+    let sortOption: Record<string, 1 | -1> = { createdAt: -1 };
+    if (sort === 'oldest') {
+      sortOption = { createdAt: 1 };
+    } else if (sort === 'title_asc') {
+      sortOption = { title: 1 };
+    } else if (sort === 'title_desc') {
+      sortOption = { title: -1 };
+    } else if (sort === 'budget_desc') {
+      sortOption = { budget: -1, createdAt: -1 };
+    }
+
+    const projects = await Project.find(filter)
       .populate('clientId')
-      .sort({ createdAt: -1 })
+      .sort(sortOption)
       .lean();
 
     res.json(projects);
@@ -92,6 +148,27 @@ router.put(
     const project = await Project.findOneAndUpdate(
       { _id: req.params.id, userId },
       update,
+      { new: true, runValidators: true }
+    ).populate('clientId');
+
+    if (!project) {
+      throw createError('Project not found', 404);
+    }
+
+    res.json(project);
+  })
+);
+
+// PUT /api/projects/:id/archive - Archive a project
+router.put(
+  '/:id/archive',
+  asyncHandler(async (req: AuthRequest, res: Response) => {
+    const userId = extractUserId(req);
+    if (!userId) throw createError('User ID not found in token', 401);
+
+    const project = await Project.findOneAndUpdate(
+      { _id: req.params.id, userId },
+      { status: 'ARCHIVED' },
       { new: true, runValidators: true }
     ).populate('clientId');
 

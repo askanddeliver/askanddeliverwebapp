@@ -26,10 +26,20 @@ export interface Project {
   clientId: string | Client;
   title: string;
   description?: string;
-  status: 'ACTIVE' | 'PAUSED' | 'COMPLETED';
+  status: 'ACTIVE' | 'PAUSED' | 'COMPLETED' | 'ARCHIVED';
   budget?: number;
   createdAt: string;
   updatedAt: string;
+}
+
+export type ProjectStatus = 'ACTIVE' | 'PAUSED' | 'COMPLETED' | 'ARCHIVED';
+
+export interface ProjectCounts {
+  ACTIVE: number;
+  PAUSED: number;
+  COMPLETED: number;
+  ARCHIVED: number;
+  TOTAL: number;
 }
 
 // Task Type types
@@ -194,6 +204,35 @@ export interface ConvertLeadPayload {
   projectTitle: string;
   projectDescription?: string;
   projectBudget?: number;
+}
+
+// Site Config types
+export interface ThemeColors {
+  brandSage: string;
+  brandSageLight: string;
+  brandSageDark: string;
+  brandCharcoal: string;
+  brandCream: string;
+  brandCreamDark: string;
+  accentWarm: string;
+  accentWarmLight: string;
+  accentCool: string;
+  accentCoolLight: string;
+}
+
+export interface ColorPalette {
+  _id: string;
+  name: string;
+  colors: ThemeColors;
+  createdAt: string;
+}
+
+export interface SiteConfig {
+  _id?: string;
+  colors: ThemeColors;
+  palettes: ColorPalette[];
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 // Auth types

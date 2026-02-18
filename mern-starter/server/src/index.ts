@@ -22,6 +22,7 @@ import exportRoutes from './routes/export';
 import portfolioRoutes from './routes/portfolio';
 import uploadRoutes from './routes/uploads';
 import leadRoutes from './routes/leads';
+import siteConfigRoutes from './routes/siteConfig';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -53,6 +54,7 @@ app.use('/api/export', exportRoutes);
 app.use('/api/portfolio', portfolioRoutes);
 app.use('/api/uploads', uploadRoutes);
 app.use('/api/leads', leadRoutes);
+app.use('/api/site-config', siteConfigRoutes);
 
 // Serve uploaded files as static assets
 app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));

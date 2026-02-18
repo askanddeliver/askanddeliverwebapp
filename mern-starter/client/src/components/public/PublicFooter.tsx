@@ -12,10 +12,19 @@ function PublicFooter() {
         <div className="grid grid-cols-1 md:grid-cols-12 gap-12 md:gap-8">
           {/* Brand Column */}
           <div className="md:col-span-5">
-            <img
-              src="/brand/logo-footer.svg"
-              alt="Ask+Deliver"
-              className="h-10 mb-6 invert"
+            <span
+              role="img"
+              aria-label="Ask+Deliver"
+              className="block h-10 w-[113px] mb-6"
+              style={{
+                backgroundColor: 'white',
+                maskImage: 'url(/brand/logo-footer.svg)',
+                WebkitMaskImage: 'url(/brand/logo-footer.svg)',
+                maskSize: 'contain',
+                WebkitMaskSize: 'contain',
+                maskRepeat: 'no-repeat',
+                WebkitMaskRepeat: 'no-repeat',
+              }}
             />
             <p className="text-neutral-400 text-sm leading-relaxed max-w-sm mb-8">
               A creative collective where talented professionals collaborate to

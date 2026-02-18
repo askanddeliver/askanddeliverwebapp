@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
-import type { Client, Project } from '../../types';
+import type { Client, Project, ProjectStatus } from '../../types';
 
 interface ProjectModalProps {
   project?: Project | null;
@@ -11,7 +11,7 @@ interface ProjectModalProps {
     clientId: string;
     title: string;
     description?: string;
-    status: 'ACTIVE' | 'PAUSED' | 'COMPLETED';
+    status: ProjectStatus;
     budget?: number;
   }) => void;
 }
@@ -26,9 +26,7 @@ export function ProjectModal({
   const [clientId, setClientId] = useState('');
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [status, setStatus] = useState<'ACTIVE' | 'PAUSED' | 'COMPLETED'>(
-    'ACTIVE'
-  );
+  const [status, setStatus] = useState<ProjectStatus>('ACTIVE');
   const [budget, setBudget] = useState('');
 
   useEffect(() => {
@@ -137,15 +135,14 @@ export function ProjectModal({
               <select
                 value={status}
                 onChange={(e) =>
-                  setStatus(
-                    e.target.value as 'ACTIVE' | 'PAUSED' | 'COMPLETED'
-                  )
+                  setStatus(e.target.value as ProjectStatus)
                 }
                 className="input"
               >
                 <option value="ACTIVE">Active</option>
                 <option value="PAUSED">Paused</option>
                 <option value="COMPLETED">Completed</option>
+                <option value="ARCHIVED">Archived</option>
               </select>
             </div>
 
