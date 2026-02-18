@@ -41,6 +41,9 @@ Thumbs.db
 coverage/
 .nyc_output/
 
+# Uploaded files (portfolio images, etc.)
+server/uploads/
+
 # Misc
 *.local
 .cache/
