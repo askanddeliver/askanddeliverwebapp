@@ -1,5 +1,4 @@
 import express from 'express';
-import path from 'path';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
@@ -65,8 +64,7 @@ app.use('/api/uploads', uploadRoutes);
 app.use('/api/leads', leadRoutes);
 app.use('/api/site-config', siteConfigRoutes);
 
-// Serve uploaded files as static assets
-app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
+// Legacy: local uploads no longer used — files are stored in Cloudinary
 
 // Error handling
 app.use(notFoundHandler);

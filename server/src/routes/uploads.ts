@@ -1,62 +1,55 @@
 import { Router, Response } from 'express';
-import path from 'path';
-import fs from 'fs';
 import multer from 'multer';
 import { checkJwt, AuthRequest, extractUserId } from '../middleware/auth';
 import { asyncHandler, createError } from '../middleware/errorHandler';
+import cloudinary from '../config/cloudinary';
 
 const router = Router();
 
-// All upload routes require authentication
 router.use(checkJwt);
 
-// Base upload directory
-const UPLOAD_DIR = path.join(__dirname, '..', '..', 'uploads', 'portfolio');
+const upload = multer({
+  storage: multer.memoryStorage(),
+  fileFilter: (_req, file, cb) => {
+    const allowedTypes = [
+      'image/jpeg', 'image/jpg', 'image/png', 'image/gif',
+      'image/webp', 'image/svg+xml',
+      'video/mp4', 'video/quicktime', 'video/webm',
+    ];
+    if (allowedTypes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only image files (JPEG, PNG, GIF, WebP, SVG) and video files (MP4, MOV, WebM) are allowed'));
+    }
+  },
+  limits: {
+    fileSize: 100 * 1024 * 1024, // 100 MB for video support
+    files: 10,
+  },
+});
 
-// Ensure the upload directory exists
-if (!fs.existsSync(UPLOAD_DIR)) {
-  fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+function uploadToCloudinary(
+  buffer: Buffer,
+  options: Record<string, unknown>
+): Promise<{ secure_url: string; public_id: string; bytes: number; format: string; resource_type: string }> {
+  return new Promise((resolve, reject) => {
+    const stream = cloudinary.uploader.upload_stream(
+      options,
+      (error, result) => {
+        if (error) return reject(error);
+        if (!result) return reject(new Error('No result from Cloudinary'));
+        resolve(result as { secure_url: string; public_id: string; bytes: number; format: string; resource_type: string });
+      }
+    );
+    stream.end(buffer);
+  });
 }
 
-// Multer storage configuration: organize by project slug
-const storage = multer.diskStorage({
-  destination: (_req, _file, cb) => {
-    // Files go to uploads/portfolio/ initially; we'll move to project subfolder after
-    cb(null, UPLOAD_DIR);
-  },
-  filename: (_req, file, cb) => {
-    // Sanitize filename and add timestamp to prevent collisions
-    const ext = path.extname(file.originalname).toLowerCase();
-    const baseName = path
-      .basename(file.originalname, ext)
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/(^-|-$)/g, '');
-    const timestamp = Date.now();
-    cb(null, `${baseName}-${timestamp}${ext}`);
-  },
-});
+function resourceTypeFromMime(mimetype: string): 'image' | 'video' {
+  return mimetype.startsWith('video/') ? 'video' : 'image';
+}
 
-// File filter: only allow images
-const fileFilter = (_req: Express.Request, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
-  const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml'];
-  if (allowedTypes.includes(file.mimetype)) {
-    cb(null, true);
-  } else {
-    cb(new Error('Only image files (JPEG, PNG, GIF, WebP, SVG) are allowed'));
-  }
-};
-
-const upload = multer({
-  storage,
-  fileFilter,
-  limits: {
-    fileSize: 10 * 1024 * 1024, // 10 MB max per file
-    files: 10, // Max 10 files per request
-  },
-});
-
-// POST /api/uploads/portfolio/:projectSlug - Upload images for a portfolio project
+// POST /api/uploads/portfolio/:projectSlug - Upload multiple images/videos
 router.post(
   '/portfolio/:projectSlug',
   upload.array('images', 10),
@@ -71,25 +64,24 @@ router.post(
       throw createError('No files uploaded', 400);
     }
 
-    // Create project-specific directory
-    const projectDir = path.join(UPLOAD_DIR, projectSlug);
-    if (!fs.existsSync(projectDir)) {
-      fs.mkdirSync(projectDir, { recursive: true });
-    }
+    const uploadedFiles = await Promise.all(
+      files.map(async (file) => {
+        const resType = resourceTypeFromMime(file.mimetype);
+        const result = await uploadToCloudinary(file.buffer, {
+          folder: `portfolio/${projectSlug}`,
+          resource_type: resType,
+        });
 
-    // Move files to project directory and build response
-    const uploadedFiles = files.map((file) => {
-      const newPath = path.join(projectDir, file.filename);
-      fs.renameSync(file.path, newPath);
-
-      return {
-        filename: file.filename,
-        originalName: file.originalname,
-        mimetype: file.mimetype,
-        size: file.size,
-        url: `/uploads/portfolio/${projectSlug}/${file.filename}`,
-      };
-    });
+        return {
+          filename: result.public_id.split('/').pop() || result.public_id,
+          originalName: file.originalname,
+          mimetype: file.mimetype,
+          size: result.bytes,
+          url: result.secure_url,
+          publicId: result.public_id,
+        };
+      })
+    );
 
     res.status(201).json({
       message: `${uploadedFiles.length} file(s) uploaded successfully`,
@@ -98,7 +90,7 @@ router.post(
   })
 );
 
-// POST /api/uploads/portfolio/:projectSlug/single - Upload a single image (featured image, etc.)
+// POST /api/uploads/portfolio/:projectSlug/single - Upload a single file
 router.post(
   '/portfolio/:projectSlug/single',
   upload.single('image'),
@@ -113,27 +105,24 @@ router.post(
       throw createError('No file uploaded', 400);
     }
 
-    // Create project-specific directory
-    const projectDir = path.join(UPLOAD_DIR, projectSlug);
-    if (!fs.existsSync(projectDir)) {
-      fs.mkdirSync(projectDir, { recursive: true });
-    }
-
-    // Move file to project directory
-    const newPath = path.join(projectDir, file.filename);
-    fs.renameSync(file.path, newPath);
+    const resType = resourceTypeFromMime(file.mimetype);
+    const result = await uploadToCloudinary(file.buffer, {
+      folder: `portfolio/${projectSlug}`,
+      resource_type: resType,
+    });
 
     res.status(201).json({
-      filename: file.filename,
+      filename: result.public_id.split('/').pop() || result.public_id,
       originalName: file.originalname,
       mimetype: file.mimetype,
-      size: file.size,
-      url: `/uploads/portfolio/${projectSlug}/${file.filename}`,
+      size: result.bytes,
+      url: result.secure_url,
+      publicId: result.public_id,
     });
   })
 );
 
-// DELETE /api/uploads/portfolio/:projectSlug/:filename - Delete an uploaded image
+// DELETE /api/uploads/portfolio/:projectSlug/:filename - Delete an uploaded file
 router.delete(
   '/portfolio/:projectSlug/:filename',
   asyncHandler(async (req: AuthRequest, res: Response) => {
@@ -141,22 +130,22 @@ router.delete(
     if (!userId) throw createError('User ID not found in token', 401);
 
     const { projectSlug, filename } = req.params;
+    const publicId = `portfolio/${projectSlug}/${filename}`;
 
-    // Sanitize to prevent path traversal
-    const safeName = path.basename(filename);
-    const filePath = path.join(UPLOAD_DIR, projectSlug, safeName);
-
-    if (!fs.existsSync(filePath)) {
-      throw createError('File not found', 404);
+    // Try deleting as image first, then as video
+    const imageResult = await cloudinary.uploader.destroy(publicId, { resource_type: 'image' });
+    if (imageResult.result !== 'ok') {
+      const videoResult = await cloudinary.uploader.destroy(publicId, { resource_type: 'video' });
+      if (videoResult.result !== 'ok') {
+        throw createError('File not found in Cloudinary', 404);
+      }
     }
-
-    fs.unlinkSync(filePath);
 
     res.json({ message: 'File deleted successfully' });
   })
 );
 
-// GET /api/uploads/portfolio/:projectSlug - List uploaded images for a project
+// GET /api/uploads/portfolio/:projectSlug - List uploaded files for a project
 router.get(
   '/portfolio/:projectSlug',
   asyncHandler(async (req: AuthRequest, res: Response) => {
@@ -164,27 +153,38 @@ router.get(
     if (!userId) throw createError('User ID not found in token', 401);
 
     const { projectSlug } = req.params;
-    const projectDir = path.join(UPLOAD_DIR, projectSlug);
+    const prefix = `portfolio/${projectSlug}`;
 
-    if (!fs.existsSync(projectDir)) {
+    try {
+      const [imageResult, videoResult] = await Promise.all([
+        cloudinary.api.resources({
+          type: 'upload',
+          prefix,
+          resource_type: 'image',
+          max_results: 100,
+        }),
+        cloudinary.api.resources({
+          type: 'upload',
+          prefix,
+          resource_type: 'video',
+          max_results: 100,
+        }),
+      ]);
+
+      const allResources = [...(imageResult.resources || []), ...(videoResult.resources || [])];
+
+      const files = allResources.map((r: { public_id: string; secure_url: string; bytes: number; created_at: string }) => ({
+        filename: r.public_id.split('/').pop(),
+        url: r.secure_url,
+        size: r.bytes,
+        modified: r.created_at,
+        publicId: r.public_id,
+      }));
+
+      res.json({ files });
+    } catch {
       res.json({ files: [] });
-      return;
     }
-
-    const fileNames = fs.readdirSync(projectDir);
-    const files = fileNames
-      .filter((f) => !f.startsWith('.'))
-      .map((f) => {
-        const stats = fs.statSync(path.join(projectDir, f));
-        return {
-          filename: f,
-          url: `/uploads/portfolio/${projectSlug}/${f}`,
-          size: stats.size,
-          modified: stats.mtime,
-        };
-      });
-
-    res.json({ files });
   })
 );
 

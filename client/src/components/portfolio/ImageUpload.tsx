@@ -21,8 +21,9 @@ export function ImageUpload({
   const [dragOver, setDragOver] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [previewFailed, setPreviewFailed] = useState(false);
+  const isCloudinaryUrl = (url: string) => url.includes('res.cloudinary.com');
   const [mode, setMode] = useState<'upload' | 'url'>(
-    value && !value.startsWith('/uploads') ? 'url' : 'upload'
+    value && !value.startsWith('/uploads') && !isCloudinaryUrl(value) ? 'url' : 'upload'
   );
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -84,7 +85,7 @@ export function ImageUpload({
     setPreviewFailed(false);
   };
 
-  const isUploaded = value && value.startsWith('/uploads');
+  const isUploaded = value && (value.startsWith('/uploads') || isCloudinaryUrl(value));
   const canPreview =
     value &&
     !previewFailed &&
