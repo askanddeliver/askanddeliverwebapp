@@ -30,7 +30,7 @@ git --version
 ```bash
 # Clone the repository
 git clone https://github.com/misterlinderman/askanddeliverwebapp.git
-cd askanddeliverwebapp/mern-starter
+cd askanddeliverwebapp
 
 # Install all dependencies (root, client, and server)
 npm run install:all
@@ -118,7 +118,21 @@ The identifier value becomes your `AUTH0_AUDIENCE`.
 
 ---
 
-## Step 6: Set Up Environment Variables
+## Step 6: Configure Cloudinary
+
+Cloudinary handles portfolio image and video uploads.
+
+1. Go to [Cloudinary](https://cloudinary.com) and sign up for a free account
+2. From the **Dashboard**, note down:
+   - **Cloud Name**
+   - **API Key**
+   - **API Secret**
+
+That's it — no additional configuration is needed in the Cloudinary console.
+
+---
+
+## Step 7: Set Up Environment Variables
 
 ### Copy the template files:
 ```bash
@@ -142,6 +156,9 @@ NODE_ENV=development
 MONGODB_URI=mongodb+srv://USERNAME:PASSWORD@cluster0.xxxxx.mongodb.net/askanddeliver?retryWrites=true&w=majority
 AUTH0_DOMAIN=your-tenant.auth0.com
 AUTH0_AUDIENCE=http://localhost:3001/api
+CLOUDINARY_CLOUD_NAME=your-cloud-name
+CLOUDINARY_API_KEY=your-api-key
+CLOUDINARY_API_SECRET=your-api-secret
 ```
 
 ### Root `.env` (usually no changes needed):
@@ -151,7 +168,7 @@ NODE_ENV=development
 
 ---
 
-## Step 7: Start Development
+## Step 8: Start Development
 
 ```bash
 # Start both client and server
@@ -170,7 +187,7 @@ npm run dev:server    # Backend only
 
 ---
 
-## Step 8: Verify Setup
+## Step 9: Verify Setup
 
 ### 1. Check the public site
 Open http://localhost:5173. You should see the Ask And Deliver landing page with navigation to Work (portfolio), About, and Contact pages.
@@ -199,7 +216,7 @@ Go to **Site Config** to adjust your brand colors. You can tweak the sage, charc
 
 ---
 
-## Step 9: Configure Cursor IDE (Optional)
+## Step 10: Configure Cursor IDE (Optional)
 
 ### Use the `.cursorrules` file
 The project includes a `.cursorrules` file that provides context to Cursor's AI about the project structure, conventions, and patterns. It's loaded automatically when you open the project.
@@ -238,8 +255,9 @@ The project includes a `.cursorrules` file that provides context to Cursor's AI 
 - Or change ports in the respective `.env` files and update Auth0 callback URLs to match
 
 ### Uploads not working
-- Ensure the `server/uploads/` directory exists (it should be created automatically)
-- Check that `multer` is installed (`npm list multer` in the server directory)
+- Verify your Cloudinary credentials are correct in `server/.env`
+- Check that all three Cloudinary variables are set: `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`
+- Ensure `cloudinary` and `multer` are installed (`npm list cloudinary multer` in the server directory)
 
 ---
 

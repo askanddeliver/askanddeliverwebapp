@@ -42,7 +42,7 @@ A full-featured time tracking, client management, and invoicing application buil
 
 ### Public Portfolio Website
 - **Portfolio project management** — Create portfolio case studies with title, client, description, categories, disciplines, challenge/solution/results, and testimonials
-- **Image uploads** — Upload featured images and galleries for portfolio projects
+- **Media uploads** — Upload images and videos (MP4, MOV, WebM) for portfolio projects via Cloudinary
 - **Image lightbox** — Full-screen image viewer on public portfolio pages
 - **Publish/unpublish** — Control which projects are visible on the public site
 - **Featured projects** — Highlight key work on the homepage
@@ -76,7 +76,7 @@ A full-featured time tracking, client management, and invoicing application buil
 | Backend | Express.js + TypeScript |
 | Database | MongoDB + Mongoose |
 | Authentication | Auth0 |
-| File Uploads | Multer |
+| File Uploads | Multer + Cloudinary |
 | Security | Helmet, CORS |
 | Dev Tools | ESLint, Prettier, Nodemon, Concurrently |
 
@@ -85,7 +85,7 @@ A full-featured time tracking, client management, and invoicing application buil
 ## Project Structure
 
 ```
-mern-starter/
+askanddeliverwebapp/
 ├── client/                       # React frontend
 │   ├── src/
 │   │   ├── components/
@@ -146,7 +146,7 @@ mern-starter/
 │   │   │   ├── export.ts         # CSV export
 │   │   │   ├── portfolio.ts      # Portfolio CRUD + publish/feature
 │   │   │   ├── leads.ts          # Lead pipeline + conversion
-│   │   │   ├── uploads.ts        # Image upload endpoints
+│   │   │   ├── uploads.ts        # Media upload endpoints (Cloudinary)
 │   │   │   ├── siteConfig.ts     # Theme colors + palette management
 │   │   │   ├── health.ts         # Health check + detailed status
 │   │   │   └── items.ts          # (legacy template route)
@@ -164,11 +164,11 @@ mern-starter/
 │   │   │   ├── auth.ts           # JWT validation, user ID extraction
 │   │   │   └── errorHandler.ts   # Error handling + async wrapper
 │   │   ├── config/
-│   │   │   └── database.ts       # MongoDB connection
+│   │   │   ├── database.ts       # MongoDB connection
+│   │   │   └── cloudinary.ts     # Cloudinary media upload config
 │   │   ├── utils/
 │   │   │   └── calculations.ts   # Discount and rate calculations
 │   │   └── types/                # TypeScript type definitions
-│   └── uploads/                  # Uploaded portfolio images
 ├── docs/
 │   └── SHOPIFY_AUTH.md
 ├── .env.example
@@ -184,6 +184,7 @@ mern-starter/
 - **Node.js 18+** (recommend using nvm)
 - **MongoDB Atlas** account (or local MongoDB)
 - **Auth0** account (free tier works)
+- **Cloudinary** account (free tier works — for portfolio media uploads)
 - **Git**
 - **Cursor IDE** (recommended)
 
@@ -194,7 +195,7 @@ mern-starter/
 ```bash
 # Clone the repository
 git clone https://github.com/misterlinderman/askanddeliverwebapp.git
-cd askanddeliverwebapp/mern-starter
+cd askanddeliverwebapp
 
 # Install all dependencies (root, client, and server)
 npm run install:all
@@ -236,9 +237,12 @@ NODE_ENV=development
 MONGODB_URI=mongodb+srv://<username>:<password>@<cluster>.mongodb.net/askanddeliver?retryWrites=true&w=majority
 AUTH0_DOMAIN=your-tenant.auth0.com
 AUTH0_AUDIENCE=http://localhost:3001/api
+CLOUDINARY_CLOUD_NAME=your-cloud-name
+CLOUDINARY_API_KEY=your-api-key
+CLOUDINARY_API_SECRET=your-api-secret
 ```
 
-See [SETUP.md](SETUP.md) for detailed MongoDB Atlas and Auth0 configuration instructions.
+See [SETUP.md](SETUP.md) for detailed MongoDB Atlas, Auth0, and Cloudinary configuration instructions.
 
 ---
 
@@ -364,13 +368,13 @@ See [SETUP.md](SETUP.md) for detailed MongoDB Atlas and Auth0 configuration inst
 | `POST` | `/api/leads/:id/convert` | Convert lead to client + project |
 | `DELETE` | `/api/leads/:id` | Delete lead |
 
-#### Uploads
+#### Uploads (Cloudinary)
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| `POST` | `/api/uploads/portfolio/:slug/single` | Upload single image |
-| `POST` | `/api/uploads/portfolio/:slug` | Upload multiple images (max 10) |
-| `GET` | `/api/uploads/portfolio/:slug` | List uploaded images |
-| `DELETE` | `/api/uploads/portfolio/:slug/:filename` | Delete uploaded image |
+| `POST` | `/api/uploads/portfolio/:slug/single` | Upload single file (image or video) |
+| `POST` | `/api/uploads/portfolio/:slug` | Upload multiple files (max 10) |
+| `GET` | `/api/uploads/portfolio/:slug` | List uploaded files |
+| `DELETE` | `/api/uploads/portfolio/:slug/:filename` | Delete uploaded file |
 
 #### Site Config (Admin)
 | Method | Endpoint | Description |
@@ -447,6 +451,7 @@ npm run build
 - Set `NODE_ENV=production`
 - Use production MongoDB connection string
 - Configure Auth0 callback/logout/web origin URLs for your production domain
+- Cloudinary credentials remain the same across environments
 
 ---
 
