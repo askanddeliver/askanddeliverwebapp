@@ -269,11 +269,12 @@ Here's the typical workflow for using Ask And Deliver:
 2. **Add clients** — Create client records with optional per-task-type discounts
 3. **Create projects** — Link projects to clients, set budgets, add project tasks
 4. **Track time** — Use the live timer, resume a previous entry, or add manual entries from the Dashboard
-5. **Generate invoices** — Use Reports to generate invoices with automatic discount calculations
-6. **Export data** — Export billing data as CSV for external accounting
-7. **Manage leads** — Review intake form submissions, track through your pipeline, convert to clients
-8. **Showcase work** — Manage your public portfolio from the Portfolio Admin page (drag-and-drop ordering, publish/feature toggles)
-9. **Customize branding** — Use Site Config to adjust theme colors and save named palettes
+5. **Add fixed-cost items** — Use the Line Items panel in Reports to add third-party costs (plugins, hosting, subcontractors) as flat-fee charges
+6. **Generate invoices** — Use Reports to generate invoices combining time entries and line items with automatic discount calculations
+7. **Export data** — Export time entries and line items as CSV for external accounting
+8. **Manage leads** — Review intake form submissions, track through your pipeline, convert to clients
+9. **Showcase work** — Manage your public portfolio from the Portfolio Admin page (drag-and-drop ordering, publish/feature toggles)
+10. **Customize branding** — Use Site Config to adjust theme colors and save named palettes
 
 ---
 

@@ -28,10 +28,11 @@ A full-featured time tracking, client management, and invoicing application buil
 - **Default seeding** — Pre-populate common task types on first use
 
 ### Invoicing & Reports
-- **Invoice generation** — Generate invoices with full discount calculations, showing base vs. effective rates
+- **Invoice generation** — Generate invoices with full discount calculations, showing base vs. effective rates; supports single-client or all-clients mode
+- **Fixed-cost line items** — Add third-party costs (plugins, hosting, subcontractors, etc.) as flat-fee charges on invoices, separate from hourly time entries
 - **Date range filtering** — Filter entries by date range, client, and project
 - **Summary statistics** — Overview of total hours, total billed, and effective rates
-- **CSV export** — Export time and billing data for external use
+- **CSV export** — Export time entries and fixed-cost line items for external use
 
 ### Lead Management
 - **Public intake form** — Prospective clients submit project inquiries from the public website
@@ -96,7 +97,7 @@ askanddeliverwebapp/
 │   │   │   ├── projects/         # Project cards, list, modal
 │   │   │   ├── projectTasks/     # Project task list, modal
 │   │   │   ├── public/           # Public layout, navbar, footer, lightbox
-│   │   │   ├── reports/          # Invoice preview, report filters, export buttons
+│   │   │   ├── reports/          # Invoice preview, filters, export, line items panel
 │   │   │   ├── taskTypes/        # Task type list, modal
 │   │   │   ├── timer/            # Timer display, controls, quick entry
 │   │   │   ├── Layout.tsx        # Admin layout shell
@@ -144,6 +145,7 @@ askanddeliverwebapp/
 │   │   │   ├── projectTasks.ts   # Project task CRUD + reorder
 │   │   │   ├── reports.ts        # Invoice generation + summary
 │   │   │   ├── export.ts         # CSV export
+│   │   │   ├── lineItems.ts      # Fixed-cost line item CRUD
 │   │   │   ├── portfolio.ts      # Portfolio CRUD + publish/feature
 │   │   │   ├── leads.ts          # Lead pipeline + conversion
 │   │   │   ├── uploads.ts        # Media upload endpoints (Cloudinary)
@@ -157,6 +159,7 @@ askanddeliverwebapp/
 │   │   │   ├── TaskType.ts       # Billable task categories
 │   │   │   ├── TimeEntry.ts      # Time records with timer support
 │   │   │   ├── ProjectTask.ts    # Project sub-tasks
+│   │   │   ├── LineItem.ts        # Fixed-cost billing items
 │   │   │   ├── Lead.ts           # Lead pipeline with notes
 │   │   │   ├── PortfolioProject.ts # Portfolio case studies
 │   │   │   └── SiteConfig.ts     # Theme colors + saved palettes
@@ -342,7 +345,15 @@ See [SETUP.md](SETUP.md) for detailed MongoDB Atlas, Auth0, and Cloudinary confi
 |--------|----------|-------------|
 | `POST` | `/api/reports/generate-invoice` | Generate invoice with discount calculations |
 | `GET` | `/api/reports/summary` | Summary statistics |
-| `POST` | `/api/export/csv` | Export data as CSV |
+| `POST` | `/api/export/csv` | Export time entries and line items as CSV |
+
+#### Line Items
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/api/line-items` | List line items (filters: clientId, projectId, startDate, endDate) |
+| `POST` | `/api/line-items` | Create fixed-cost line item |
+| `PUT` | `/api/line-items/:id` | Update line item |
+| `DELETE` | `/api/line-items/:id` | Delete line item |
 
 #### Portfolio (Admin)
 | Method | Endpoint | Description |
@@ -407,6 +418,9 @@ Time records with `startTime`, `endTime`, `duration` (seconds), and `isRunning` 
 
 ### ProjectTask
 Sub-tasks within a Project. Tracks `title`, `description`, `status` (TODO / IN_PROGRESS / COMPLETED), `order`, and `estimatedHours`.
+
+### LineItem
+Fixed-cost billing entries for non-hourly charges. Linked to a Client and optionally a Project. Tracks `description`, `amount`, `category` (e.g., Software/Plugin, Hosting, Subcontractor), and `date`. Included alongside time entries in invoices and CSV exports.
 
 ### Lead
 Intake form submissions with pipeline management. Tracks `projectType`, `budget`, `timeline`, contact info, `status` (NEW through WON/LOST), `priority`, `notes`, and conversion references.
