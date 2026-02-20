@@ -1,7 +1,7 @@
 import { Router, Response } from 'express';
 import { checkJwt, AuthRequest, extractUserId } from '../middleware/auth';
 import { asyncHandler, createError } from '../middleware/errorHandler';
-import { TimeEntry, Client, ITimeEntry, IProject, ITaskType, IProjectTask } from '../models';
+import { TimeEntry, Client, LineItem, ITimeEntry, IProject, ITaskType, IProjectTask } from '../models';
 
 const router = Router();
 
@@ -88,9 +88,43 @@ router.post(
       ];
     });
 
+    // Query fixed-cost line items for the same period
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const lineItemQuery: any = { userId };
+    if (clientId) lineItemQuery.clientId = clientId;
+    if (projectId) lineItemQuery.projectId = projectId;
+    if (startDate || endDate) {
+      lineItemQuery.date = {};
+      if (startDate) lineItemQuery.date.$gte = new Date(startDate + 'T00:00:00');
+      if (endDate) lineItemQuery.date.$lte = new Date(endDate + 'T23:59:59.999');
+    }
+
+    const fixedItems = await LineItem.find(lineItemQuery)
+      .populate('clientId', 'name')
+      .populate('projectId', 'title')
+      .sort({ date: -1 });
+
+    const fixedRows = fixedItems.map((fi) => {
+      const fiClient = fi.clientId as unknown as { name: string } | null;
+      const fiProject = fi.projectId as unknown as { title: string } | null;
+      return [
+        new Date(fi.date).toLocaleDateString(),
+        fiClient?.name || 'Unknown',
+        fiProject?.title || '',
+        '',
+        fi.category || 'Fixed Cost',
+        '',
+        '',
+        '',
+        `$${fi.amount.toFixed(2)}`,
+        fi.description,
+      ];
+    });
+
     const csv = [
       ['Date', 'Client', 'Project', 'Project Task', 'Task Type', 'Hours', 'Base Rate', 'Effective Rate', 'Amount', 'Description'],
       ...rows,
+      ...fixedRows,
     ]
       .map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(','))
       .join('\n');

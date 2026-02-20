@@ -7,6 +7,7 @@ import type {
   TaskType,
   ProjectTask,
   TimeEntry,
+  LineItem,
   Invoice,
   PortfolioProject,
   Lead,
@@ -151,6 +152,27 @@ export const timeEntriesApi = {
   update: (id: string, data: Partial<TimeEntry>) =>
     api.put<TimeEntry>(`/time-entries/${id}`, data),
   delete: (id: string) => api.delete(`/time-entries/${id}`),
+};
+
+// Line Items (fixed-cost charges)
+export const lineItemsApi = {
+  getAll: (params?: {
+    clientId?: string;
+    projectId?: string;
+    startDate?: string;
+    endDate?: string;
+  }) => api.get<LineItem[]>('/line-items', { params }),
+  create: (data: {
+    clientId: string;
+    projectId?: string;
+    description: string;
+    amount: number;
+    category?: string;
+    date: string;
+  }) => api.post<LineItem>('/line-items', data),
+  update: (id: string, data: Partial<LineItem>) =>
+    api.put<LineItem>(`/line-items/${id}`, data),
+  delete: (id: string) => api.delete(`/line-items/${id}`),
 };
 
 // Reports

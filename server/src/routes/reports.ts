@@ -1,7 +1,7 @@
 import { Router, Response } from 'express';
 import { checkJwt, AuthRequest, extractUserId } from '../middleware/auth';
 import { asyncHandler, createError } from '../middleware/errorHandler';
-import { TimeEntry, Client, IClient, ITimeEntry, IProject, ITaskType } from '../models';
+import { TimeEntry, Client, IClient, ITimeEntry, IProject, ITaskType, LineItem } from '../models';
 
 const router = Router();
 
@@ -166,10 +166,56 @@ router.post(
       ...item,
       hours: Math.round(item.hours * 100) / 100,
       amount: Math.round(item.amount * 100) / 100,
+      isFixedCost: false,
     }));
 
+    // Query fixed-cost line items for the same filters
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const lineItemQuery: any = {
+      userId,
+      date: {
+        $gte: new Date(startDate + 'T00:00:00'),
+        $lte: new Date(endDate + 'T23:59:59.999'),
+      },
+    };
+    if (clientId) lineItemQuery.clientId = clientId;
+    if (projectId) lineItemQuery.projectId = projectId;
+
+    const fixedCostItems = await LineItem.find(lineItemQuery)
+      .populate('projectId', 'title clientId')
+      .sort({ date: -1 });
+
+    // If no specific client filter, but we do have entries, still include
+    // line items that belong to clients represented in the entries
+    let filteredFixedItems = fixedCostItems;
+    if (!clientId && filteredEntries.length > 0) {
+      const entryClientIds = new Set<string>();
+      for (const entry of filteredEntries) {
+        const project = entry.projectId as unknown as IProject & { clientId: { _id: string } };
+        const cId = project?.clientId?._id?.toString();
+        if (cId) entryClientIds.add(cId);
+      }
+      filteredFixedItems = fixedCostItems.filter((fi) =>
+        entryClientIds.has(fi.clientId.toString())
+      );
+    }
+
+    const fixedItems = filteredFixedItems.map((fi) => ({
+      taskTypeName: fi.category || 'Fixed Cost',
+      taskTypeColor: '#6B7280',
+      baseRate: 0,
+      discount: 0,
+      effectiveRate: 0,
+      hours: 0,
+      amount: Math.round(fi.amount * 100) / 100,
+      descriptions: [fi.description],
+      isFixedCost: true,
+    }));
+
+    const allItems = [...items, ...fixedItems];
+
     const total = Math.round(
-      items.reduce((sum, item) => sum + item.amount, 0) * 100
+      allItems.reduce((sum, item) => sum + item.amount, 0) * 100
     ) / 100;
 
     const totalHours = Math.round(
@@ -178,10 +224,11 @@ router.post(
 
     res.json({
       client: invoiceClient || undefined,
-      items,
+      items: allItems,
       total,
       totalHours,
       entryCount: filteredEntries.length,
+      lineItemCount: fixedItems.length,
       dateRange: { start: startDate, end: endDate },
     });
   })

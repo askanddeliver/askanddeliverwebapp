@@ -80,6 +80,19 @@ export interface TimeEntry {
   updatedAt: string;
 }
 
+// Line Item (fixed-cost / ad-hoc charge)
+export interface LineItem {
+  _id: string;
+  clientId: string | Client;
+  projectId?: string | Project;
+  description: string;
+  amount: number;
+  category?: string;
+  date: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 // Computed types
 export interface InvoiceLineItem {
   taskTypeName: string;
@@ -90,6 +103,7 @@ export interface InvoiceLineItem {
   hours: number;
   amount: number;
   descriptions: string[];
+  isFixedCost: boolean;
 }
 
 export interface Invoice {
@@ -98,6 +112,7 @@ export interface Invoice {
   total: number;
   totalHours: number;
   entryCount: number;
+  lineItemCount?: number;
   dateRange: {
     start: string;
     end: string;

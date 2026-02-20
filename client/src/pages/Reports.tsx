@@ -3,12 +3,14 @@ import { Clock, DollarSign } from 'lucide-react';
 import { ReportFilters } from '../components/reports/ReportFilters';
 import { InvoicePreview } from '../components/reports/InvoicePreview';
 import { ExportButtons } from '../components/reports/ExportButtons';
+import { LineItemsPanel } from '../components/reports/LineItemsPanel';
 import { EntryRow } from '../components/entries/EntryRow';
 import {
   clientsApi,
   projectsApi,
   reportsApi,
   timeEntriesApi,
+  lineItemsApi,
 } from '../services/api';
 import {
   getDaysAgoString,
@@ -16,7 +18,7 @@ import {
   formatDurationHuman,
   formatCurrency,
 } from '../utils/calculations';
-import type { Client, Project, Invoice, TimeEntry } from '../types';
+import type { Client, Project, Invoice, TimeEntry, LineItem } from '../types';
 
 function Reports() {
   const [clients, setClients] = useState<Client[]>([]);
@@ -31,9 +33,10 @@ function Reports() {
   const [startDate, setStartDate] = useState(getDaysAgoString(30));
   const [endDate, setEndDate] = useState(getTodayString());
 
-  // Invoice + entries data
+  // Invoice + entries + line items data
   const [invoice, setInvoice] = useState<Invoice | null>(null);
   const [filteredEntries, setFilteredEntries] = useState<TimeEntry[]>([]);
+  const [lineItems, setLineItems] = useState<LineItem[]>([]);
 
   useEffect(() => {
     loadData();
@@ -72,8 +75,8 @@ function Reports() {
       setGenerating(true);
       setError(null);
 
-      // Fetch invoice data and filtered entries in parallel
-      const [invoiceRes, entriesRes] = await Promise.all([
+      // Fetch invoice data, filtered entries, and line items in parallel
+      const [invoiceRes, entriesRes, lineItemsRes] = await Promise.all([
         reportsApi.generateInvoice({
           clientId: clientId || undefined,
           projectId: projectId || undefined,
@@ -85,9 +88,16 @@ function Reports() {
           endDate,
           projectId: projectId || undefined,
         }),
+        lineItemsApi.getAll({
+          clientId: clientId || undefined,
+          projectId: projectId || undefined,
+          startDate,
+          endDate,
+        }),
       ]);
 
       setInvoice(invoiceRes.data);
+      setLineItems(lineItemsRes.data || []);
 
       // Filter entries by client on the frontend if needed
       let entries = (entriesRes.data || []).filter(
@@ -280,6 +290,17 @@ function Reports() {
             )}
           </div>
         </div>
+      </div>
+
+      {/* Fixed-Cost Line Items */}
+      <div className="mb-6">
+        <LineItemsPanel
+          lineItems={lineItems}
+          clients={clients}
+          projects={projects}
+          selectedClientId={clientId}
+          onChanged={handleGenerate}
+        />
       </div>
 
       {/* Summary Cards */}

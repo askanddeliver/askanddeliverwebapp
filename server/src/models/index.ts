@@ -5,5 +5,6 @@ export { TaskType, ITaskType } from './TaskType';
 export { TimeEntry, ITimeEntry } from './TimeEntry';
 export { ProjectTask, IProjectTask } from './ProjectTask';
 export { PortfolioProject, IPortfolioProject } from './PortfolioProject';
+export { LineItem, ILineItem } from './LineItem';
 export { Lead, ILead, ILeadNote } from './Lead';
 export { SiteConfig, ISiteConfig, IThemeColors, IColorPalette } from './SiteConfig';
