@@ -126,7 +126,7 @@ function PublicFooter() {
               </div>
             ) : (
               <button
-                onClick={() => loginWithRedirect()}
+                onClick={() => loginWithRedirect({ authorizationParams: { screen_hint: 'login' } })}
                 className="inline-flex items-center gap-1.5 text-neutral-500 hover:text-neutral-300 transition-colors text-xs"
               >
                 <LogIn className="w-3.5 h-3.5" />

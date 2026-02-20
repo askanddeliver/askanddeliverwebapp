@@ -14,7 +14,7 @@ function ProtectedRoute({ children }: ProtectedRouteProps) {
   }
 
   if (!isAuthenticated) {
-    loginWithRedirect();
+    loginWithRedirect({ authorizationParams: { screen_hint: 'login' } });
     return <Loading />;
   }
 

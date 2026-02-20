@@ -108,7 +108,7 @@ function Navbar() {
               </>
             ) : (
               <button
-                onClick={() => loginWithRedirect()}
+                onClick={() => loginWithRedirect({ authorizationParams: { screen_hint: 'login' } })}
                 className="btn-primary text-sm"
               >
                 Log In
