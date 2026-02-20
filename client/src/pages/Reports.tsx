@@ -68,6 +68,17 @@ function Reports() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading]);
 
+  const handleDeleteEntry = async (id: string) => {
+    try {
+      await timeEntriesApi.delete(id);
+      setFilteredEntries((prev) => prev.filter((e) => e._id !== id));
+      handleGenerate();
+    } catch (err) {
+      console.error('Failed to delete entry:', err);
+      setError('Failed to delete entry');
+    }
+  };
+
   const handleGenerate = useCallback(async () => {
     if (!startDate || !endDate) return;
 
@@ -361,7 +372,7 @@ function Reports() {
                 key={entry._id}
                 entry={entry}
                 onEdit={() => {}}
-                onDelete={() => {}}
+                onDelete={handleDeleteEntry}
                 showAmount={true}
               />
             ))}
