@@ -53,6 +53,7 @@ const budgetRanges = [
 
 const timelineOptions = [
   'ASAP',
+  'Within 4–6 weeks',
   '1–2 months',
   '3–6 months',
   '6+ months',
@@ -231,7 +232,7 @@ function Contact() {
                       {
                         value: 'UNSURE' as ConfidenceLevel,
                         label: "I'm still figuring it out",
-                        description: "Let's explore together",
+                        description: 'Start the conversation anyway',
                         icon: HelpCircle,
                       },
                     ].map((option) => {
@@ -317,7 +318,7 @@ function Contact() {
                   <div>
                     <label className="block text-sm font-medium text-brand-charcoal mb-2">
                       {formData.confidence === 'UNSURE'
-                        ? 'What challenges are you facing?'
+                        ? "What's on your mind?"
                         : 'Brief Description'}
                     </label>
                     <textarea
@@ -348,11 +349,10 @@ function Contact() {
                   className="space-y-8"
                 >
                   <h2 className="font-display text-display-sm text-brand-charcoal mb-2">
-                    Budget & timeline
+                    Let&rsquo;s talk numbers and timing.
                   </h2>
                   <p className="text-neutral-500 mb-8">
-                    These help us tailor our approach. Don&rsquo;t worry if you&rsquo;re
-                    not sure — we can figure this out together.
+                    No wrong answers here. Even a rough sense helps us build the right team.
                   </p>
 
                   <div>
@@ -415,7 +415,8 @@ function Contact() {
                     How do we reach you?
                   </h2>
                   <p className="text-neutral-500 mb-8">
-                    We&rsquo;ll get back to you within 1–2 business days.
+                    We read every submission personally. You&rsquo;ll hear from us
+                    within 1–2 business days &mdash; usually faster.
                   </p>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -537,7 +538,7 @@ function Contact() {
                       </>
                     ) : (
                       <>
-                        Send Inquiry
+                        Start the Conversation
                         <ArrowRight className="w-4 h-4 ml-2" />
                       </>
                     )}

@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowRight, Palette, Globe, BarChart3, Lightbulb, PenTool, Users } from 'lucide-react';
+import { ArrowRight, Palette, Globe, BarChart3, Lightbulb, PenTool, Bot } from 'lucide-react';
 import { usePublicPortfolio } from '../hooks/usePublicPortfolio';
 import { PortfolioImage } from '../components/public/PortfolioImage';
 
@@ -31,8 +31,8 @@ const services = [
   },
   {
     icon: Lightbulb,
-    title: 'Creative Consulting',
-    description: 'Expert guidance on creative direction, project planning, and bringing ambitious ideas to life.',
+    title: 'Creative Direction',
+    description: 'Expert guidance on creative vision, project planning, and bringing ambitious ideas to life.',
   },
   {
     icon: PenTool,
@@ -40,9 +40,9 @@ const services = [
     description: 'Physical and digital experiences that immerse audiences and create lasting impressions.',
   },
   {
-    icon: Users,
-    title: 'Team Collaboration',
-    description: 'A collective model that brings the right specialists together for every unique project.',
+    icon: Bot,
+    title: 'AI Navigation',
+    description: 'Strategic guidance on AI integration, brand voice protection, and workflow optimization for the modern creative landscape.',
   },
 ];
 
@@ -82,7 +82,9 @@ function Home() {
                 variants={fadeUpVariant}
                 className="font-display text-display-xl text-brand-charcoal"
               >
-                Ask<span className="text-brand-sage">+</span>Deliver
+                Ask better questions.
+                <br />
+                <span className="text-brand-sage">Deliver better work.</span>
               </motion.h1>
 
               <motion.p
@@ -90,9 +92,10 @@ function Home() {
                 variants={fadeUpVariant}
                 className="text-xl md:text-2xl text-neutral-600 max-w-2xl leading-relaxed"
               >
-                A creative collective where talented professionals collaborate
-                to bring exceptional projects to life. From brand strategy to
-                experiential design, we build meaningful work.
+                We&rsquo;re a creative collective built around a simple idea: the
+                right questions are where the right work begins. Brand strategy,
+                identity, campaigns, digital, experiential &mdash; done by people
+                who chose your project.
               </motion.p>
 
               <motion.div
@@ -101,7 +104,7 @@ function Home() {
                 className="flex flex-col sm:flex-row gap-4 pt-4"
               >
                 <Link to="/work" className="btn-brand-primary">
-                  View Our Work
+                  See the Work
                   <ArrowRight className="w-4 h-4 ml-2" />
                 </Link>
                 <Link to="/contact" className="btn-brand-secondary">
@@ -223,21 +226,14 @@ function Home() {
               </h2>
               <div className="space-y-4 text-neutral-600 leading-relaxed">
                 <p>
-                  Every successful project begins with a genuine conversation. We
-                  want to understand your challenges, your vision, and the context
-                  behind the ask — because the best solutions come from deep
-                  understanding.
+                  We start with your challenges, your vision, and the context
+                  behind the ask &mdash; because the best solutions come from deep
+                  understanding. Ask+Deliver is driven by collective expertise:
+                  100+ years of experience across design, technology, and strategy.
                 </p>
                 <p>
-                  At Ask+Deliver, we&rsquo;re more than a traditional agency.
-                  We&rsquo;re a solutions hub driven by collective expertise. With
-                  years of experience across design, technology, and strategy,
-                  we&rsquo;ve honed our focus on delivering targeted solutions
-                  tailored to your needs.
-                </p>
-                <p>
-                  Sometimes we discover even more ways to find success together —
-                  solutions to problems no one was thinking about.
+                  We&rsquo;re focused on making things that earn attention and
+                  trust. Built together &mdash; accountable to outcomes.
                 </p>
               </div>
               <Link
@@ -259,7 +255,7 @@ function Home() {
             >
               <div className="aspect-square bg-white rounded-2xl shadow-sm border border-neutral-200/50 p-12 flex flex-col justify-center">
                 <blockquote className="font-display text-display-sm text-brand-charcoal italic leading-snug mb-6">
-                  &ldquo;Success comes with hard work and sacrifice. Sometimes you just need to call for help.&rdquo;
+                  &ldquo;Anyone can generate content. The hard part is knowing what&rsquo;s worth making &mdash; and then making it matter.&rdquo;
                 </blockquote>
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-full bg-brand-sage/10 flex items-center justify-center">
@@ -329,51 +325,6 @@ function Home() {
       </section>
 
       {/* ============================================
-          WHY CHOOSE US SECTION
-          ============================================ */}
-      <section className="section-public">
-        <div className="container-public">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {[
-              {
-                label: 'Design Maestro',
-                text: 'We breathe life into your ideas through captivating designs, both digital and traditional.',
-              },
-              {
-                label: 'Tech Whisperer',
-                text: 'With 25 years of web development experience, we turn digital dreams into reality.',
-              },
-              {
-                label: 'Management Guru',
-                text: 'From team leadership to workflow systems, we make sure projects run smoothly and efficiently.',
-              },
-            ].map((item, index) => (
-              <motion.div
-                key={item.label}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true, margin: '-50px' }}
-                transition={{ duration: 0.5, delay: index * 0.1 }}
-                className="text-center"
-              >
-                <div className="w-16 h-16 rounded-full bg-brand-sage/10 flex items-center justify-center mx-auto mb-4">
-                  <span className="font-display text-brand-sage font-bold text-xl">
-                    {index + 1}
-                  </span>
-                </div>
-                <h3 className="font-display text-xl font-bold text-brand-charcoal mb-2">
-                  {item.label}
-                </h3>
-                <p className="text-neutral-600 text-sm leading-relaxed max-w-xs mx-auto">
-                  {item.text}
-                </p>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ============================================
           CTA SECTION
           ============================================ */}
       <section className="py-20 md:py-30 bg-brand-charcoal">
@@ -386,13 +337,11 @@ function Home() {
             className="max-w-2xl mx-auto"
           >
             <h2 className="font-display text-display-md text-white mb-6">
-              Let&rsquo;s elevate your business together.
+              Good work starts with a good conversation.
             </h2>
             <p className="text-neutral-400 text-lg leading-relaxed mb-10">
-              Ready to take your business to new heights? Whether you&rsquo;re a
-              seasoned entrepreneur or just starting out, we&rsquo;re here to offer
-              personalized insights and creative solutions tailored to your
-              unique needs.
+              Ready to start something? So are we. Tell us what you&rsquo;re
+              working on and we&rsquo;ll figure out the best way to help.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link

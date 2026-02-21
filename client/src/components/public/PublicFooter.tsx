@@ -27,9 +27,7 @@ function PublicFooter() {
               }}
             />
             <p className="text-neutral-400 text-sm leading-relaxed max-w-sm mb-8">
-              A creative collective where talented professionals collaborate to
-              bring exceptional projects to life. From brand strategy to
-              experiential design, we build meaningful work.
+              Ask better questions. Deliver better work.
             </p>
             <Link
               to="/contact"
@@ -75,7 +73,8 @@ function PublicFooter() {
                 'Web Design & Development',
                 'Marketing Campaigns',
                 'Experiential Design',
-                'Creative Consulting',
+                'Creative Direction',
+                'AI Navigation',
               ].map((service) => (
                 <li key={service}>
                   <span className="text-neutral-400 text-sm">{service}</span>

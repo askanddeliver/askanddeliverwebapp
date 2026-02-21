@@ -6,22 +6,17 @@ const values = [
   {
     title: 'Collaboration First',
     description:
-      'Every project is a partnership. We listen deeply, challenge thoughtfully, and build together with our clients to create work that truly represents their vision.',
+      'Every project is a team sport — but not everyone gets to play. We assemble the right people for each project specifically. That means you get specialists who chose your work, not whoever was available.',
   },
   {
     title: 'Craft & Quality',
     description:
-      'We believe in doing work right — with attention to detail, strategic thinking, and a relentless pursuit of quality that shows in every deliverable.',
+      'We have opinions about what good looks like. We push back when something isn\'t working. We hold the standard even when it\'s inconvenient — because the work with our name on it reflects who we are.',
   },
   {
-    title: 'Honest Communication',
+    title: 'Honest Over Easy',
     description:
-      'No jargon, no runaround. We pride ourselves on transparent conversations about timelines, budgets, and creative direction from day one.',
-  },
-  {
-    title: 'Collective Expertise',
-    description:
-      'Our model brings together the right specialists for each project — ensuring you get senior-level talent across every discipline your project demands.',
+      'We\'ll tell you when the brief isn\'t the real problem. We\'ll flag when a timeline doesn\'t make sense. We\'d rather have a hard conversation early than a bad outcome at the end.',
   },
 ];
 
@@ -42,6 +37,10 @@ const capabilities = [
     category: 'Production',
     items: ['Photography', 'Video Production', 'Motion Graphics', 'Copywriting', 'Project Management'],
   },
+  {
+    category: 'AI & Technology',
+    items: ['AI Navigation & Audit', 'Brand Voice Protection', 'Content Strategy', 'Workflow Integration'],
+  },
 ];
 
 function About() {
@@ -58,14 +57,15 @@ function About() {
           >
             <p className="meta-label mb-3">About</p>
             <h1 className="font-display text-display-lg text-brand-charcoal mb-6">
-              More than an agency.
+              A creative collective.
               <br />
-              <span className="text-brand-sage">A creative collective.</span>
+              <span className="text-brand-sage">Not an agency.</span>
             </h1>
             <p className="text-xl text-neutral-600 leading-relaxed max-w-3xl">
-              Ask+Deliver is a solutions hub driven by collective expertise. With
-              years of experience in the field, we&rsquo;ve honed our focus on
-              delivering targeted solutions tailored to your needs.
+              There&rsquo;s a difference. Ask+Deliver brings together proven
+              specialists who choose the projects they take on and commit fully.
+              No overhead you&rsquo;re paying for. No generalists doing a
+              specialist&rsquo;s job.
             </p>
           </motion.div>
         </div>
@@ -74,78 +74,29 @@ function About() {
       {/* Story Section */}
       <section className="section-public bg-white">
         <div className="container-public">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-start">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true, margin: '-100px' }}
-              transition={{ duration: 0.6 }}
-            >
-              <h2 className="font-display text-display-sm text-brand-charcoal mb-6">
-                Why consultation matters
-              </h2>
-              <div className="space-y-4 text-neutral-600 leading-relaxed">
-                <p>
-                  We get it. Success comes with hard work and sacrifice.
-                  Sometimes you just need to call for help. We pride ourselves on
-                  pulling up our sleeves and getting to work to make your business
-                  the best that it can be.
-                </p>
-                <p>
-                  We&rsquo;ll help you assess your marketing or business needs to
-                  determine your next steps. We evaluate budget needs and help align
-                  you with resources that best fit your desired results.
-                </p>
-                <p>
-                  Whether you&rsquo;re seeking to amplify your brand, enhance your
-                  online presence, or optimize project workflows, our collaborative
-                  approach ensures you receive personalized strategies crafted by
-                  industry professionals.
-                </p>
-              </div>
-            </motion.div>
-
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true, margin: '-100px' }}
-              transition={{ duration: 0.6, delay: 0.2 }}
-            >
-              <h2 className="font-display text-display-sm text-brand-charcoal mb-6">
-                Why choose us
-              </h2>
-              <div className="space-y-6">
-                {[
-                  {
-                    label: 'Design Maestro',
-                    text: 'We breathe life into your ideas through captivating designs, both digital and traditional. From brand identity to environmental graphics, design is in our DNA.',
-                  },
-                  {
-                    label: 'Tech Whisperer',
-                    text: 'With 25 years of web development under our belt, we turn digital dreams into reality. Modern technology, proven methods, built to last.',
-                  },
-                  {
-                    label: 'Management Guru',
-                    text: 'From team leadership to workflow systems, we make sure projects run smoothly and efficiently. No missed deadlines, no surprises.',
-                  },
-                ].map((item, index) => (
-                  <div key={item.label} className="flex gap-4">
-                    <div className="w-8 h-8 rounded-full bg-brand-sage/10 flex items-center justify-center flex-shrink-0 mt-1">
-                      <span className="font-mono text-brand-sage text-sm font-medium">
-                        {index + 1}
-                      </span>
-                    </div>
-                    <div>
-                      <h3 className="font-display font-bold text-brand-charcoal mb-1">
-                        {item.label}
-                      </h3>
-                      <p className="text-neutral-600 text-sm leading-relaxed">{item.text}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </motion.div>
-          </div>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, margin: '-100px' }}
+            transition={{ duration: 0.6 }}
+            className="max-w-3xl"
+          >
+            <h2 className="font-display text-display-sm text-brand-charcoal mb-6">
+              Why the collective model changes things
+            </h2>
+            <div className="space-y-4 text-neutral-600 leading-relaxed">
+              <p>
+                We grew out of The New BLK &mdash; a studio built on the belief
+                that every great brand is, at its core, a great story. That belief
+                hasn&rsquo;t changed. What has is our model.
+              </p>
+              <p>
+                Ask+Deliver brings together proven specialists who choose the
+                projects they take on and commit fully. No overhead you&rsquo;re
+                paying for. No generalists doing a specialist&rsquo;s job.
+              </p>
+            </div>
+          </motion.div>
         </div>
       </section>
 
@@ -165,7 +116,7 @@ function About() {
             </h2>
           </motion.div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {values.map((value, index) => (
               <motion.div
                 key={value.title}
@@ -204,7 +155,7 @@ function About() {
             </h2>
           </motion.div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-8">
             {capabilities.map((group, index) => (
               <motion.div
                 key={group.category}
