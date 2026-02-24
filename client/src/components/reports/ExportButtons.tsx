@@ -4,6 +4,7 @@ import { exportApi } from '../../services/api';
 interface ExportButtonsProps {
   clientId?: string;
   projectId?: string;
+  projectIds?: string[];
   startDate?: string;
   endDate?: string;
   disabled?: boolean;
@@ -12,6 +13,7 @@ interface ExportButtonsProps {
 export function ExportButtons({
   clientId,
   projectId,
+  projectIds,
   startDate,
   endDate,
   disabled,
@@ -45,7 +47,8 @@ export function ExportButtons({
     try {
       const response = await exportApi.csv({
         clientId: clientId || undefined,
-        projectId: projectId || undefined,
+        projectId: (projectIds?.length ? undefined : projectId) || undefined,
+        projectIds: projectIds?.length ? projectIds : undefined,
         startDate,
         endDate,
       });

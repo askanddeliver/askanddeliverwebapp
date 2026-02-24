@@ -37,29 +37,37 @@ router.post(
     const workspaceOwnerId = await getWorkspaceOwnerId(req);
     if (!workspaceOwnerId) throw createError('Workspace access required', 403);
 
-    const { clientId, projectId, startDate, endDate } = req.body;
+    const { clientId, projectId, projectIds, startDate, endDate } = req.body;
 
     if (!startDate || !endDate) {
       throw createError('Start date and end date are required', 400);
     }
 
-    const projectIds = await Project.find({ userId: workspaceOwnerId }).distinct('_id');
+    const workspaceProjectIds = await Project.find({ userId: workspaceOwnerId }).distinct('_id');
+
+    // Filter by project(s): projectIds array, or legacy single projectId
+    let effectiveProjectIds = workspaceProjectIds;
+    const requestedIds = Array.isArray(projectIds) && projectIds.length > 0
+      ? projectIds
+      : projectId
+        ? [projectId]
+        : [];
+    if (requestedIds.length > 0) {
+      const valid = requestedIds.filter((id) =>
+        workspaceProjectIds.some((pid) => pid.toString() === id)
+      );
+      if (valid.length > 0) effectiveProjectIds = valid as unknown as typeof workspaceProjectIds;
+    }
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const query: any = {
-      projectId: { $in: projectIds },
+      projectId: { $in: effectiveProjectIds },
       isRunning: false,
       startTime: {
         $gte: new Date(startDate + 'T00:00:00'),
         $lte: new Date(endDate + 'T23:59:59.999'),
       },
     };
-
-    if (projectId) {
-      if (projectIds.some((id) => id.toString() === projectId)) {
-        query.projectId = projectId;
-      }
-    }
 
     const entries = await TimeEntry.find(query)
       .populate({

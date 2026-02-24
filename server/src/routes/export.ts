@@ -58,15 +58,25 @@ router.post(
     const workspaceOwnerId = await getWorkspaceOwnerId(req);
     if (!workspaceOwnerId) throw createError('Workspace access required', 403);
 
-    const { clientId, projectId, startDate, endDate } = req.body;
+    const { clientId, projectId, projectIds, startDate, endDate } = req.body;
 
-    const projectIds = await Project.find({ userId: workspaceOwnerId }).distinct('_id');
+    const workspaceProjectIds = await Project.find({ userId: workspaceOwnerId }).distinct('_id');
+
+    const requestedIds = Array.isArray(projectIds) && projectIds.length > 0
+      ? projectIds
+      : projectId
+        ? [projectId]
+        : [];
+    const effectiveProjectIds = requestedIds.length > 0
+      ? requestedIds.filter((id) => workspaceProjectIds.some((pid) => pid.toString() === id))
+      : workspaceProjectIds.map((id) => id.toString());
+    const effectiveIds = requestedIds.length > 0 && effectiveProjectIds.length > 0
+      ? effectiveProjectIds
+      : workspaceProjectIds;
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const query: any = {
-      projectId: projectId && projectIds.some((id) => id.toString() === projectId)
-        ? projectId
-        : { $in: projectIds },
+      projectId: { $in: effectiveIds },
       isRunning: false,
     };
 

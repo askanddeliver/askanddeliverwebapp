@@ -144,6 +144,7 @@ export const timeEntriesApi = {
     startDate?: string;
     endDate?: string;
     projectId?: string;
+    projectIds?: string[];
   }) => api.get<TimeEntry[]>('/time-entries', { params }),
   getActive: () => api.get<TimeEntry | null>('/time-entries/active'),
   start: (data: {
@@ -173,6 +174,7 @@ export const lineItemsApi = {
   getAll: (params?: {
     clientId?: string;
     projectId?: string;
+    projectIds?: string[];
     startDate?: string;
     endDate?: string;
   }) => api.get<LineItem[]>('/line-items', { params }),
@@ -194,6 +196,7 @@ export const reportsApi = {
   generateInvoice: (data: {
     clientId?: string;
     projectId?: string;
+    projectIds?: string[];
     startDate: string;
     endDate: string;
   }) => api.post<Invoice>('/reports/generate-invoice', data),
@@ -206,6 +209,7 @@ export const exportApi = {
   csv: (data: {
     clientId?: string;
     projectId?: string;
+    projectIds?: string[];
     startDate?: string;
     endDate?: string;
   }) =>

@@ -38,18 +38,17 @@ router.get(
     const workspaceOwnerId = await getWorkspaceOwnerId(req);
     if (!workspaceOwnerId) throw createError('Workspace access required', 403);
 
-    const { startDate, endDate, projectId } = req.query;
+    const { startDate, endDate, projectId, projectIds } = req.query;
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const query: any = {};
 
     const admin = await isAdmin(auth0Id);
+    let workspaceProjectIds: mongoose.Types.ObjectId[] = [];
     if (admin) {
-      // Admin: entries for projects in workspace
-      const projectIds = await Project.find({ userId: workspaceOwnerId }).distinct('_id');
-      query.projectId = { $in: projectIds };
+      workspaceProjectIds = await Project.find({ userId: workspaceOwnerId }).distinct('_id');
+      query.projectId = { $in: workspaceProjectIds };
     } else {
-      // Member: own entries only
       query.userId = auth0Id;
     }
 
@@ -63,13 +62,22 @@ router.get(
       }
     }
 
-    if (projectId && mongoose.Types.ObjectId.isValid(projectId as string)) {
-      const projectIds = await Project.find({ userId: workspaceOwnerId }).distinct('_id');
-      const inWorkspace = projectIds.some((id) => id.toString() === projectId);
-      if (inWorkspace) {
-        query.projectId = projectId;
+    // Filter by project(s): projectIds array or single projectId
+    const ids = Array.isArray(projectIds)
+      ? projectIds
+      : projectIds
+        ? (projectIds as string).split(',').map((s) => s.trim()).filter(Boolean)
+        : projectId
+          ? [projectId]
+          : [];
+    if (ids.length > 0 && admin) {
+      const valid = ids.filter((id) =>
+        typeof id === 'string' && mongoose.Types.ObjectId.isValid(id) &&
+        workspaceProjectIds.some((pid) => pid.toString() === id)
+      );
+      if (valid.length > 0) {
+        query.projectId = { $in: valid };
       }
-      // If not in workspace: admin gets no match (query.projectId stays $in), member would need to filter - skip
     }
 
     const entries = await TimeEntry.find(query)

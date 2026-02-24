@@ -14,6 +14,7 @@ interface EntryRowProps {
   onDelete: (id: string) => void;
   onContinue?: (entry: TimeEntry) => void;
   showAmount?: boolean;
+  showDescription?: boolean;
 }
 
 export function EntryRow({
@@ -22,6 +23,7 @@ export function EntryRow({
   onDelete,
   onContinue,
   showAmount = true,
+  showDescription = true,
 }: EntryRowProps) {
   const project =
     typeof entry.projectId === 'object'
@@ -76,7 +78,7 @@ export function EntryRow({
           {taskType && <span>{client ? ` (${taskType.name})` : taskType.name}</span>}
           <span> &middot; {formatDate(entry.startTime)}</span>
         </div>
-        {entry.description && (
+        {showDescription && entry.description && (
           <div className="text-xs text-gray-400 mt-1 line-clamp-2 print:text-[10px] print:mt-0 print:line-clamp-1">
             {entry.description}
           </div>

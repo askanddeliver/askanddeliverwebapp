@@ -15,13 +15,18 @@ router.get(
     const userId = extractUserId(req);
     if (!userId) throw createError('User ID not found in token', 401);
 
-    const { clientId, projectId, startDate, endDate } = req.query;
+    const { clientId, projectId, projectIds, startDate, endDate } = req.query;
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const query: any = { userId };
 
     if (clientId) query.clientId = clientId;
-    if (projectId) query.projectId = projectId;
+    if (projectIds) {
+      const ids = Array.isArray(projectIds) ? projectIds : (projectIds as string).split(',').map((s) => s.trim()).filter(Boolean);
+      if (ids.length > 0) query.projectId = { $in: ids };
+    } else if (projectId) {
+      query.projectId = projectId;
+    }
 
     if (startDate || endDate) {
       query.date = {};

@@ -23,6 +23,56 @@ import {
 import type { Client, Project, Invoice, TimeEntry, LineItem, User } from '../types';
 
 type TabId = 'invoice' | 'entries' | 'members';
+
+function ProjectMultiSelect({
+  projects,
+  selectedIds,
+  onChange,
+}: {
+  projects: Project[];
+  selectedIds: string[];
+  onChange: (ids: string[]) => void;
+}) {
+  return (
+    <div className="border border-gray-300 rounded-lg p-2 max-h-32 overflow-y-auto bg-white">
+      {projects.map((p) => (
+        <label key={p._id} className="flex items-center gap-2 py-1 cursor-pointer hover:bg-gray-50 rounded px-1">
+          <input
+            type="checkbox"
+            checked={selectedIds.includes(p._id)}
+            onChange={(e) => {
+              if (e.target.checked) {
+                onChange([...selectedIds, p._id]);
+              } else {
+                onChange(selectedIds.filter((id) => id !== p._id));
+              }
+            }}
+            className="rounded border-gray-300"
+          />
+          <span className="text-sm">{p.title}</span>
+        </label>
+      ))}
+      {projects.length > 0 && (
+        <div className="flex gap-2 mt-1 pt-1 border-t border-gray-100">
+          <button
+            type="button"
+            onClick={() => onChange(projects.map((p) => p._id))}
+            className="text-xs text-primary-600 hover:text-primary-700"
+          >
+            Select All
+          </button>
+          <button
+            type="button"
+            onClick={() => onChange([])}
+            className="text-xs text-gray-500 hover:text-gray-700"
+          >
+            Clear
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
 type EntrySortKey = 'date' | 'client' | 'amount' | 'member';
 
 function Reports() {
@@ -40,9 +90,13 @@ function Reports() {
 
   // Filter state
   const [clientId, setClientId] = useState('');
-  const [projectId, setProjectId] = useState('');
+  const [projectIds, setProjectIds] = useState<string[]>([]);
   const [startDate, setStartDate] = useState(getDaysAgoString(30));
   const [endDate, setEndDate] = useState(getTodayString());
+
+  // Invoice PDF display options
+  const [includeTimeEntries, setIncludeTimeEntries] = useState(true);
+  const [includeEntryDescriptions, setIncludeEntryDescriptions] = useState(false);
 
   // Invoice + entries + line items data
   const [invoice, setInvoice] = useState<Invoice | null>(null);
@@ -102,18 +156,18 @@ function Reports() {
       const [invoiceRes, entriesRes, lineItemsRes] = await Promise.all([
         reportsApi.generateInvoice({
           clientId: clientId || undefined,
-          projectId: projectId || undefined,
+          projectIds: projectIds.length > 0 ? projectIds : undefined,
           startDate,
           endDate,
         }),
         timeEntriesApi.getAll({
           startDate,
           endDate,
-          projectId: projectId || undefined,
+          projectIds: projectIds.length > 0 ? projectIds : undefined,
         }),
         lineItemsApi.getAll({
           clientId: clientId || undefined,
-          projectId: projectId || undefined,
+          projectIds: projectIds.length > 0 ? projectIds : undefined,
           startDate,
           endDate,
         }),
@@ -142,7 +196,7 @@ function Reports() {
     } finally {
       setGenerating(false);
     }
-  }, [clientId, projectId, startDate, endDate]);
+  }, [clientId, projectIds, startDate, endDate]);
 
   const userMap = useMemo(() => {
     const m = new Map<string, string>();
@@ -249,7 +303,7 @@ function Reports() {
               value={clientId}
               onChange={(e) => {
                 setClientId(e.target.value);
-                setProjectId('');
+                setProjectIds([]);
               }}
               className="input"
             >
@@ -261,23 +315,18 @@ function Reports() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Project</label>
-            <select
-              value={projectId}
-              onChange={(e) => setProjectId(e.target.value)}
-              className="input"
-            >
-              <option value="">All Projects</option>
-              {(clientId
+            <label className="block text-sm font-medium text-gray-700 mb-1">Projects</label>
+            <ProjectMultiSelect
+              projects={clientId
                 ? projects.filter((p) => {
                     const pClientId = typeof p.clientId === 'object' ? p.clientId._id : p.clientId;
                     return pClientId === clientId;
                   })
-                : projects
-              ).map((p) => (
-                <option key={p._id} value={p._id}>{p.title}</option>
-              ))}
-            </select>
+                : projects}
+              selectedIds={projectIds}
+              onChange={setProjectIds}
+            />
+            <p className="text-xs text-gray-500 mt-0.5">Leave empty for all projects</p>
           </div>
 
           <div>
@@ -301,10 +350,40 @@ function Reports() {
           </div>
         </div>
 
+        <div className="border-t border-gray-100 pt-4">
+          <h4 className="text-sm font-semibold text-gray-700 mb-2">Invoice / PDF options</h4>
+          <div className="flex flex-wrap gap-6">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={includeTimeEntries}
+                onChange={(e) => setIncludeTimeEntries(e.target.checked)}
+                className="rounded border-gray-300"
+              />
+              <span className="text-sm">Include time entries on invoice PDF</span>
+            </label>
+            <label className={`flex items-center gap-2 cursor-pointer ${!includeTimeEntries ? 'opacity-50' : ''}`}>
+              <input
+                type="checkbox"
+                checked={includeEntryDescriptions}
+                onChange={(e) => setIncludeEntryDescriptions(e.target.checked)}
+                disabled={!includeTimeEntries}
+                className="rounded border-gray-300"
+              />
+              <span className="text-sm">Include entry descriptions</span>
+            </label>
+            {!includeEntryDescriptions && includeTimeEntries && (
+              <span className="text-xs text-gray-500 self-center">
+                (Descriptions often contain internal notes—uncheck to hide from clients)
+              </span>
+            )}
+          </div>
+        </div>
+
         <div className="flex flex-wrap items-center gap-3">
           <ExportButtons
             clientId={clientId || undefined}
-            projectId={projectId || undefined}
+            projectIds={projectIds.length > 0 ? projectIds : undefined}
             startDate={startDate}
             endDate={endDate}
             disabled={!invoice || invoice.items.length === 0}
@@ -342,9 +421,9 @@ function Reports() {
             >
               This month
             </button>
-            {(clientId || projectId) && (
+            {(clientId || projectIds.length > 0) && (
               <button
-                onClick={() => { setClientId(''); setProjectId(''); }}
+                onClick={() => { setClientId(''); setProjectIds([]); }}
                 className="px-3 py-1.5 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 transition-colors"
               >
                 Clear Filters
@@ -545,11 +624,11 @@ function Reports() {
         </div>
       )}
 
-      {/* Invoice print view: summary + entries on page 2 */}
+      {/* Invoice print view: summary + entries on page 2 (when includeTimeEntries) */}
       {invoice && invoice.items.length > 0 && (
         <div className="hidden print:block print:overflow-visible">
           <InvoicePreview invoice={invoice} />
-          {filteredEntries.length > 0 && (
+          {includeTimeEntries && filteredEntries.length > 0 && (
             <div className="mt-6 break-before-page">
               <h3 className="text-lg font-bold text-gray-900 mb-4">
                 Time Entries ({filteredEntries.length})
@@ -562,6 +641,7 @@ function Reports() {
                     onEdit={() => {}}
                     onDelete={() => {}}
                     showAmount={true}
+                    showDescription={includeEntryDescriptions}
                   />
                 ))}
               </div>
