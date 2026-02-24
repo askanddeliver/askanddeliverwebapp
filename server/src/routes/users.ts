@@ -10,16 +10,33 @@ const router = Router();
 router.use(checkJwt);
 
 /**
+ * Primary admin email (env) - always granted admin regardless of signup order.
+ * Set PRIMARY_ADMIN_EMAIL=mattlinder@gmail.com to ensure the intended owner has admin.
+ */
+const PRIMARY_ADMIN_EMAIL = (process.env.PRIMARY_ADMIN_EMAIL || '')
+  .trim()
+  .toLowerCase();
+
+/**
  * Assign role for new users or migrate existing users without role.
+ * - PRIMARY_ADMIN_EMAIL matches → admin (override)
  * - First user in DB → admin
  * - Existing user without role → admin (migration)
  * - New user (others exist) → pending (admin assigns member in Phase 5)
  */
 async function assignRoleForUser(
   auth0Id: string,
-  existingUser?: { role?: string; workspaceOwnerId?: string } | null
+  existingUser?: { role?: string; workspaceOwnerId?: string; email?: string } | null,
+  email?: string
 ): Promise<{ role: UserRole; workspaceOwnerId?: string }> {
-  // Migration: existing user already has role → keep it
+  const userEmail = (email || existingUser?.email || '').toString().toLowerCase();
+
+  // Primary admin override - always grant admin
+  if (PRIMARY_ADMIN_EMAIL && userEmail === PRIMARY_ADMIN_EMAIL) {
+    return { role: 'admin', workspaceOwnerId: auth0Id };
+  }
+
+  // Migration: existing user already has role → keep it (unless primary admin override above)
   if (existingUser?.role && existingUser.role !== 'pending') {
     return {
       role: existingUser.role as UserRole,
@@ -55,7 +72,7 @@ router.get(
 
     // Create user if new signup (ensure role is set)
     if (!user) {
-      const { role, workspaceOwnerId } = await assignRoleForUser(auth0Id, null);
+      const { role, workspaceOwnerId } = await assignRoleForUser(auth0Id, null, email);
       const userData = {
         auth0Id,
         email: email || `user-${auth0Id.replace(/[^a-z0-9]/gi, '-')}@placeholder.local`,
@@ -83,10 +100,12 @@ router.get(
         }
       }
     } else {
-      // Migration: ensure existing users have role
-      const hasRole = user.role && user.role !== 'pending';
-      if (!hasRole) {
-        const { role, workspaceOwnerId } = await assignRoleForUser(auth0Id, user);
+      // Migration: ensure existing users have role (check PRIMARY_ADMIN_EMAIL even if they have role)
+      const effectiveEmail = (user.email || email || '').toString().toLowerCase();
+      const isPrimaryAdmin = PRIMARY_ADMIN_EMAIL && effectiveEmail === PRIMARY_ADMIN_EMAIL;
+      const hasRole = user.role && user.role !== 'pending' && !isPrimaryAdmin;
+      if (!hasRole || isPrimaryAdmin) {
+        const { role, workspaceOwnerId } = await assignRoleForUser(auth0Id, user, effectiveEmail);
         user = await User.findOneAndUpdate(
           { auth0Id },
           { role, workspaceOwnerId },
@@ -118,12 +137,14 @@ router.put(
     // Only assign role when creating (upsert) or migrating; preserve for existing users
     let role = existing?.role;
     let workspaceOwnerId = existing?.workspaceOwnerId;
+    const effectiveEmail = (email || existing?.email || '').toString().toLowerCase();
+    const isPrimaryAdmin = PRIMARY_ADMIN_EMAIL && effectiveEmail === PRIMARY_ADMIN_EMAIL;
     if (!existing) {
-      const assigned = await assignRoleForUser(auth0Id, null);
+      const assigned = await assignRoleForUser(auth0Id, null, effectiveEmail);
       role = assigned.role;
       workspaceOwnerId = assigned.workspaceOwnerId;
-    } else if (!existing.role || existing.role === 'pending') {
-      const assigned = await assignRoleForUser(auth0Id, existing);
+    } else if (!existing.role || existing.role === 'pending' || isPrimaryAdmin) {
+      const assigned = await assignRoleForUser(auth0Id, existing, effectiveEmail);
       role = assigned.role;
       workspaceOwnerId = assigned.workspaceOwnerId;
     }
@@ -201,7 +222,9 @@ router.post(
       throw createError('No user found with that email. Share the signup link and they will appear here after signing up.', 404);
     }
 
-    if (user.workspaceOwnerId && user.workspaceOwnerId !== auth0Id) {
+    // Block if in another workspace, unless they're a standalone admin (we can claim them)
+    const isStandaloneAdmin = user.role === 'admin' && user.workspaceOwnerId === user.auth0Id;
+    if (user.workspaceOwnerId && user.workspaceOwnerId !== auth0Id && !isStandaloneAdmin) {
       throw createError('User is already a member of another workspace', 400);
     }
 
