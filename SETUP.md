@@ -161,6 +161,11 @@ CLOUDINARY_API_KEY=your-api-key
 CLOUDINARY_API_SECRET=your-api-secret
 ```
 
+### Optional: Team & Add by Email
+
+- **PRIMARY_ADMIN_EMAIL** — Set to your email (e.g. `you@example.com`) to ensure you always get admin role, even if someone else signs up first.
+- **AUTH0_M2M_CLIENT_ID** and **AUTH0_M2M_CLIENT_SECRET** — Required for "Add by Email" (look up users in Auth0). See [server/AUTH0_M2M_SETUP.md](server/AUTH0_M2M_SETUP.md) for setup.
+
 ### Root `.env` (usually no changes needed):
 ```env
 NODE_ENV=development
@@ -214,6 +219,9 @@ Navigate to http://localhost:5173/contact and submit a test inquiry. You should 
 ### 7. Customize your theme (optional)
 Go to **Site Config** to adjust your brand colors. You can tweak the sage, charcoal, cream, and accent colors, preview changes live, and save named palettes for quick switching.
 
+### 8. Team management (optional)
+Go to **Team** to invite members. Share the invite link; after they sign up with Auth0, use "Add by Email" to add them to your workspace (requires Auth0 M2M setup if adding by email).
+
 ---
 
 ## Step 10: Configure Cursor IDE (Optional)
@@ -259,22 +267,28 @@ The project includes a `.cursorrules` file that provides context to Cursor's AI 
 - Check that all three Cloudinary variables are set: `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`
 - Ensure `cloudinary` and `multer` are installed (`npm list cloudinary multer` in the server directory)
 
+### "Add by Email" fails or returns 502
+- Ensure `AUTH0_M2M_CLIENT_ID` and `AUTH0_M2M_CLIENT_SECRET` are set in `server/.env`
+- Follow [server/AUTH0_M2M_SETUP.md](server/AUTH0_M2M_SETUP.md) to create a Machine-to-Machine app with `read:users` permission
+- The user must have signed up in Auth0 first (share the invite link; they create an account, then you add them)
+
 ---
 
 ## Application Workflow
 
 Here's the typical workflow for using Ask And Deliver:
 
-1. **Configure task types** — Set up your billable categories and hourly rates
-2. **Add clients** — Create client records with optional per-task-type discounts
-3. **Create projects** — Link projects to clients, set budgets, add project tasks
-4. **Track time** — Use the live timer, resume a previous entry, or add manual entries from the Dashboard
-5. **Add fixed-cost items** — Use the Line Items panel in Reports to add third-party costs (plugins, hosting, subcontractors) as flat-fee charges
-6. **Generate invoices** — Use Reports to generate invoices combining time entries and line items with automatic discount calculations
-7. **Export data** — Export time entries and line items as CSV for external accounting
-8. **Manage leads** — Review intake form submissions, track through your pipeline, convert to clients
-9. **Showcase work** — Manage your public portfolio from the Portfolio Admin page (drag-and-drop ordering, publish/feature toggles)
-10. **Customize branding** — Use Site Config to adjust theme colors and save named palettes
+1. **Configure task types** — Set up your billable categories and hourly rates (admin only)
+2. **Add team members** — Share the invite link; use "Add by Email" in Team to add members (admin only)
+3. **Add clients** — Create client records with optional per-task-type discounts (admin only)
+4. **Create projects** — Link projects to clients, set budgets, add project tasks
+5. **Track time** — Use the live timer, resume a previous entry, or add manual entries from the Dashboard
+6. **Add fixed-cost items** — Use the Line Items panel in Reports to add third-party costs (plugins, hosting, subcontractors) as flat-fee charges
+7. **Generate invoices** — Use Reports to generate invoices combining time entries and line items with automatic discount calculations
+8. **Export data** — Export time entries and line items as CSV for external accounting
+9. **Manage leads** — Review intake form submissions, track through your pipeline, convert to clients (admin only)
+10. **Showcase work** — Manage your public portfolio from the Portfolio Admin page (admin only)
+11. **Customize branding** — Use Site Config to adjust theme colors and save named palettes (admin only)
 
 ---
 

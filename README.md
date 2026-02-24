@@ -1,6 +1,6 @@
 # Ask And Deliver — Time Tracking & Invoicing System
 
-A full-featured time tracking, client management, and invoicing application built for freelancers and consultants. Includes a live timer with resume, per-client discount pricing, invoice generation, lead pipeline management, a public-facing portfolio website, and theme customization.
+A full-featured time tracking, client management, and invoicing application built for freelancers and consultants. Includes a live timer with resume, per-client discount pricing, invoice generation, lead pipeline management, a public-facing portfolio website, theme customization, and multi-user workspace support with role-based access (admin, member, pending).
 
 ## Features
 
@@ -56,10 +56,18 @@ A full-featured time tracking, client management, and invoicing application buil
 - **Reset to defaults** — One-click reset to the default color scheme
 - **Public API** — Active theme colors are served to the public site automatically
 
+### Team & Workspace
+- **Role-based access** — Admin, member, and pending roles control what each user can see and do
+- **Workspace model** — Admins own a workspace; members belong to an admin's workspace
+- **Add by email** — Admins can add team members by email (requires Auth0 M2M app for lookup)
+- **Invite link** — Share your app URL; new users sign up, then admins add them via email
+- **Primary admin** — Set `PRIMARY_ADMIN_EMAIL` in env to ensure the intended owner always has admin (fixes signup-order edge cases)
+- **Member permissions** — Members can track time and manage projects; admins manage clients, leads, reports, portfolio, task types, and team
+
 ### Authentication & Security
 - **Auth0 integration** — Secure login/logout with Auth0 Single Page Application flow
-- **Protected routes** — All admin routes require authentication
-- **Multi-tenant data isolation** — Every database record is scoped to the authenticated user's ID
+- **Protected routes** — Admin-only routes redirect non-admins to the dashboard
+- **Multi-tenant data isolation** — Data scoped by workspace (admin + their members)
 - **JWT validation** — Server-side token verification via `express-oauth2-jwt-bearer`
 
 ---
@@ -100,7 +108,9 @@ askanddeliverwebapp/
 │   │   │   ├── reports/          # Invoice preview, filters, export, line items panel
 │   │   │   ├── taskTypes/        # Task type list, modal
 │   │   │   ├── timer/            # Timer display, controls, quick entry
+│   │   │   ├── users/            # User edit modal, add-by-email modal
 │   │   │   ├── Layout.tsx        # Admin layout shell
+│   │   │   ├── AdminRoute.tsx    # Admin-only route guard
 │   │   │   ├── Sidebar.tsx       # Admin sidebar navigation
 │   │   │   ├── TopBar.tsx        # Admin top bar
 │   │   │   ├── Navbar.tsx        # Admin navigation bar
@@ -121,7 +131,11 @@ askanddeliverwebapp/
 │   │   │   ├── Leads.tsx         # Lead pipeline management
 │   │   │   ├── PortfolioAdmin.tsx # Portfolio project management
 │   │   │   ├── SiteConfig.tsx    # Theme color customization
+│   │   │   ├── Users.tsx         # Team management (admin)
 │   │   │   └── Profile.tsx       # User profile
+│   │   ├── contexts/
+│   │   │   ├── ApiAuthContext.tsx
+│   │   │   └── UserContext.tsx   # User role/workspace context
 │   │   ├── services/
 │   │   │   └── api.ts            # Axios API service layer
 │   │   ├── hooks/
@@ -169,6 +183,8 @@ askanddeliverwebapp/
 │   │   ├── config/
 │   │   │   ├── database.ts       # MongoDB connection
 │   │   │   └── cloudinary.ts     # Cloudinary media upload config
+│   │   ├── lib/
+│   │   │   └── auth0Management.ts # Auth0 Management API (add-by-email)
 │   │   ├── utils/
 │   │   │   └── calculations.ts   # Discount and rate calculations
 │   │   └── types/                # TypeScript type definitions
@@ -243,9 +259,16 @@ AUTH0_AUDIENCE=http://localhost:3001/api
 CLOUDINARY_CLOUD_NAME=your-cloud-name
 CLOUDINARY_API_KEY=your-api-key
 CLOUDINARY_API_SECRET=your-api-secret
+
+# Optional: Primary admin (always gets admin role, fixes signup-order edge cases)
+# PRIMARY_ADMIN_EMAIL=your-email@example.com
+
+# Optional: For "Add by Email" — create M2M app in Auth0, authorize read:users
+# AUTH0_M2M_CLIENT_ID=
+# AUTH0_M2M_CLIENT_SECRET=
 ```
 
-See [SETUP.md](SETUP.md) for detailed MongoDB Atlas, Auth0, and Cloudinary configuration instructions.
+See [SETUP.md](SETUP.md) for detailed MongoDB Atlas, Auth0, and Cloudinary configuration. For "Add by Email," see [server/AUTH0_M2M_SETUP.md](server/AUTH0_M2M_SETUP.md).
 
 ---
 
@@ -284,9 +307,12 @@ See [SETUP.md](SETUP.md) for detailed MongoDB Atlas, Auth0, and Cloudinary confi
 #### Users
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| `GET` | `/api/users/me` | Get current user profile |
+| `GET` | `/api/users/me` | Get current user profile (with role) |
 | `PUT` | `/api/users/me` | Update current user profile |
 | `DELETE` | `/api/users/me` | Delete current user account |
+| `GET` | `/api/users` | List workspace users (admin only) |
+| `POST` | `/api/users/add-by-email` | Add user to workspace by email (admin only) |
+| `PUT` | `/api/users/:id` | Update user role/status/earnedRates (admin only) |
 
 #### Clients
 | Method | Endpoint | Description |
@@ -402,7 +428,7 @@ See [SETUP.md](SETUP.md) for detailed MongoDB Atlas, Auth0, and Cloudinary confi
 ## Data Models
 
 ### User
-Auth0-linked user profile with `auth0Id`, `email`, `name`, and `picture`.
+Auth0-linked user profile with `auth0Id`, `email`, `name`, `picture`, and `nickname`. Supports workspace/team model: `role` (admin | member | pending), `status` (active | pending | disabled), `workspaceOwnerId` (admin who owns this user's workspace), `invitedBy`, and `earnedRates` (optional per-task-type rates for members).
 
 ### Client
 Client record with `name`, `company`, `email`, and a `taskDiscounts` map — a `Map<string, number>` where each key is a TaskType ID and the value is a discount percentage (0–100).
@@ -438,9 +464,10 @@ Per-user theme configuration. Stores `colors` (an object with 10 brand color val
 1. User clicks "Login" on the public site
 2. Redirected to Auth0 Universal Login
 3. Auth0 authenticates and returns to the app with an access token
-4. Frontend stores the token and injects it into all API requests via the `useApiAuth` hook
+4. Frontend stores the token and injects it into all API requests via the API auth context
 5. Backend validates the token using `express-oauth2-jwt-bearer`
-6. All protected database queries are scoped to the authenticated user's `auth0Id`
+6. First user or `PRIMARY_ADMIN_EMAIL` match → admin; other new signups → pending until an admin adds them
+7. Protected data is scoped by workspace (admin + their members)
 
 ---
 
