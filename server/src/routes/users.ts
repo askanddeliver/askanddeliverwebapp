@@ -100,11 +100,26 @@ router.get(
         }
       }
     } else {
+      // Sync email/name from Auth0 when we have a placeholder (fixes add-by-email lookup)
+      const isPlaceholder = user.email?.includes('@placeholder.') || user.email?.includes('@temp.');
+      const syncUpdate: Record<string, unknown> = {};
+      if (isPlaceholder && email) syncUpdate.email = email.trim().toLowerCase();
+      if (isPlaceholder && name) syncUpdate.name = name;
+      if (picture !== undefined) syncUpdate.picture = picture;
+      if (Object.keys(syncUpdate).length > 0) {
+        const synced = await User.findOneAndUpdate(
+          { auth0Id },
+          syncUpdate,
+          { new: true }
+        );
+        if (synced) user = synced;
+      }
+
       // Migration: ensure existing users have role (check PRIMARY_ADMIN_EMAIL even if they have role)
-      const effectiveEmail = (user.email || email || '').toString().toLowerCase();
+      const effectiveEmail = (user?.email || email || '').toString().toLowerCase();
       const isPrimaryAdmin = PRIMARY_ADMIN_EMAIL && effectiveEmail === PRIMARY_ADMIN_EMAIL;
-      const hasRole = user.role && user.role !== 'pending' && !isPrimaryAdmin;
-      if (!hasRole || isPrimaryAdmin) {
+      const hasRole = user?.role && user.role !== 'pending' && !isPrimaryAdmin;
+      if ((!hasRole || isPrimaryAdmin) && user) {
         const { role, workspaceOwnerId } = await assignRoleForUser(auth0Id, user, effectiveEmail);
         user = await User.findOneAndUpdate(
           { auth0Id },
