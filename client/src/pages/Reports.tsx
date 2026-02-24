@@ -547,7 +547,7 @@ function Reports() {
 
       {/* Invoice print view: summary + entries on page 2 */}
       {invoice && invoice.items.length > 0 && (
-        <div className="hidden print:block">
+        <div className="hidden print:block print:overflow-visible">
           <InvoicePreview invoice={invoice} />
           {filteredEntries.length > 0 && (
             <div className="mt-6 break-before-page">

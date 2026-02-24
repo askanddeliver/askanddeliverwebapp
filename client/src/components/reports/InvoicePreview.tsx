@@ -12,7 +12,7 @@ export function InvoicePreview({ invoice }: InvoicePreviewProps) {
   const { companyInfo } = invoice;
 
   return (
-    <div className="card print:p-0" id="invoice-preview">
+    <div className="card print:p-0 print:overflow-visible" id="invoice-preview">
       {/* Invoice Header: Company (left) + Client (right) */}
       <div className="flex justify-between items-start gap-6 mb-6 print:mb-4">
         <div className="flex-1 min-w-0">
@@ -68,7 +68,7 @@ export function InvoicePreview({ invoice }: InvoicePreviewProps) {
           Summary
         </h3>
         {timeItems.length > 0 && (
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto print:overflow-visible">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b-2 border-gray-200">
@@ -149,7 +149,7 @@ export function InvoicePreview({ invoice }: InvoicePreviewProps) {
 
         {/* Fixed-Cost Line Items */}
         {fixedItems.length > 0 && (
-          <div className="overflow-x-auto mt-4">
+          <div className="overflow-x-auto mt-4 print:overflow-visible">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b-2 border-gray-200">
@@ -241,7 +241,7 @@ export function InvoicePreview({ invoice }: InvoicePreviewProps) {
             </div>
           </div>
           {invoice.costBreakdown && invoice.costBreakdown.length > 0 && (
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto print:overflow-visible">
               <table className="w-full text-xs">
                 <thead>
                   <tr className="border-b border-gray-200">

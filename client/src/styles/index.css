@@ -159,6 +159,16 @@
     @apply bg-white text-sm;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
+    overflow: visible !important;
+  }
+
+  /* Prevent scrollbars + allow all content to print: layout uses overflow-auto/hidden which
+     clips content and limits PDF to visible viewport. Override so content flows to multiple pages. */
+  div[class*='overflow-auto'],
+  div[class*='overflow-hidden'] {
+    overflow: visible !important;
+    height: auto !important;
+    max-height: none !important;
   }
 
   nav,
@@ -171,6 +181,7 @@
 
   main {
     @apply p-0 m-0 max-w-none;
+    overflow: visible !important;
   }
 
   .card {
@@ -179,6 +190,12 @@
 
   #invoice-preview {
     @apply text-xs;
+  }
+
+  /* No scrollbars on invoice tables when printing */
+  #invoice-preview .overflow-x-auto,
+  #invoice-preview [class*='overflow'] {
+    overflow: visible !important;
   }
 
   #invoice-preview table {
@@ -195,6 +212,11 @@
   .divide-y > * + * {
     border-top-width: 1px;
     border-color: #e5e7eb;
+  }
+
+  /* Prevent page breaks inside individual entry rows */
+  .divide-y > * {
+    break-inside: avoid;
   }
 
   /* Force time entries to start on page 2 */
