@@ -12,6 +12,8 @@ interface ClientModalProps {
     name: string;
     company?: string;
     email?: string;
+    businessEntity?: string;
+    address?: string;
     taskDiscounts: Record<string, number>;
   }) => void;
 }
@@ -26,6 +28,8 @@ export function ClientModal({
   const [name, setName] = useState('');
   const [company, setCompany] = useState('');
   const [email, setEmail] = useState('');
+  const [businessEntity, setBusinessEntity] = useState('');
+  const [address, setAddress] = useState('');
   const [taskDiscounts, setTaskDiscounts] = useState<Record<string, number>>(
     {}
   );
@@ -35,11 +39,15 @@ export function ClientModal({
       setName(client.name);
       setCompany(client.company || '');
       setEmail(client.email || '');
+      setBusinessEntity(client.businessEntity || '');
+      setAddress(client.address || '');
       setTaskDiscounts(client.taskDiscounts || {});
     } else {
       setName('');
       setCompany('');
       setEmail('');
+      setBusinessEntity('');
+      setAddress('');
       setTaskDiscounts({});
     }
   }, [client, isOpen]);
@@ -52,6 +60,8 @@ export function ClientModal({
       name: name.trim(),
       company: company.trim() || undefined,
       email: email.trim() || undefined,
+      businessEntity: businessEntity.trim() || undefined,
+      address: address.trim() || undefined,
       taskDiscounts,
     });
   };
@@ -112,6 +122,32 @@ export function ClientModal({
               onChange={(e) => setEmail(e.target.value)}
               className="input"
               placeholder="contact@example.com (optional)"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Official Business Entity
+            </label>
+            <input
+              type="text"
+              value={businessEntity}
+              onChange={(e) => setBusinessEntity(e.target.value)}
+              className="input"
+              placeholder="e.g., Acme Corp LLC (for invoices)"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Address
+            </label>
+            <textarea
+              value={address}
+              onChange={(e) => setAddress(e.target.value)}
+              className="input min-h-[80px]"
+              placeholder="Street, City, State, ZIP"
+              rows={3}
             />
           </div>
 

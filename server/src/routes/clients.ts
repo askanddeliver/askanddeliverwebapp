@@ -48,7 +48,7 @@ router.post(
     const userId = extractUserId(req);
     if (!userId) throw createError('User ID not found in token', 401);
 
-    const { name, company, email, taskDiscounts } = req.body;
+    const { name, company, email, businessEntity, address, taskDiscounts } = req.body;
 
     if (!name || !name.trim()) {
       throw createError('Client name is required', 400);
@@ -59,6 +59,8 @@ router.post(
       name: name.trim(),
       company: company?.trim(),
       email: email?.trim(),
+      businessEntity: businessEntity?.trim(),
+      address: address?.trim(),
       taskDiscounts: taskDiscounts || {},
     });
 
@@ -73,12 +75,14 @@ router.put(
     const userId = extractUserId(req);
     if (!userId) throw createError('User ID not found in token', 401);
 
-    const { name, company, email, taskDiscounts } = req.body;
+    const { name, company, email, businessEntity, address, taskDiscounts } = req.body;
 
     const update: Record<string, unknown> = {};
     if (name !== undefined) update.name = name.trim();
     if (company !== undefined) update.company = company?.trim();
     if (email !== undefined) update.email = email?.trim();
+    if (businessEntity !== undefined) update.businessEntity = businessEntity?.trim();
+    if (address !== undefined) update.address = address?.trim();
     if (taskDiscounts !== undefined) update.taskDiscounts = taskDiscounts;
 
     const client = await Client.findOneAndUpdate(

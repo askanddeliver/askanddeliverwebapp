@@ -23,6 +23,11 @@ export interface ISiteConfig extends Document {
   userId: string;
   colors: IThemeColors;
   palettes: IColorPalette[];
+  /** Company info for invoices (Ask and Deliver) */
+  companyName?: string;
+  companyAddress?: string;
+  companyPhone?: string;
+  companyEmail?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -68,6 +73,10 @@ const SiteConfigSchema = new Schema<ISiteConfig>(
       type: [ColorPaletteSchema],
       default: [],
     },
+    companyName: { type: String, trim: true },
+    companyAddress: { type: String, trim: true },
+    companyPhone: { type: String, trim: true },
+    companyEmail: { type: String, trim: true, lowercase: true },
   },
   {
     timestamps: true,

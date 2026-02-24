@@ -196,4 +196,10 @@
     border-top-width: 1px;
     border-color: #e5e7eb;
   }
+
+  /* Force time entries to start on page 2 */
+  .print\:break-before-page {
+    break-before: page;
+    page-break-before: always;
+  }
 }

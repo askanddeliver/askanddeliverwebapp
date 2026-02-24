@@ -1,7 +1,7 @@
 import { Router, Response } from 'express';
 import { checkJwt, AuthRequest, extractUserId, getWorkspaceOwnerId, requireAdmin } from '../middleware/auth';
 import { asyncHandler, createError } from '../middleware/errorHandler';
-import { TimeEntry, Client, IClient, ITimeEntry, IProject, ITaskType, LineItem, Project, User } from '../models';
+import { TimeEntry, Client, IClient, ITimeEntry, IProject, ITaskType, LineItem, Project, User, SiteConfig } from '../models';
 
 const router = Router();
 
@@ -83,7 +83,7 @@ router.post(
 
     // If a specific client is selected, pre-load it
     if (clientId) {
-      const c = await Client.findOne({ _id: clientId, userId });
+      const c = await Client.findOne({ _id: clientId, userId: workspaceOwnerId });
       if (c) clientCache.set(clientId, c);
     }
 
@@ -98,7 +98,7 @@ router.post(
       if (clientIds.size > 0) {
         const clients = await Client.find({
           _id: { $in: Array.from(clientIds) },
-          userId,
+          userId: workspaceOwnerId,
         });
         for (const c of clients) {
           clientCache.set(c._id.toString(), c);
@@ -212,7 +212,7 @@ router.post(
     // Query fixed-cost line items for the same filters
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const lineItemQuery: any = {
-      userId,
+      userId: workspaceOwnerId,
       date: {
         $gte: new Date(startDate + 'T00:00:00'),
         $lte: new Date(endDate + 'T23:59:59.999'),
@@ -277,8 +277,34 @@ router.post(
       margin: Math.round(r.margin * 100) / 100,
     }));
 
+    // Company info from workspace owner's site config (for invoices)
+    const siteConfig = await SiteConfig.findOne({ userId: workspaceOwnerId })
+      .select('companyName companyAddress companyPhone companyEmail')
+      .lean();
+    const companyInfo = siteConfig
+      ? {
+          name: siteConfig.companyName,
+          address: siteConfig.companyAddress,
+          phone: siteConfig.companyPhone,
+          email: siteConfig.companyEmail,
+        }
+      : undefined;
+
+    // Serialize client with full fields (address, businessEntity) for invoice
+    const clientForInvoice = invoiceClient
+      ? {
+          _id: invoiceClient._id.toString(),
+          name: invoiceClient.name,
+          company: invoiceClient.company,
+          email: invoiceClient.email,
+          businessEntity: (invoiceClient as IClient & { businessEntity?: string }).businessEntity,
+          address: (invoiceClient as IClient & { address?: string }).address,
+        }
+      : undefined;
+
     res.json({
-      client: invoiceClient || undefined,
+      client: clientForInvoice || undefined,
+      companyInfo: companyInfo?.name || companyInfo?.address || companyInfo?.phone || companyInfo?.email ? companyInfo : undefined,
       items: allItems,
       total,
       totalHours,

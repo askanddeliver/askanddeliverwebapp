@@ -39,6 +39,8 @@ function Clients() {
     name: string;
     company?: string;
     email?: string;
+    businessEntity?: string;
+    address?: string;
     taskDiscounts: Record<string, number>;
   }) => {
     try {

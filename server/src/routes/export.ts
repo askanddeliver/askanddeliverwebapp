@@ -1,12 +1,52 @@
 import { Router, Response } from 'express';
 import { checkJwt, AuthRequest, extractUserId, getWorkspaceOwnerId, requireAdmin } from '../middleware/auth';
 import { asyncHandler, createError } from '../middleware/errorHandler';
-import { TimeEntry, Client, LineItem, ITimeEntry, IProject, ITaskType, IProjectTask, Project } from '../models';
+import { TimeEntry, Client, LineItem, ITimeEntry, IProject, ITaskType, IProjectTask, Project, TaskType, ProjectTask } from '../models';
 
 const router = Router();
 
 router.use(checkJwt);
 router.use(requireAdmin);
+
+// POST /api/export/backup - Export all workspace data as JSON (data protection/backup)
+router.post(
+  '/backup',
+  asyncHandler(async (req: AuthRequest, res: Response) => {
+    const workspaceOwnerId = await getWorkspaceOwnerId(req);
+    if (!workspaceOwnerId) throw createError('Workspace access required', 403);
+
+    const projectIds = await Project.find({ userId: workspaceOwnerId }).distinct('_id');
+
+    const [clients, projects, taskTypes, entries, lineItems, projectTasks] = await Promise.all([
+      Client.find({ userId: workspaceOwnerId }).lean(),
+      Project.find({ userId: workspaceOwnerId }).lean(),
+      TaskType.find({ userId: workspaceOwnerId }).lean(),
+      TimeEntry.find({ projectId: { $in: projectIds } }).lean(),
+      LineItem.find({ userId: workspaceOwnerId }).lean(),
+      ProjectTask.find({ userId: workspaceOwnerId }).lean(),
+    ]);
+
+    const backup = {
+      exportedAt: new Date().toISOString(),
+      workspaceOwnerId,
+      clients: clients.map((c) => ({
+        ...c,
+        taskDiscounts: c.taskDiscounts instanceof Map
+          ? Object.fromEntries(c.taskDiscounts)
+          : c.taskDiscounts,
+      })),
+      projects,
+      taskTypes,
+      projectTasks,
+      timeEntries: entries,
+      lineItems,
+    };
+
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Content-Disposition', `attachment; filename=askanddeliver-backup-${new Date().toISOString().split('T')[0]}.json`);
+    res.json(backup);
+  })
+);
 
 // POST /api/export/csv - Export time entries as CSV (all workspace entries)
 router.post(

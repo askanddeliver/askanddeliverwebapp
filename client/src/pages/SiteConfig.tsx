@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Save, RotateCcw, Palette, Trash2, Check, Plus, X } from 'lucide-react';
+import { Save, RotateCcw, Palette, Trash2, Check, Plus, X, Building2 } from 'lucide-react';
 import { siteConfigApi } from '../services/api';
 import type { ThemeColors, ColorPalette } from '../types';
 
@@ -234,6 +234,11 @@ function SiteConfigPage() {
   const [colors, setColors] = useState<ThemeColors>(DEFAULT_COLORS);
   const [savedColors, setSavedColors] = useState<ThemeColors>(DEFAULT_COLORS);
   const [palettes, setPalettes] = useState<ColorPalette[]>([]);
+  const [companyName, setCompanyName] = useState('');
+  const [companyAddress, setCompanyAddress] = useState('');
+  const [companyPhone, setCompanyPhone] = useState('');
+  const [companyEmail, setCompanyEmail] = useState('');
+  const [companySaving, setCompanySaving] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -251,6 +256,10 @@ function SiteConfigPage() {
       setColors(loadedColors);
       setSavedColors(loadedColors);
       setPalettes(data.palettes || []);
+      setCompanyName(data.companyName || '');
+      setCompanyAddress(data.companyAddress || '');
+      setCompanyPhone(data.companyPhone || '');
+      setCompanyEmail(data.companyEmail || '');
     } catch {
       // If no config exists, defaults are fine
     } finally {
@@ -336,6 +345,24 @@ function SiteConfigPage() {
     }
   };
 
+  const handleSaveCompany = async () => {
+    try {
+      setCompanySaving(true);
+      setError('');
+      await siteConfigApi.updateCompany({
+        companyName: companyName.trim() || undefined,
+        companyAddress: companyAddress.trim() || undefined,
+        companyPhone: companyPhone.trim() || undefined,
+        companyEmail: companyEmail.trim() || undefined,
+      });
+      showSuccess('Company information saved');
+    } catch {
+      setError('Failed to save company information. Please try again.');
+    } finally {
+      setCompanySaving(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="max-w-4xl mx-auto">
@@ -402,6 +429,73 @@ function SiteConfigPage() {
           You have unsaved changes. Click "Save Changes" to apply them to the live site.
         </div>
       )}
+
+      {/* Company Information (for invoices) */}
+      <div className="card mb-6">
+        <div className="flex items-center gap-2 mb-4">
+          <Building2 className="w-5 h-5 text-gray-500" />
+          <h3 className="text-lg font-semibold text-gray-900">Company Information</h3>
+        </div>
+        <p className="text-sm text-gray-500 mb-4">
+          This information appears on invoices for client payments (address, phone, email).
+        </p>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Company Name</label>
+            <input
+              type="text"
+              value={companyName}
+              onChange={(e) => setCompanyName(e.target.value)}
+              className="input"
+              placeholder="Ask and Deliver"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+            <input
+              type="email"
+              value={companyEmail}
+              onChange={(e) => setCompanyEmail(e.target.value)}
+              className="input"
+              placeholder="hello@askanddeliver.com"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+            <input
+              type="text"
+              value={companyPhone}
+              onChange={(e) => setCompanyPhone(e.target.value)}
+              className="input"
+              placeholder="(555) 123-4567"
+            />
+          </div>
+          <div className="md:col-span-2">
+            <label className="block text-sm font-medium text-gray-700 mb-1">Address</label>
+            <textarea
+              value={companyAddress}
+              onChange={(e) => setCompanyAddress(e.target.value)}
+              className="input min-h-[80px]"
+              placeholder="123 Main St, City, State ZIP"
+              rows={3}
+            />
+          </div>
+        </div>
+        <div className="mt-4">
+          <button
+            onClick={handleSaveCompany}
+            disabled={companySaving}
+            className="btn-primary flex items-center gap-2 text-sm disabled:opacity-50"
+          >
+            {companySaving ? (
+              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+            ) : (
+              <Save className="w-4 h-4" />
+            )}
+            Save Company Info
+          </button>
+        </div>
+      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Color tiers */}

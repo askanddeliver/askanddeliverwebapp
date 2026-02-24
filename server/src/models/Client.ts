@@ -5,6 +5,10 @@ export interface IClient extends Document {
   name: string;
   company?: string;
   email?: string;
+  /** Official business entity (e.g., "Acme Corp LLC") for invoices */
+  businessEntity?: string;
+  /** Full address for invoices */
+  address?: string;
   taskDiscounts: Map<string, number>;
   createdAt: Date;
   updatedAt: Date;
@@ -31,6 +35,8 @@ const ClientSchema = new Schema<IClient>(
       trim: true,
       lowercase: true,
     },
+    businessEntity: { type: String, trim: true },
+    address: { type: String, trim: true },
     taskDiscounts: {
       type: Map,
       of: Number,

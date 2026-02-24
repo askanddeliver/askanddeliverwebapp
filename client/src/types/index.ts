@@ -23,6 +23,8 @@ export interface Client {
   name: string;
   company?: string;
   email?: string;
+  businessEntity?: string;
+  address?: string;
   taskDiscounts: Record<string, number>;
   createdAt: string;
   updatedAt: string;
@@ -76,6 +78,7 @@ export interface ProjectTask {
 // Time Entry types
 export interface TimeEntry {
   _id: string;
+  userId?: string; // auth0Id of member who logged the entry
   projectId: string | Project;
   taskTypeId: string | TaskType;
   projectTaskId?: string | ProjectTask;
@@ -124,8 +127,16 @@ export interface CostBreakdownEntry {
   margin: number;
 }
 
+export interface CompanyInfo {
+  name?: string;
+  address?: string;
+  phone?: string;
+  email?: string;
+}
+
 export interface Invoice {
   client?: Client;
+  companyInfo?: CompanyInfo;
   items: InvoiceLineItem[];
   total: number;
   totalHours: number;
@@ -267,6 +278,10 @@ export interface SiteConfig {
   _id?: string;
   colors: ThemeColors;
   palettes: ColorPalette[];
+  companyName?: string;
+  companyAddress?: string;
+  companyPhone?: string;
+  companyEmail?: string;
   createdAt?: string;
   updatedAt?: string;
 }

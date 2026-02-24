@@ -212,6 +212,10 @@ export const exportApi = {
     api.post('/export/csv', data, {
       responseType: 'blob',
     }),
+  backup: () =>
+    api.post('/export/backup', {}, {
+      responseType: 'json',
+    }),
 };
 
 // Portfolio (admin - authenticated)
@@ -325,6 +329,12 @@ export const siteConfigApi = {
   get: () => api.get<SiteConfig>('/site-config'),
   updateColors: (colors: ThemeColors) =>
     api.put<SiteConfig>('/site-config/colors', { colors }),
+  updateCompany: (data: {
+    companyName?: string;
+    companyAddress?: string;
+    companyPhone?: string;
+    companyEmail?: string;
+  }) => api.put<SiteConfig>('/site-config/company', data),
   reset: () => api.put<SiteConfig>('/site-config/reset'),
   savePalette: (name: string, colors: ThemeColors) =>
     api.post<SiteConfig>('/site-config/palettes', { name, colors }),

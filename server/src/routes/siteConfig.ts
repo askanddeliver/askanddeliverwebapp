@@ -1,5 +1,5 @@
 import { Router, Response } from 'express';
-import { checkJwt, AuthRequest, extractUserId, requireAdmin } from '../middleware/auth';
+import { checkJwt, AuthRequest, extractUserId, getWorkspaceOwnerId, requireAdmin } from '../middleware/auth';
 import { asyncHandler, createError } from '../middleware/errorHandler';
 import { SiteConfig } from '../models';
 
@@ -87,6 +87,32 @@ router.put(
     const config = await SiteConfig.findOneAndUpdate(
       { userId },
       { $set: { colors: DEFAULT_COLORS } },
+      { new: true, upsert: true }
+    );
+
+    res.json(config);
+  })
+);
+
+// PUT /api/site-config/company - Update company info for invoices
+router.put(
+  '/company',
+  asyncHandler(async (req: AuthRequest, res: Response) => {
+    const workspaceOwnerId = await getWorkspaceOwnerId(req);
+    if (!workspaceOwnerId) throw createError('Workspace access required', 403);
+
+    const { companyName, companyAddress, companyPhone, companyEmail } = req.body;
+
+    const config = await SiteConfig.findOneAndUpdate(
+      { userId: workspaceOwnerId },
+      {
+        $set: {
+          ...(companyName !== undefined && { companyName: companyName?.trim() || '' }),
+          ...(companyAddress !== undefined && { companyAddress: companyAddress?.trim() || '' }),
+          ...(companyPhone !== undefined && { companyPhone: companyPhone?.trim() || '' }),
+          ...(companyEmail !== undefined && { companyEmail: companyEmail?.trim()?.toLowerCase() || '' }),
+        },
+      },
       { new: true, upsert: true }
     );
 
