@@ -164,6 +164,14 @@ router.get(
       $or: [
         { auth0Id },
         { workspaceOwnerId: auth0Id },
+        // Pending signups with no workspace - available for admin to approve
+        {
+          role: 'pending',
+          $or: [
+            { workspaceOwnerId: null },
+            { workspaceOwnerId: { $exists: false } },
+          ],
+        },
       ],
     })
       .sort({ createdAt: -1 })
@@ -229,7 +237,8 @@ router.put(
 
     const isInWorkspace =
       targetUser.auth0Id === auth0Id ||
-      targetUser.workspaceOwnerId === auth0Id;
+      targetUser.workspaceOwnerId === auth0Id ||
+      (targetUser.role === 'pending' && !targetUser.workspaceOwnerId); // Pending signups - admin can approve
     if (!isInWorkspace) {
       throw createError('User not in your workspace', 403);
     }
