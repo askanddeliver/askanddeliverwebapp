@@ -7,6 +7,7 @@ export interface IUser extends Document {
   auth0Id: string;
   email: string;
   name: string;
+  nickname?: string;
   picture?: string;
   role: UserRole;
   workspaceOwnerId?: string;
@@ -36,6 +37,11 @@ const userSchema = new Schema<IUser>(
       type: String,
       required: true,
       trim: true,
+    },
+    nickname: {
+      type: String,
+      trim: true,
+      lowercase: true,
     },
     picture: {
       type: String,

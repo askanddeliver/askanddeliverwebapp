@@ -3,6 +3,7 @@ import { checkJwt, AuthRequest, extractUserId, requireAdmin } from '../middlewar
 import { asyncHandler, createError } from '../middleware/errorHandler';
 import { User } from '../models';
 import type { UserRole, UserStatus } from '../models/User';
+import { getAuth0UsersByEmail } from '../lib/auth0Management';
 
 const router = Router();
 
@@ -63,10 +64,11 @@ router.get(
     const auth0Id = extractUserId(req);
     if (!auth0Id) throw createError('User ID not found in token', 401);
 
-    const payload = req.auth?.payload as { email?: string; name?: string; picture?: string } | undefined;
+    const payload = req.auth?.payload as { email?: string; name?: string; picture?: string; nickname?: string } | undefined;
     const email = payload?.email || '';
     const name = payload?.name || 'User';
     const picture = payload?.picture;
+    const nickname = payload?.nickname ? payload.nickname.trim().toLowerCase() : undefined;
 
     let user = await User.findOne({ auth0Id });
 
@@ -77,6 +79,7 @@ router.get(
         auth0Id,
         email: email || `user-${auth0Id.replace(/[^a-z0-9]/gi, '-')}@placeholder.local`,
         name: name || 'User',
+        nickname: nickname || (email ? email.split('@')[0].toLowerCase() : undefined),
         picture,
         role,
         workspaceOwnerId,
@@ -100,11 +103,12 @@ router.get(
         }
       }
     } else {
-      // Sync email/name from Auth0 when we have a placeholder (fixes add-by-email lookup)
+      // Sync email/name/nickname from Auth0 (fixes add-by-email lookup; nickname enables fallback)
       const isPlaceholder = user.email?.includes('@placeholder.') || user.email?.includes('@temp.');
       const syncUpdate: Record<string, unknown> = {};
       if (isPlaceholder && email) syncUpdate.email = email.trim().toLowerCase();
       if (isPlaceholder && name) syncUpdate.name = name;
+      if (nickname) syncUpdate.nickname = nickname; // always sync - enables add-by-email fallback
       if (picture !== undefined) syncUpdate.picture = picture;
       if (Object.keys(syncUpdate).length > 0) {
         const synced = await User.findOneAndUpdate(
@@ -231,10 +235,51 @@ router.post(
     }
 
     const normalizedEmail = email.trim().toLowerCase();
-    const user = await User.findOne({ email: normalizedEmail });
+
+    // 1. Try our DB first
+    let user = await User.findOne({ email: normalizedEmail });
+
+    // 2. If not found, look up in Auth0 directly (source of truth)
+    if (!user) {
+      try {
+        const auth0Users = await getAuth0UsersByEmail(normalizedEmail);
+        if (auth0Users.length > 0) {
+          const au = auth0Users[0];
+          user = await User.findOne({ auth0Id: au.user_id });
+          if (!user) {
+            user = await User.create({
+              auth0Id: au.user_id,
+              email: (au.email || normalizedEmail).toLowerCase(),
+              name: au.name || 'User',
+              nickname: au.nickname ? au.nickname.toLowerCase() : undefined,
+              picture: au.picture,
+              role: 'pending',
+              status: 'active',
+            });
+          } else if (user.email?.includes('@placeholder.') || user.email?.includes('@temp.')) {
+            user = await User.findByIdAndUpdate(
+              user._id,
+              {
+                email: (au.email || normalizedEmail).toLowerCase(),
+                name: au.name || user.name,
+                nickname: au.nickname ? au.nickname.toLowerCase() : user.nickname,
+                picture: au.picture ?? user.picture,
+              },
+              { new: true }
+            ) as typeof user;
+          }
+        }
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : 'Auth0 lookup failed';
+        throw createError(
+          `Could not look up user: ${msg}. Ensure AUTH0_M2M_CLIENT_ID and AUTH0_M2M_CLIENT_SECRET are set.`,
+          502
+        );
+      }
+    }
 
     if (!user) {
-      throw createError('No user found with that email. Share the signup link and they will appear here after signing up.', 404);
+      throw createError('No user found with that email in Auth0. They must sign up first—share the invite link and have them create an account.', 404);
     }
 
     // Block if in another workspace, unless they're a standalone admin (we can claim them)
