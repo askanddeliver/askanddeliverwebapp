@@ -1,5 +1,5 @@
 import { Router, Response } from 'express';
-import { checkJwt, AuthRequest, extractUserId } from '../middleware/auth';
+import { checkJwt, AuthRequest, extractUserId, getWorkspaceOwnerId, requireAdmin } from '../middleware/auth';
 import { asyncHandler, createError } from '../middleware/errorHandler';
 import { TaskType } from '../models';
 
@@ -8,21 +8,22 @@ const router = Router();
 // All routes require authentication
 router.use(checkJwt);
 
-// GET /api/task-types - Get all task types for current user
+// GET /api/task-types - Get task types for workspace (admin + member need for time logging)
 router.get(
   '/',
   asyncHandler(async (req: AuthRequest, res: Response) => {
-    const userId = extractUserId(req);
-    if (!userId) throw createError('User ID not found in token', 401);
+    const workspaceOwnerId = await getWorkspaceOwnerId(req);
+    if (!workspaceOwnerId) throw createError('Workspace access required', 403);
 
-    const taskTypes = await TaskType.find({ userId }).sort({ name: 1 }).lean();
+    const taskTypes = await TaskType.find({ userId: workspaceOwnerId }).sort({ name: 1 }).lean();
     res.json(taskTypes);
   })
 );
 
-// POST /api/task-types - Create task type
+// POST /api/task-types - Create task type (admin only)
 router.post(
   '/',
+  requireAdmin,
   asyncHandler(async (req: AuthRequest, res: Response) => {
     const userId = extractUserId(req);
     if (!userId) throw createError('User ID not found in token', 401);
@@ -47,9 +48,10 @@ router.post(
   })
 );
 
-// PUT /api/task-types/:id - Update task type
+// PUT /api/task-types/:id - Update task type (admin only)
 router.put(
   '/:id',
+  requireAdmin,
   asyncHandler(async (req: AuthRequest, res: Response) => {
     const userId = extractUserId(req);
     if (!userId) throw createError('User ID not found in token', 401);
@@ -75,9 +77,10 @@ router.put(
   })
 );
 
-// DELETE /api/task-types/:id - Delete task type
+// DELETE /api/task-types/:id - Delete task type (admin only)
 router.delete(
   '/:id',
+  requireAdmin,
   asyncHandler(async (req: AuthRequest, res: Response) => {
     const userId = extractUserId(req);
     if (!userId) throw createError('User ID not found in token', 401);
@@ -95,9 +98,10 @@ router.delete(
   })
 );
 
-// POST /api/task-types/seed - Seed default task types (one-time setup)
+// POST /api/task-types/seed - Seed default task types (admin only)
 router.post(
   '/seed',
+  requireAdmin,
   asyncHandler(async (req: AuthRequest, res: Response) => {
     const userId = extractUserId(req);
     if (!userId) throw createError('User ID not found in token', 401);

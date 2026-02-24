@@ -1,12 +1,13 @@
 import { Router, Response } from 'express';
-import { checkJwt, AuthRequest, extractUserId } from '../middleware/auth';
+import { checkJwt, AuthRequest, extractUserId, requireAdmin } from '../middleware/auth';
 import { asyncHandler, createError } from '../middleware/errorHandler';
 import { Client } from '../models';
 
 const router = Router();
 
-// All routes require authentication
+// All routes require authentication + admin
 router.use(checkJwt);
+router.use(requireAdmin);
 
 // GET /api/clients - Get all clients for current user
 router.get(

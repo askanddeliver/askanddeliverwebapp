@@ -1,12 +1,13 @@
 import { Router, Response } from 'express';
-import { checkJwt, AuthRequest, extractUserId } from '../middleware/auth';
+import { checkJwt, AuthRequest, extractUserId, getWorkspaceOwnerId, requireAdmin } from '../middleware/auth';
 import { asyncHandler, createError } from '../middleware/errorHandler';
-import { TimeEntry, Client, IClient, ITimeEntry, IProject, ITaskType, LineItem } from '../models';
+import { TimeEntry, Client, IClient, ITimeEntry, IProject, ITaskType, LineItem, Project, User } from '../models';
 
 const router = Router();
 
-// All routes require authentication
+// All routes require authentication + admin
 router.use(checkJwt);
+router.use(requireAdmin);
 
 /**
  * Safely read a discount value from a client's taskDiscounts field.
@@ -26,12 +27,15 @@ function getDiscount(client: IClient | null, taskTypeId: string): number {
   return discounts[taskTypeId] || 0;
 }
 
-// POST /api/reports/generate-invoice - Generate invoice data
+// POST /api/reports/generate-invoice - Generate invoice data (all workspace entries)
 router.post(
   '/generate-invoice',
   asyncHandler(async (req: AuthRequest, res: Response) => {
     const userId = extractUserId(req);
     if (!userId) throw createError('User ID not found in token', 401);
+
+    const workspaceOwnerId = await getWorkspaceOwnerId(req);
+    if (!workspaceOwnerId) throw createError('Workspace access required', 403);
 
     const { clientId, projectId, startDate, endDate } = req.body;
 
@@ -39,10 +43,11 @@ router.post(
       throw createError('Start date and end date are required', 400);
     }
 
-    // Build query — parse dates with explicit time to avoid UTC/local mismatch
+    const projectIds = await Project.find({ userId: workspaceOwnerId }).distinct('_id');
+
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const query: any = {
-      userId,
+      projectId: { $in: projectIds },
       isRunning: false,
       startTime: {
         $gte: new Date(startDate + 'T00:00:00'),
@@ -51,7 +56,9 @@ router.post(
     };
 
     if (projectId) {
-      query.projectId = projectId;
+      if (projectIds.some((id) => id.toString() === projectId)) {
+        query.projectId = projectId;
+      }
     }
 
     const entries = await TimeEntry.find(query)
@@ -102,7 +109,12 @@ router.post(
     // Determine the single client to show on the invoice header (only when filtered)
     const invoiceClient = clientId ? clientCache.get(clientId) || null : null;
 
-    // Group entries by task type
+    // Load users for earned rate lookup (entry.userId -> User.earnedRates)
+    const entryUserIds = [...new Set(filteredEntries.map((e) => (e as ITimeEntry).userId))];
+    const users = await User.find({ auth0Id: { $in: entryUserIds } }).lean();
+    const userMap = new Map(users.map((u) => [u.auth0Id, u]));
+
+    // Group entries by task type (with earned amount tracking)
     const lineItems = new Map<
       string,
       {
@@ -113,9 +125,20 @@ router.post(
         effectiveRate: number;
         hours: number;
         amount: number;
+        earnedAmount: number;
         descriptions: string[];
       }
     >();
+
+    // Per-entry cost breakdown for detailed view
+    const costBreakdown: Array<{
+      userName: string;
+      taskTypeName: string;
+      hours: number;
+      billed: number;
+      earned: number;
+      margin: number;
+    }> = [];
 
     for (const entry of filteredEntries) {
       const taskType = entry.taskTypeId as unknown as ITaskType;
@@ -133,6 +156,20 @@ router.post(
       const hours = (entry as ITimeEntry).duration / 3600;
       const amount = hours * effectiveRate;
 
+      const entryUser = userMap.get((entry as ITimeEntry).userId);
+      const earnedRate = entryUser?.earnedRates?.[taskTypeKey] ?? 0;
+      const earnedAmount = hours * (typeof earnedRate === 'number' ? earnedRate : 0);
+      const margin = amount - earnedAmount;
+
+      costBreakdown.push({
+        userName: entryUser?.name ?? 'Unknown',
+        taskTypeName: taskType.name,
+        hours,
+        billed: amount,
+        earned: earnedAmount,
+        margin,
+      });
+
       // When grouping by task type, we also need to account for different
       // clients having different discounts on the same task type.
       // Use a composite key of taskTypeId + clientId for accurate grouping.
@@ -149,6 +186,7 @@ router.post(
           effectiveRate,
           hours: 0,
           amount: 0,
+          earnedAmount: 0,
           descriptions: [],
         });
       }
@@ -156,6 +194,7 @@ router.post(
       const item = lineItems.get(groupKey)!;
       item.hours += hours;
       item.amount += amount;
+      item.earnedAmount += earnedAmount;
       if ((entry as ITimeEntry).description) {
         item.descriptions.push((entry as ITimeEntry).description!);
       }
@@ -166,6 +205,7 @@ router.post(
       ...item,
       hours: Math.round(item.hours * 100) / 100,
       amount: Math.round(item.amount * 100) / 100,
+      earnedAmount: Math.round(item.earnedAmount * 100) / 100,
       isFixedCost: false,
     }));
 
@@ -208,6 +248,7 @@ router.post(
       effectiveRate: 0,
       hours: 0,
       amount: Math.round(fi.amount * 100) / 100,
+      earnedAmount: 0,
       descriptions: [fi.description],
       isFixedCost: true,
     }));
@@ -222,11 +263,28 @@ router.post(
       items.reduce((sum, item) => sum + item.hours, 0) * 100
     ) / 100;
 
+    const totalEarned = Math.round(
+      items.reduce((sum, item) => sum + (item.earnedAmount ?? 0), 0) * 100
+    ) / 100;
+
+    const totalMargin = Math.round((total - totalEarned) * 100) / 100;
+
+    const roundedBreakdown = costBreakdown.map((r) => ({
+      ...r,
+      hours: Math.round(r.hours * 100) / 100,
+      billed: Math.round(r.billed * 100) / 100,
+      earned: Math.round(r.earned * 100) / 100,
+      margin: Math.round(r.margin * 100) / 100,
+    }));
+
     res.json({
       client: invoiceClient || undefined,
       items: allItems,
       total,
       totalHours,
+      totalEarned,
+      totalMargin,
+      costBreakdown: roundedBreakdown,
       entryCount: filteredEntries.length,
       lineItemCount: fixedItems.length,
       dateRange: { start: startDate, end: endDate },
@@ -234,17 +292,22 @@ router.post(
   })
 );
 
-// GET /api/reports/summary - Get summary stats
+// GET /api/reports/summary - Get summary stats (all workspace entries)
 router.get(
   '/summary',
   asyncHandler(async (req: AuthRequest, res: Response) => {
-    const userId = extractUserId(req);
-    if (!userId) throw createError('User ID not found in token', 401);
+    const workspaceOwnerId = await getWorkspaceOwnerId(req);
+    if (!workspaceOwnerId) throw createError('Workspace access required', 403);
 
     const { startDate, endDate } = req.query;
 
+    const projectIds = await Project.find({ userId: workspaceOwnerId }).distinct('_id');
+
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const query: any = { userId, isRunning: false };
+    const query: any = {
+      projectId: { $in: projectIds },
+      isRunning: false,
+    };
 
     if (startDate || endDate) {
       query.startTime = {};

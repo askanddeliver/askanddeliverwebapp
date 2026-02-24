@@ -1,6 +1,7 @@
 import { ReactNode, useState, useCallback } from 'react';
 import TopBar from './TopBar';
 import Sidebar from './Sidebar';
+import { useUserRole } from '../contexts/UserContext';
 
 const SIDEBAR_KEY = 'sidebar-collapsed';
 
@@ -19,6 +20,7 @@ interface LayoutProps {
 function Layout({ children }: LayoutProps) {
   const [collapsed, setCollapsed] = useState(getInitialCollapsed);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const { isPending, isLoading } = useUserRole();
 
   const toggleCollapsed = useCallback(() => {
     setCollapsed((prev) => {
@@ -50,7 +52,21 @@ function Layout({ children }: LayoutProps) {
 
         <div className="flex-1 flex flex-col min-w-0 overflow-auto">
           <main className="flex-1 px-4 py-8 sm:px-6 lg:px-8 max-w-6xl w-full mx-auto">
-            {children}
+            {!isLoading && isPending ? (
+              <div className="flex flex-col items-center justify-center min-h-[50vh] text-center px-4">
+                <div className="max-w-md">
+                  <h2 className="text-xl font-bold text-gray-900 mb-2">
+                    Account Pending Approval
+                  </h2>
+                  <p className="text-gray-600">
+                    Your account is awaiting approval from an administrator.
+                    Please contact your team admin to get access.
+                  </p>
+                </div>
+              </div>
+            ) : (
+              children
+            )}
           </main>
 
           <footer className="bg-white border-t border-gray-200 py-6 print:hidden">

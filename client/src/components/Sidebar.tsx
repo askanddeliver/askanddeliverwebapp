@@ -10,19 +10,23 @@ import {
   Tag,
   UserCircle,
   Palette,
+  UserCog,
   X,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
+import { useUserRole } from '../contexts/UserContext';
 
 interface NavItem {
   to: string;
   label: string;
   icon: LucideIcon;
+  adminOnly?: boolean;
 }
 
 interface NavSection {
   label: string;
   items: NavItem[];
+  adminOnly?: boolean;
 }
 
 const mainLink: NavItem = {
@@ -36,18 +40,19 @@ const navSections: NavSection[] = [
     label: 'Time Tracking',
     items: [
       { to: '/entries', label: 'Entries', icon: FileText },
-      { to: '/reports', label: 'Reports', icon: BarChart3 },
+      { to: '/reports', label: 'Reports', icon: BarChart3, adminOnly: true },
     ],
   },
   {
     label: 'Manage',
     items: [
-      { to: '/clients', label: 'Clients', icon: Users },
+      { to: '/clients', label: 'Clients', icon: Users, adminOnly: true },
       { to: '/projects', label: 'Projects', icon: FolderOpen },
     ],
   },
   {
     label: 'Business',
+    adminOnly: true,
     items: [
       { to: '/leads', label: 'Leads', icon: Inbox },
       { to: '/portfolio-admin', label: 'Portfolio', icon: Image },
@@ -58,8 +63,9 @@ const navSections: NavSection[] = [
 const settingsSection: NavSection = {
   label: 'Settings',
   items: [
-    { to: '/task-types', label: 'Task Types', icon: Tag },
-    { to: '/site-config', label: 'Site Config', icon: Palette },
+    { to: '/users', label: 'Team', icon: UserCog, adminOnly: true },
+    { to: '/task-types', label: 'Task Types', icon: Tag, adminOnly: true },
+    { to: '/site-config', label: 'Site Config', icon: Palette, adminOnly: true },
     { to: '/profile', label: 'Profile', icon: UserCircle },
   ],
 };
@@ -72,8 +78,19 @@ interface SidebarProps {
 
 function Sidebar({ collapsed, mobileOpen, onCloseMobile }: SidebarProps) {
   const location = useLocation();
+  const { isAdmin } = useUserRole();
 
   const isActive = (path: string) => location.pathname === path;
+
+  const filterItems = (items: NavItem[]) =>
+    items.filter((item) => !item.adminOnly || isAdmin);
+
+  const filterSection = (section: NavSection) => {
+    if (section.adminOnly && !isAdmin) return null;
+    const filtered = filterItems(section.items);
+    if (filtered.length === 0) return null;
+    return { ...section, items: filtered };
+  };
 
   const renderNavItem = (item: NavItem) => {
     const Icon = item.icon;
@@ -97,19 +114,23 @@ function Sidebar({ collapsed, mobileOpen, onCloseMobile }: SidebarProps) {
     );
   };
 
-  const renderSection = (section: NavSection) => (
-    <div key={section.label}>
-      {!collapsed && (
-        <p className="px-3 mb-1 text-[11px] font-semibold uppercase tracking-wider text-gray-400">
-          {section.label}
-        </p>
-      )}
-      {collapsed && <div className="border-t border-gray-200 mx-3 my-1" />}
-      <div className="space-y-0.5">
-        {section.items.map(renderNavItem)}
+  const renderSection = (section: NavSection) => {
+    const filtered = filterSection(section);
+    if (!filtered) return null;
+    return (
+      <div key={section.label}>
+        {!collapsed && (
+          <p className="px-3 mb-1 text-[11px] font-semibold uppercase tracking-wider text-gray-400">
+            {section.label}
+          </p>
+        )}
+        {collapsed && <div className="border-t border-gray-200 mx-3 my-1" />}
+        <div className="space-y-0.5">
+          {filtered.items.map(renderNavItem)}
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   const sidebarContent = (
     <div className="flex flex-col h-full">
@@ -120,7 +141,7 @@ function Sidebar({ collapsed, mobileOpen, onCloseMobile }: SidebarProps) {
 
       {/* Nav sections */}
       <nav className="flex-1 px-3 space-y-4 overflow-y-auto">
-        {navSections.map(renderSection)}
+        {navSections.map(renderSection).filter(Boolean)}
       </nav>
 
       {/* Settings section pinned to bottom */}

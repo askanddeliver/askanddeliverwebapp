@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import mongoose from 'mongoose';
-import { checkJwt, AuthRequest, extractUserId } from '../middleware/auth';
+import { checkJwt, AuthRequest, extractUserId, requireAdmin } from '../middleware/auth';
 import { asyncHandler, createError } from '../middleware/errorHandler';
 import { Lead, Client, Project } from '../models';
 import type { CreateLeadDto, ConvertLeadDto } from '../types';
@@ -60,11 +60,11 @@ router.post(
 );
 
 // =============================================
-// PROTECTED ROUTES (auth required)
+// PROTECTED ROUTES (auth + admin required)
 // =============================================
 
-// Apply auth middleware to all routes below
 router.use(checkJwt);
+router.use(requireAdmin);
 
 // GET /api/leads/stats - Get lead counts by status
 router.get(

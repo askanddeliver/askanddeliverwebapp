@@ -1,24 +1,34 @@
 import { Router, Response } from 'express';
-import { checkJwt, AuthRequest, extractUserId } from '../middleware/auth';
+import { checkJwt, AuthRequest, extractUserId, getWorkspaceOwnerId, requireAdmin } from '../middleware/auth';
 import { asyncHandler, createError } from '../middleware/errorHandler';
-import { TimeEntry, Client, LineItem, ITimeEntry, IProject, ITaskType, IProjectTask } from '../models';
+import { TimeEntry, Client, LineItem, ITimeEntry, IProject, ITaskType, IProjectTask, Project } from '../models';
 
 const router = Router();
 
-// All routes require authentication
 router.use(checkJwt);
+router.use(requireAdmin);
 
-// POST /api/export/csv - Export time entries as CSV
+// POST /api/export/csv - Export time entries as CSV (all workspace entries)
 router.post(
   '/csv',
   asyncHandler(async (req: AuthRequest, res: Response) => {
     const userId = extractUserId(req);
     if (!userId) throw createError('User ID not found in token', 401);
 
+    const workspaceOwnerId = await getWorkspaceOwnerId(req);
+    if (!workspaceOwnerId) throw createError('Workspace access required', 403);
+
     const { clientId, projectId, startDate, endDate } = req.body;
 
+    const projectIds = await Project.find({ userId: workspaceOwnerId }).distinct('_id');
+
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const query: any = { userId, isRunning: false };
+    const query: any = {
+      projectId: projectId && projectIds.some((id) => id.toString() === projectId)
+        ? projectId
+        : { $in: projectIds },
+      isRunning: false,
+    };
 
     if (startDate || endDate) {
       query.startTime = {};
@@ -28,10 +38,6 @@ router.post(
       if (endDate) {
         query.startTime.$lte = new Date(endDate + 'T23:59:59.999');
       }
-    }
-
-    if (projectId) {
-      query.projectId = projectId;
     }
 
     const entries = await TimeEntry.find(query)
@@ -55,7 +61,7 @@ router.post(
     // Get client for discount info
     let client = null;
     if (clientId) {
-      client = await Client.findOne({ _id: clientId, userId });
+      client = await Client.findOne({ _id: clientId, userId: workspaceOwnerId });
     }
 
     const rows = filteredEntries.map((entry) => {
@@ -90,7 +96,7 @@ router.post(
 
     // Query fixed-cost line items for the same period
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const lineItemQuery: any = { userId };
+    const lineItemQuery: any = { userId: workspaceOwnerId };
     if (clientId) lineItemQuery.clientId = clientId;
     if (projectId) lineItemQuery.projectId = projectId;
     if (startDate || endDate) {

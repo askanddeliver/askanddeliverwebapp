@@ -1,24 +1,57 @@
 import { Router, Response } from 'express';
-import { checkJwt, AuthRequest, extractUserId } from '../middleware/auth';
+import mongoose from 'mongoose';
+import { checkJwt, AuthRequest, extractUserId, getWorkspaceOwnerId } from '../middleware/auth';
 import { asyncHandler, createError } from '../middleware/errorHandler';
-import { TimeEntry } from '../models';
+import { TimeEntry, Project } from '../models';
+import { User } from '../models';
 
 const router = Router();
 
 // All routes require authentication
 router.use(checkJwt);
 
-// GET /api/time-entries - Get all time entries for current user (with filters)
+// Check if user is admin (has full workspace access)
+async function isAdmin(auth0Id: string): Promise<boolean> {
+  const user = await User.findOne({ auth0Id }).lean();
+  return user?.role === 'admin';
+}
+
+// Ensure project belongs to workspace (for member create/update)
+async function ensureProjectInWorkspace(
+  projectId: string,
+  workspaceOwnerId: string
+): Promise<void> {
+  const project = await Project.findOne({
+    _id: projectId,
+    userId: workspaceOwnerId,
+  });
+  if (!project) throw createError('Project not found or access denied', 403);
+}
+
+// GET /api/time-entries - Admin: all workspace entries. Member: own entries only.
 router.get(
   '/',
   asyncHandler(async (req: AuthRequest, res: Response) => {
-    const userId = extractUserId(req);
-    if (!userId) throw createError('User ID not found in token', 401);
+    const auth0Id = extractUserId(req);
+    if (!auth0Id) throw createError('User ID not found in token', 401);
+
+    const workspaceOwnerId = await getWorkspaceOwnerId(req);
+    if (!workspaceOwnerId) throw createError('Workspace access required', 403);
 
     const { startDate, endDate, projectId } = req.query;
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const query: any = { userId };
+    const query: any = {};
+
+    const admin = await isAdmin(auth0Id);
+    if (admin) {
+      // Admin: entries for projects in workspace
+      const projectIds = await Project.find({ userId: workspaceOwnerId }).distinct('_id');
+      query.projectId = { $in: projectIds };
+    } else {
+      // Member: own entries only
+      query.userId = auth0Id;
+    }
 
     if (startDate || endDate) {
       query.startTime = {};
@@ -30,8 +63,13 @@ router.get(
       }
     }
 
-    if (projectId) {
-      query.projectId = projectId;
+    if (projectId && mongoose.Types.ObjectId.isValid(projectId as string)) {
+      const projectIds = await Project.find({ userId: workspaceOwnerId }).distinct('_id');
+      const inWorkspace = projectIds.some((id) => id.toString() === projectId);
+      if (inWorkspace) {
+        query.projectId = projectId;
+      }
+      // If not in workspace: admin gets no match (query.projectId stays $in), member would need to filter - skip
     }
 
     const entries = await TimeEntry.find(query)
@@ -64,17 +102,22 @@ router.get(
   })
 );
 
-// POST /api/time-entries/start - Start timer
+// POST /api/time-entries/start - Start timer (admin + member)
 router.post(
   '/start',
   asyncHandler(async (req: AuthRequest, res: Response) => {
     const userId = extractUserId(req);
     if (!userId) throw createError('User ID not found in token', 401);
 
+    const workspaceOwnerId = await getWorkspaceOwnerId(req);
+    if (!workspaceOwnerId) throw createError('Workspace access required', 403);
+
     const { projectId, taskTypeId, projectTaskId, description } = req.body;
 
     if (!projectId) throw createError('Project is required', 400);
     if (!taskTypeId) throw createError('Task type is required', 400);
+
+    await ensureProjectInWorkspace(projectId, workspaceOwnerId);
 
     // Stop any existing running timers for this user (accumulate duration)
     const runningTimers = await TimeEntry.find({ userId, isRunning: true });
@@ -178,12 +221,15 @@ router.post(
   })
 );
 
-// POST /api/time-entries - Create manual entry
+// POST /api/time-entries - Create manual entry (admin + member)
 router.post(
   '/',
   asyncHandler(async (req: AuthRequest, res: Response) => {
     const userId = extractUserId(req);
     if (!userId) throw createError('User ID not found in token', 401);
+
+    const workspaceOwnerId = await getWorkspaceOwnerId(req);
+    if (!workspaceOwnerId) throw createError('Workspace access required', 403);
 
     const { projectId, taskTypeId, projectTaskId, description, startTime, endTime, duration } =
       req.body;
@@ -191,6 +237,8 @@ router.post(
     if (!projectId) throw createError('Project is required', 400);
     if (!taskTypeId) throw createError('Task type is required', 400);
     if (!startTime) throw createError('Start time is required', 400);
+
+    await ensureProjectInWorkspace(projectId, workspaceOwnerId);
 
     // Calculate duration if not provided
     let entryDuration = duration;
@@ -217,15 +265,30 @@ router.post(
   })
 );
 
-// PUT /api/time-entries/:id - Update entry
+// PUT /api/time-entries/:id - Update entry (member: own only, admin: any in workspace)
 router.put(
   '/:id',
   asyncHandler(async (req: AuthRequest, res: Response) => {
     const userId = extractUserId(req);
     if (!userId) throw createError('User ID not found in token', 401);
 
+    const workspaceOwnerId = await getWorkspaceOwnerId(req);
+    if (!workspaceOwnerId) throw createError('Workspace access required', 403);
+
+    const admin = await isAdmin(userId);
+    const entryFilter = admin
+      ? { _id: req.params.id, projectId: { $in: await Project.find({ userId: workspaceOwnerId }).distinct('_id') } }
+      : { _id: req.params.id, userId };
+
+    const existing = await TimeEntry.findOne(entryFilter);
+    if (!existing) throw createError('Time entry not found', 404);
+
     const { projectId, taskTypeId, projectTaskId, description, startTime, endTime, duration } =
       req.body;
+
+    if (projectId !== undefined) {
+      await ensureProjectInWorkspace(projectId, workspaceOwnerId);
+    }
 
     const update: Record<string, unknown> = {};
     if (projectId !== undefined) update.projectId = projectId;
@@ -236,8 +299,11 @@ router.put(
     if (endTime !== undefined) update.endTime = new Date(endTime);
     if (duration !== undefined) update.duration = duration;
 
+    const updateFilter = admin
+      ? { _id: req.params.id, projectId: { $in: await Project.find({ userId: workspaceOwnerId }).distinct('_id') } }
+      : { _id: req.params.id, userId };
     const entry = await TimeEntry.findOneAndUpdate(
-      { _id: req.params.id, userId },
+      updateFilter,
       update,
       { new: true, runValidators: true }
     ).populate([{ path: 'projectId', populate: { path: 'clientId' } }, 'taskTypeId', 'projectTaskId']);
@@ -250,17 +316,21 @@ router.put(
   })
 );
 
-// DELETE /api/time-entries/:id - Delete entry
+// DELETE /api/time-entries/:id - Delete entry (member: own only, admin: any in workspace)
 router.delete(
   '/:id',
   asyncHandler(async (req: AuthRequest, res: Response) => {
     const userId = extractUserId(req);
     if (!userId) throw createError('User ID not found in token', 401);
 
-    const entry = await TimeEntry.findOneAndDelete({
-      _id: req.params.id,
-      userId,
-    });
+    const workspaceOwnerId = await getWorkspaceOwnerId(req);
+    if (!workspaceOwnerId) throw createError('Workspace access required', 403);
+
+    const admin = await isAdmin(userId);
+    const deleteFilter = admin
+      ? { _id: req.params.id, projectId: { $in: await Project.find({ userId: workspaceOwnerId }).distinct('_id') } }
+      : { _id: req.params.id, userId };
+    const entry = await TimeEntry.findOneAndDelete(deleteFilter);
 
     if (!entry) {
       throw createError('Time entry not found', 404);

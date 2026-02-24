@@ -1,7 +1,11 @@
 import { useAuth0 } from '@auth0/auth0-react';
+import { useUserRole } from '../contexts/UserContext';
 
 function Profile() {
-  const { user } = useAuth0();
+  const { user: auth0User } = useAuth0();
+  const { user: appUser, role, isAdmin } = useUserRole();
+
+  const user = auth0User;
 
   if (!user) {
     return null;
@@ -27,8 +31,23 @@ function Profile() {
             </h2>
             <p className="text-gray-600 mb-4">{user.email}</p>
 
+            {appUser && (
+              <span
+                className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
+                  isAdmin
+                    ? 'bg-primary-100 text-primary-800'
+                    : role === 'member'
+                      ? 'bg-blue-100 text-blue-800'
+                      : 'bg-amber-100 text-amber-800'
+                }`}
+              >
+                {role === 'admin' && 'Admin'}
+                {role === 'member' && 'Member'}
+                {role === 'pending' && 'Pending'}
+              </span>
+            )}
             {user.email_verified && (
-              <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
+              <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800 ml-2">
                 <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
                   <path
                     fillRule="evenodd"

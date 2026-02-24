@@ -8,6 +8,7 @@ interface EntryModalProps {
   taskTypes: TaskType[];
   projectTasks: ProjectTask[];
   isOpen: boolean;
+  showRate?: boolean;
   onClose: () => void;
   onSave: (data: {
     projectId: string;
@@ -26,6 +27,7 @@ export function EntryModal({
   taskTypes,
   projectTasks,
   isOpen,
+  showRate = true,
   onClose,
   onSave,
 }: EntryModalProps) {
@@ -166,7 +168,7 @@ export function EntryModal({
               <option value="">Select task type...</option>
               {taskTypes.map((tt) => (
                 <option key={tt._id} value={tt._id}>
-                  {tt.name} — ${tt.rate}/hr
+                  {showRate ? `${tt.name} — $${tt.rate}/hr` : tt.name}
                 </option>
               ))}
             </select>

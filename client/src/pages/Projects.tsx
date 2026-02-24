@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Plus, Search, X, ChevronDown } from 'lucide-react';
+import { useUserRole } from '../contexts/UserContext';
 import { ProjectList } from '../components/projects/ProjectList';
 import { ProjectModal } from '../components/projects/ProjectModal';
 import { projectsApi, clientsApi, projectTasksApi } from '../services/api';
@@ -24,6 +25,7 @@ const SORT_OPTIONS = [
 ];
 
 function Projects() {
+  const { isAdmin } = useUserRole();
   const [projects, setProjects] = useState<Project[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
   const [counts, setCounts] = useState<ProjectCounts | null>(null);
@@ -62,10 +64,10 @@ function Projects() {
     }
   }, [activeTab, searchQuery, sortOption, clientFilter]);
 
-  const loadSupportData = async () => {
+  const loadSupportData = useCallback(async () => {
     try {
       const [clientsRes, tasksRes] = await Promise.all([
-        clientsApi.getAll(),
+        isAdmin ? clientsApi.getAll() : Promise.resolve({ data: [] }),
         projectTasksApi.getAll(),
       ]);
       setClients(clientsRes.data || []);
@@ -80,11 +82,11 @@ function Projects() {
     } catch (err) {
       console.error('Failed to load support data:', err);
     }
-  };
+  }, [isAdmin]);
 
   useEffect(() => {
     loadSupportData();
-  }, []);
+  }, [loadSupportData]);
 
   useEffect(() => {
     loadProjects();
@@ -232,6 +234,7 @@ function Projects() {
             Manage your projects, tasks, and link them to clients
           </p>
         </div>
+        {isAdmin && (
         <button
           onClick={() => {
             setEditingProject(null);
@@ -248,9 +251,10 @@ function Projects() {
           <Plus className="w-4 h-4" />
           New Project
         </button>
+        )}
       </div>
 
-      {clients.length === 0 && !loading && (
+      {isAdmin && clients.length === 0 && !loading && (
         <div className="card bg-yellow-50 border-yellow-200 mb-6">
           <p className="text-yellow-800 text-sm">
             You need at least one client before you can create projects.{' '}
@@ -344,7 +348,8 @@ function Projects() {
           )}
         </div>
 
-        {/* Client Filter */}
+        {/* Client Filter (admin only) */}
+        {isAdmin && (
         <div className="relative">
           <select
             value={clientFilter}
@@ -361,6 +366,7 @@ function Projects() {
           </select>
           <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
         </div>
+        )}
 
         {/* Sort */}
         <div className="relative">
@@ -388,6 +394,8 @@ function Projects() {
         <ProjectList
           projects={projects}
           tasksByProject={tasksByProject}
+          showBudget={isAdmin}
+          canEdit={isAdmin}
           onEdit={handleEdit}
           onDelete={handleDelete}
           onArchive={handleArchive}

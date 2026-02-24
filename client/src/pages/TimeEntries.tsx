@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Plus, Filter } from 'lucide-react';
+import { useUserRole } from '../contexts/UserContext';
 import { EntryList } from '../components/entries/EntryList';
 import { EntryModal } from '../components/entries/EntryModal';
 import {
@@ -12,6 +13,7 @@ import { formatDurationHuman, getDaysAgoString, getTodayString } from '../utils/
 import type { TimeEntry, Project, TaskType, ProjectTask } from '../types';
 
 function TimeEntries() {
+  const { isAdmin } = useUserRole();
   const [entries, setEntries] = useState<TimeEntry[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [taskTypes, setTaskTypes] = useState<TaskType[]>([]);
@@ -222,6 +224,7 @@ function TimeEntries() {
           onEdit={handleEdit}
           onDelete={handleDelete}
           loading={loading}
+          showAmount={isAdmin}
         />
       </div>
 
@@ -231,6 +234,7 @@ function TimeEntries() {
         taskTypes={taskTypes}
         projectTasks={projectTasks}
         isOpen={modalOpen}
+        showRate={isAdmin}
         onClose={() => {
           setModalOpen(false);
           setEditingEntry(null);

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth0 } from '@auth0/auth0-react';
 import { Clock, CalendarDays, FolderOpen, Inbox } from 'lucide-react';
+import { useUserRole } from '../contexts/UserContext';
 import { TimerDisplay } from '../components/timer/TimerDisplay';
 import { TimerControls } from '../components/timer/TimerControls';
 import { QuickEntry } from '../components/timer/QuickEntry';
@@ -13,6 +14,7 @@ import type { TimeEntry, Project, TaskType, ProjectTask, LeadStats } from '../ty
 
 function Dashboard() {
   const { user } = useAuth0();
+  const { isAdmin } = useUserRole();
   const [activeTimer, setActiveTimer] = useState<TimeEntry | null>(null);
   const [allEntries, setAllEntries] = useState<TimeEntry[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
@@ -250,6 +252,7 @@ function Dashboard() {
           </div>
         </div>
 
+        {isAdmin && (
         <div className="card !p-4 flex items-center gap-3">
           <div className="w-10 h-10 rounded-lg bg-amber-50 flex items-center justify-center flex-shrink-0">
             <Inbox className="w-5 h-5 text-amber-600" />
@@ -259,10 +262,11 @@ function Dashboard() {
             <p className="text-lg font-bold text-gray-900">{newLeads}</p>
           </div>
         </div>
+        )}
       </div>
 
-      {/* Setup Prompts */}
-      {taskTypes.length === 0 && (
+      {/* Setup Prompts (admin only - members can't configure task types) */}
+      {isAdmin && taskTypes.length === 0 && (
         <div className="card bg-blue-50 border-blue-200 mb-6">
           <h3 className="font-bold text-blue-900 mb-2">
             Get started with task types
@@ -277,7 +281,7 @@ function Dashboard() {
         </div>
       )}
 
-      {projects.length === 0 && taskTypes.length > 0 && (
+      {isAdmin && projects.length === 0 && taskTypes.length > 0 && (
         <div className="card bg-blue-50 border-blue-200 mb-6">
           <h3 className="font-bold text-blue-900 mb-2">
             Create your first project
@@ -332,6 +336,7 @@ function Dashboard() {
             isRunning={activeTimer?.isRunning || false}
             onStart={handleStart}
             onStop={handleStop}
+            showRate={isAdmin}
           />
         </div>
       )}
@@ -344,6 +349,7 @@ function Dashboard() {
             taskTypes={taskTypes}
             projectTasks={projectTasks}
             onSubmit={handleManualEntry}
+            showRate={isAdmin}
           />
         </div>
       )}
@@ -364,6 +370,7 @@ function Dashboard() {
             onEdit={handleEditEntry}
             onDelete={handleDeleteEntry}
             onContinue={!activeTimer?.isRunning ? handleContinueEntry : undefined}
+            showAmount={isAdmin}
           />
         </div>
       )}
@@ -374,6 +381,7 @@ function Dashboard() {
         taskTypes={taskTypes}
         projectTasks={projectTasks}
         isOpen={editModalOpen}
+        showRate={isAdmin}
         onClose={() => {
           setEditModalOpen(false);
           setEditingEntry(null);

@@ -17,6 +17,7 @@ interface ProjectTaskListProps {
   tasks: ProjectTask[];
   projectId: string;
   projectTitle: string;
+  canEdit?: boolean;
   onCreateTask: (data: {
     projectId: string;
     title: string;
@@ -48,6 +49,7 @@ export function ProjectTaskList({
   tasks,
   projectId,
   projectTitle,
+  canEdit = true,
   onCreateTask,
   onUpdateTask,
   onToggleStatus,
@@ -111,6 +113,7 @@ export function ProjectTaskList({
             </span>
           )}
         </button>
+        {canEdit && (
         <button
           onClick={() => {
             setEditingTask(null);
@@ -121,6 +124,7 @@ export function ProjectTaskList({
           <Plus className="w-3.5 h-3.5" />
           Add Task
         </button>
+        )}
       </div>
 
       {/* Progress bar */}
@@ -152,6 +156,7 @@ export function ProjectTaskList({
               }`}
             >
               {/* Status toggle */}
+              {canEdit ? (
               <button
                 onClick={() => cycleStatus(task)}
                 className="flex-shrink-0 mt-0.5 hover:scale-110 transition-transform"
@@ -159,6 +164,11 @@ export function ProjectTaskList({
               >
                 {statusIcons[task.status]}
               </button>
+              ) : (
+                <span className="flex-shrink-0 mt-0.5">
+                  {statusIcons[task.status]}
+                </span>
+              )}
 
               {/* Content */}
               <div className="flex-1 min-w-0">
@@ -184,6 +194,7 @@ export function ProjectTaskList({
               </div>
 
               {/* Actions */}
+              {canEdit && (
               <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
                 <button
                   onClick={() => handleEdit(task)}
@@ -204,6 +215,7 @@ export function ProjectTaskList({
                   <Trash2 className="w-3.5 h-3.5" />
                 </button>
               </div>
+              )}
             </div>
           ))}
         </div>

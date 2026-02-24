@@ -1,12 +1,13 @@
 import { Router, Response } from 'express';
 import multer from 'multer';
-import { checkJwt, AuthRequest, extractUserId } from '../middleware/auth';
+import { checkJwt, AuthRequest, extractUserId, requireAdmin } from '../middleware/auth';
 import { asyncHandler, createError } from '../middleware/errorHandler';
 import cloudinary from '../config/cloudinary';
 
 const router = Router();
 
 router.use(checkJwt);
+router.use(requireAdmin);
 
 const upload = multer({
   storage: multer.memoryStorage(),

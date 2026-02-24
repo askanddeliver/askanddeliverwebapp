@@ -1,11 +1,12 @@
 import { Router, Response } from 'express';
-import { checkJwt, AuthRequest, extractUserId } from '../middleware/auth';
+import { checkJwt, AuthRequest, extractUserId, requireAdmin } from '../middleware/auth';
 import { asyncHandler, createError } from '../middleware/errorHandler';
 import { LineItem } from '../models';
 
 const router = Router();
 
 router.use(checkJwt);
+router.use(requireAdmin);
 
 // GET /api/line-items - List line items with optional filters
 router.get(

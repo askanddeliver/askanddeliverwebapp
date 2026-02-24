@@ -8,6 +8,7 @@ interface InvoicePreviewProps {
 export function InvoicePreview({ invoice }: InvoicePreviewProps) {
   const timeItems = invoice.items.filter((item) => !item.isFixedCost);
   const fixedItems = invoice.items.filter((item) => item.isFixedCost);
+  const showCostMargin = invoice.totalEarned != null && invoice.totalMargin != null;
 
   return (
     <div className="card print:p-0" id="invoice-preview">
@@ -70,11 +71,21 @@ export function InvoicePreview({ invoice }: InvoicePreviewProps) {
                 <th className="text-right py-2 font-bold text-gray-600">
                   Amount
                 </th>
+                {showCostMargin && (
+                  <>
+                    <th className="text-right py-2 font-bold text-gray-600">
+                      Earned
+                    </th>
+                    <th className="text-right py-2 font-bold text-gray-600">
+                      Margin
+                    </th>
+                  </>
+                )}
               </tr>
             </thead>
             <tbody>
               {timeItems.map((item, idx) => (
-                <TimeRow key={idx} item={item} />
+                <TimeRow key={idx} item={item} showCostMargin={showCostMargin} />
               ))}
             </tbody>
             {fixedItems.length === 0 && (
@@ -89,6 +100,16 @@ export function InvoicePreview({ invoice }: InvoicePreviewProps) {
                   <td className="py-3 text-right text-lg font-bold text-gray-900">
                     {formatCurrency(invoice.total)}
                   </td>
+                  {showCostMargin && (
+                    <>
+                      <td className="py-3 text-right font-bold text-gray-700">
+                        {formatCurrency(invoice.totalEarned ?? 0)}
+                      </td>
+                      <td className="py-3 text-right font-bold text-green-600">
+                        {formatCurrency(invoice.totalMargin ?? 0)}
+                      </td>
+                    </>
+                  )}
                 </tr>
               </tfoot>
             )}
@@ -106,6 +127,16 @@ export function InvoicePreview({ invoice }: InvoicePreviewProps) {
                       timeItems.reduce((sum, item) => sum + item.amount, 0)
                     )}
                   </td>
+                  {showCostMargin && (
+                    <>
+                      <td className="py-2 text-right font-bold text-gray-700">
+                        {formatCurrency(invoice.totalEarned ?? 0)}
+                      </td>
+                      <td className="py-2 text-right font-bold text-green-600">
+                        {formatCurrency(invoice.totalMargin ?? 0)}
+                      </td>
+                    </>
+                  )}
                 </tr>
               </tfoot>
             )}
@@ -163,6 +194,86 @@ export function InvoicePreview({ invoice }: InvoicePreviewProps) {
         </div>
       )}
 
+      {/* Cost & Margin Summary (admin only - internal) */}
+      {showCostMargin && (
+        <div className="mt-4 pt-3 border-t border-gray-200 print:mt-2 print:pt-2">
+          <h4 className="text-sm font-bold text-gray-700 mb-2">
+            Cost &amp; Margin
+          </h4>
+          <div className="grid grid-cols-3 gap-4 text-sm mb-3">
+            <div>
+              <span className="text-gray-500">Billed</span>
+              <p className="font-bold text-gray-900">
+                {formatCurrency(invoice.total)}
+              </p>
+            </div>
+            <div>
+              <span className="text-gray-500">Earned (Cost)</span>
+              <p className="font-bold text-gray-700">
+                {formatCurrency(invoice.totalEarned ?? 0)}
+              </p>
+            </div>
+            <div>
+              <span className="text-gray-500">Margin</span>
+              <p className="font-bold text-green-600">
+                {formatCurrency(invoice.totalMargin ?? 0)}
+              </p>
+            </div>
+          </div>
+          {invoice.costBreakdown && invoice.costBreakdown.length > 0 && (
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="border-b border-gray-200">
+                    <th className="text-left py-1.5 font-medium text-gray-600">
+                      Person
+                    </th>
+                    <th className="text-left py-1.5 font-medium text-gray-600">
+                      Task
+                    </th>
+                    <th className="text-right py-1.5 font-medium text-gray-600">
+                      Hours
+                    </th>
+                    <th className="text-right py-1.5 font-medium text-gray-600">
+                      Billed
+                    </th>
+                    <th className="text-right py-1.5 font-medium text-gray-600">
+                      Earned
+                    </th>
+                    <th className="text-right py-1.5 font-medium text-gray-600">
+                      Margin
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {invoice.costBreakdown.map((row, i) => (
+                    <tr
+                      key={i}
+                      className="border-b border-gray-100 hover:bg-gray-50"
+                    >
+                      <td className="py-1.5 text-gray-800">{row.userName}</td>
+                      <td className="py-1.5 text-gray-600">{row.taskTypeName}</td>
+                      <td className="text-right py-1.5 text-gray-700">
+                        {row.hours.toFixed(2)}
+                      </td>
+                      <td className="text-right py-1.5 text-gray-700">
+                        {formatCurrency(row.billed)}
+                      </td>
+                      <td className="text-right py-1.5 text-gray-600">
+                        {formatCurrency(row.earned)}
+                      </td>
+                      <td className="text-right py-1.5 font-medium text-green-600">
+                        {formatCurrency(row.margin)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Summary */}
       <div className="mt-4 pt-3 border-t border-gray-100 text-sm text-gray-500 print:mt-2 print:pt-2">
         <p>
@@ -176,7 +287,16 @@ export function InvoicePreview({ invoice }: InvoicePreviewProps) {
   );
 }
 
-function TimeRow({ item }: { item: InvoiceLineItem }) {
+function TimeRow({
+  item,
+  showCostMargin,
+}: {
+  item: InvoiceLineItem;
+  showCostMargin?: boolean;
+}) {
+  const earned = item.earnedAmount ?? 0;
+  const margin = item.amount - earned;
+
   return (
     <tr className="border-b border-gray-100">
       <td className="py-2">
@@ -211,6 +331,16 @@ function TimeRow({ item }: { item: InvoiceLineItem }) {
       <td className="text-right py-2 font-bold text-gray-900">
         {formatCurrency(item.amount)}
       </td>
+      {showCostMargin && (
+        <>
+          <td className="text-right py-2 text-gray-600">
+            {formatCurrency(earned)}
+          </td>
+          <td className="text-right py-2 font-medium text-green-600">
+            {formatCurrency(margin)}
+          </td>
+        </>
+      )}
     </tr>
   );
 }

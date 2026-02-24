@@ -1,10 +1,18 @@
 // User types
+export type UserRole = 'admin' | 'member' | 'pending';
+export type UserStatus = 'active' | 'pending' | 'disabled';
+
 export interface User {
   _id: string;
   auth0Id: string;
   email: string;
   name: string;
   picture?: string;
+  role: UserRole;
+  workspaceOwnerId?: string;
+  earnedRates?: Record<string, number>;
+  status: UserStatus;
+  invitedBy?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -102,8 +110,18 @@ export interface InvoiceLineItem {
   effectiveRate: number;
   hours: number;
   amount: number;
+  earnedAmount?: number;
   descriptions: string[];
   isFixedCost: boolean;
+}
+
+export interface CostBreakdownEntry {
+  userName: string;
+  taskTypeName: string;
+  hours: number;
+  billed: number;
+  earned: number;
+  margin: number;
 }
 
 export interface Invoice {
@@ -111,6 +129,9 @@ export interface Invoice {
   items: InvoiceLineItem[];
   total: number;
   totalHours: number;
+  totalEarned?: number;
+  totalMargin?: number;
+  costBreakdown?: CostBreakdownEntry[];
   entryCount: number;
   lineItemCount?: number;
   dateRange: {

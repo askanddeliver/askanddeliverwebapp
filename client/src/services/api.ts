@@ -1,5 +1,6 @@
 import axios from 'axios';
 import type {
+  User,
   Client,
   Project,
   ProjectStatus,
@@ -63,6 +64,19 @@ api.interceptors.response.use(
 );
 
 // ---- API Service Methods ----
+
+// Users (current user profile + role)
+export const usersApi = {
+  getMe: () => api.get<User>('/users/me'),
+  updateMe: (data: Partial<Pick<User, 'name' | 'picture'>>) =>
+    api.put<User>('/users/me', data),
+  // Admin only
+  getAll: () => api.get<User[]>('/users'),
+  addByEmail: (email: string) =>
+    api.post<User>('/users/add-by-email', { email }),
+  update: (id: string, data: Partial<Pick<User, 'role' | 'status' | 'earnedRates'>>) =>
+    api.put<User>(`/users/${id}`, data),
+};
 
 // Clients
 export const clientsApi = {

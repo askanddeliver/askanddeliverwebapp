@@ -1,5 +1,5 @@
 import { Router, Response } from 'express';
-import { checkJwt, AuthRequest, extractUserId } from '../middleware/auth';
+import { checkJwt, AuthRequest, extractUserId, requireAdmin } from '../middleware/auth';
 import { asyncHandler, createError } from '../middleware/errorHandler';
 import { SiteConfig } from '../models';
 
@@ -31,8 +31,9 @@ router.get(
   })
 );
 
-// ---- AUTHENTICATED ----
+// ---- AUTHENTICATED (admin only) ----
 router.use(checkJwt);
+router.use(requireAdmin);
 
 // GET /api/site-config - Get site config for current user
 router.get(

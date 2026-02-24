@@ -5,6 +5,8 @@ import { ProjectCard } from './ProjectCard';
 interface ProjectListProps {
   projects: Project[];
   tasksByProject: Record<string, ProjectTask[]>;
+  showBudget?: boolean;
+  canEdit?: boolean;
   onEdit: (project: Project) => void;
   onDelete: (id: string) => void;
   onArchive: (id: string) => void;
@@ -23,6 +25,8 @@ interface ProjectListProps {
 export function ProjectList({
   projects,
   tasksByProject,
+  showBudget = true,
+  canEdit = true,
   onEdit,
   onDelete,
   onArchive,
@@ -59,6 +63,8 @@ export function ProjectList({
           onUpdateTask={onUpdateTask}
           onToggleTaskStatus={onToggleTaskStatus}
           onDeleteTask={onDeleteTask}
+          showBudget={showBudget}
+          canEdit={canEdit}
         />
       ))}
     </div>

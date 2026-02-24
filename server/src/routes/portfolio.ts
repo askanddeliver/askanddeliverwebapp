@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import mongoose from 'mongoose';
-import { checkJwt, AuthRequest, extractUserId } from '../middleware/auth';
+import { checkJwt, AuthRequest, extractUserId, requireAdmin } from '../middleware/auth';
 import { asyncHandler, createError } from '../middleware/errorHandler';
 import { PortfolioProject } from '../models';
 
@@ -57,14 +57,13 @@ router.get(
 );
 
 // ============================================================
-// PROTECTED ROUTES (authentication required)
-// These serve the admin portfolio management interface
+// PROTECTED ROUTES (auth + admin required)
 // ============================================================
 
-// All remaining routes require authentication
 router.use(checkJwt);
+router.use(requireAdmin);
 
-// GET /api/portfolio - Get all portfolio projects for current user (admin)
+// GET /api/portfolio - Get all portfolio projects for current user
 router.get(
   '/',
   asyncHandler(async (req: AuthRequest, res: Response) => {

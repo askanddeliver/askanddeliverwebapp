@@ -8,6 +8,8 @@ interface ProjectCardProps {
   onEdit: (project: Project) => void;
   onDelete: (id: string) => void;
   onArchive: (id: string) => void;
+  showBudget?: boolean;
+  canEdit?: boolean;
   onCreateTask: (data: {
     projectId: string;
     title: string;
@@ -37,6 +39,8 @@ export function ProjectCard({
   onUpdateTask,
   onToggleTaskStatus,
   onDeleteTask,
+  showBudget = true,
+  canEdit = true,
 }: ProjectCardProps) {
   const client =
     typeof project.clientId === 'object'
@@ -62,6 +66,7 @@ export function ProjectCard({
           )}
         </div>
 
+        {canEdit && (
         <div className="flex items-center gap-1 ml-4">
           {project.status === 'COMPLETED' && (
             <button
@@ -103,6 +108,7 @@ export function ProjectCard({
             <Trash2 className="w-4 h-4" />
           </button>
         </div>
+        )}
       </div>
 
       <div className="flex items-center gap-3 mt-3 pt-3 border-t border-gray-100">
@@ -113,7 +119,7 @@ export function ProjectCard({
         >
           {project.status}
         </span>
-        {project.budget && (
+        {showBudget && project.budget && (
           <span className="text-xs text-gray-500">
             Budget: ${project.budget.toLocaleString()}
           </span>
@@ -130,6 +136,7 @@ export function ProjectCard({
           onUpdateTask={onUpdateTask}
           onToggleStatus={onToggleTaskStatus}
           onDeleteTask={onDeleteTask}
+          canEdit={canEdit}
         />
       </div>
     </div>

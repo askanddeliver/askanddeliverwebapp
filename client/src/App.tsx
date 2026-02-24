@@ -2,6 +2,10 @@ import { useEffect } from 'react';
 import { Routes, Route, useLocation } from 'react-router-dom';
 import { useAuth0 } from '@auth0/auth0-react';
 
+// Context
+import { ApiAuthProvider } from './contexts/ApiAuthContext';
+import { UserProvider } from './contexts/UserContext';
+
 // Layouts
 import Layout from './components/Layout';
 import PublicLayout from './components/public/PublicLayout';
@@ -18,6 +22,7 @@ import Dashboard from './pages/Dashboard';
 import Profile from './pages/Profile';
 import Leads from './pages/Leads';
 import Clients from './pages/Clients';
+import Users from './pages/Users';
 import Projects from './pages/Projects';
 import TaskTypes from './pages/TaskTypes';
 import TimeEntries from './pages/TimeEntries';
@@ -27,8 +32,8 @@ import SiteConfig from './pages/SiteConfig';
 
 // Components
 import ProtectedRoute from './components/ProtectedRoute';
+import AdminRoute from './components/AdminRoute';
 import Loading from './components/Loading';
-import { useApiAuth } from './hooks/useApiAuth';
 
 function ScrollToTop() {
   const { pathname } = useLocation();
@@ -41,9 +46,6 @@ function ScrollToTop() {
 function App() {
   const { isLoading } = useAuth0();
 
-  // Set up Auth0 token for API requests
-  useApiAuth();
-
   if (isLoading) {
     return <Loading />;
   }
@@ -51,6 +53,8 @@ function App() {
   return (
     <>
     <ScrollToTop />
+    <ApiAuthProvider>
+    <UserProvider>
     <Routes>
       {/* ============================================
           PUBLIC ROUTES — PublicLayout (brand site)
@@ -124,7 +128,9 @@ function App() {
         element={
           <Layout>
             <ProtectedRoute>
-              <Leads />
+              <AdminRoute>
+                <Leads />
+              </AdminRoute>
             </ProtectedRoute>
           </Layout>
         }
@@ -134,7 +140,9 @@ function App() {
         element={
           <Layout>
             <ProtectedRoute>
-              <Clients />
+              <AdminRoute>
+                <Clients />
+              </AdminRoute>
             </ProtectedRoute>
           </Layout>
         }
@@ -154,7 +162,9 @@ function App() {
         element={
           <Layout>
             <ProtectedRoute>
-              <TaskTypes />
+              <AdminRoute>
+                <TaskTypes />
+              </AdminRoute>
             </ProtectedRoute>
           </Layout>
         }
@@ -174,7 +184,9 @@ function App() {
         element={
           <Layout>
             <ProtectedRoute>
-              <Reports />
+              <AdminRoute>
+                <Reports />
+              </AdminRoute>
             </ProtectedRoute>
           </Layout>
         }
@@ -184,7 +196,9 @@ function App() {
         element={
           <Layout>
             <ProtectedRoute>
-              <PortfolioAdmin />
+              <AdminRoute>
+                <PortfolioAdmin />
+              </AdminRoute>
             </ProtectedRoute>
           </Layout>
         }
@@ -194,12 +208,28 @@ function App() {
         element={
           <Layout>
             <ProtectedRoute>
-              <SiteConfig />
+              <AdminRoute>
+                <SiteConfig />
+              </AdminRoute>
+            </ProtectedRoute>
+          </Layout>
+        }
+      />
+      <Route
+        path="/users"
+        element={
+          <Layout>
+            <ProtectedRoute>
+              <AdminRoute>
+                <Users />
+              </AdminRoute>
             </ProtectedRoute>
           </Layout>
         }
       />
     </Routes>
+    </UserProvider>
+    </ApiAuthProvider>
     </>
   );
 }

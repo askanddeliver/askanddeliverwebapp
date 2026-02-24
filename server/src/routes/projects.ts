@@ -1,5 +1,5 @@
 import { Router, Response } from 'express';
-import { checkJwt, AuthRequest, extractUserId } from '../middleware/auth';
+import { checkJwt, AuthRequest, extractUserId, getWorkspaceOwnerId, requireAdmin } from '../middleware/auth';
 import { asyncHandler, createError } from '../middleware/errorHandler';
 import { Project } from '../models';
 
@@ -8,15 +8,15 @@ const router = Router();
 // All routes require authentication
 router.use(checkJwt);
 
-// GET /api/projects/counts - Get project counts per status
+// GET /api/projects/counts - Get project counts per status (admin + member see workspace)
 router.get(
   '/counts',
   asyncHandler(async (req: AuthRequest, res: Response) => {
-    const userId = extractUserId(req);
-    if (!userId) throw createError('User ID not found in token', 401);
+    const workspaceOwnerId = await getWorkspaceOwnerId(req);
+    if (!workspaceOwnerId) throw createError('Workspace access required', 403);
 
     const counts = await Project.aggregate([
-      { $match: { userId } },
+      { $match: { userId: workspaceOwnerId } },
       { $group: { _id: '$status', count: { $sum: 1 } } },
     ]);
 
@@ -36,16 +36,16 @@ router.get(
   })
 );
 
-// GET /api/projects - Get all projects for current user (with filters)
+// GET /api/projects - Get all projects for workspace (admin + member)
 router.get(
   '/',
   asyncHandler(async (req: AuthRequest, res: Response) => {
-    const userId = extractUserId(req);
-    if (!userId) throw createError('User ID not found in token', 401);
+    const workspaceOwnerId = await getWorkspaceOwnerId(req);
+    if (!workspaceOwnerId) throw createError('Workspace access required', 403);
 
     const { status, search, sort, clientId } = req.query;
 
-    const filter: Record<string, unknown> = { userId };
+    const filter: Record<string, unknown> = { userId: workspaceOwnerId };
 
     if (status && status !== 'ALL') {
       filter.status = status;
@@ -80,9 +80,10 @@ router.get(
   })
 );
 
-// GET /api/projects/client/:clientId - Get projects by client
+// GET /api/projects/client/:clientId - Get projects by client (admin only - members don't use clients)
 router.get(
   '/client/:clientId',
+  requireAdmin,
   asyncHandler(async (req: AuthRequest, res: Response) => {
     const userId = extractUserId(req);
     if (!userId) throw createError('User ID not found in token', 401);
@@ -99,9 +100,10 @@ router.get(
   })
 );
 
-// POST /api/projects - Create project
+// POST /api/projects - Create project (admin only)
 router.post(
   '/',
+  requireAdmin,
   asyncHandler(async (req: AuthRequest, res: Response) => {
     const userId = extractUserId(req);
     if (!userId) throw createError('User ID not found in token', 401);
@@ -129,9 +131,10 @@ router.post(
   })
 );
 
-// PUT /api/projects/:id - Update project
+// PUT /api/projects/:id - Update project (admin only)
 router.put(
   '/:id',
+  requireAdmin,
   asyncHandler(async (req: AuthRequest, res: Response) => {
     const userId = extractUserId(req);
     if (!userId) throw createError('User ID not found in token', 401);
@@ -159,9 +162,10 @@ router.put(
   })
 );
 
-// PUT /api/projects/:id/archive - Archive a project
+// PUT /api/projects/:id/archive - Archive a project (admin only)
 router.put(
   '/:id/archive',
+  requireAdmin,
   asyncHandler(async (req: AuthRequest, res: Response) => {
     const userId = extractUserId(req);
     if (!userId) throw createError('User ID not found in token', 401);
@@ -180,9 +184,10 @@ router.put(
   })
 );
 
-// DELETE /api/projects/:id - Delete project
+// DELETE /api/projects/:id - Delete project (admin only)
 router.delete(
   '/:id',
+  requireAdmin,
   asyncHandler(async (req: AuthRequest, res: Response) => {
     const userId = extractUserId(req);
     if (!userId) throw createError('User ID not found in token', 401);

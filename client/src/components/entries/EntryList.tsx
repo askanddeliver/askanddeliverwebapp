@@ -8,6 +8,7 @@ interface EntryListProps {
   onDelete: (id: string) => void;
   onContinue?: (entry: TimeEntry) => void;
   loading?: boolean;
+  showAmount?: boolean;
 }
 
 export function EntryList({
@@ -16,6 +17,7 @@ export function EntryList({
   onDelete,
   onContinue,
   loading,
+  showAmount = true,
 }: EntryListProps) {
   if (loading) {
     return (
@@ -49,6 +51,7 @@ export function EntryList({
           onEdit={onEdit}
           onDelete={onDelete}
           onContinue={onContinue}
+          showAmount={showAmount}
         />
       ))}
     </div>

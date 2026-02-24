@@ -7,6 +7,7 @@ interface TimerControlsProps {
   taskTypes: TaskType[];
   projectTasks: ProjectTask[];
   isRunning: boolean;
+  showRate?: boolean;
   onStart: (
     projectId: string,
     taskTypeId: string,
@@ -21,6 +22,7 @@ export function TimerControls({
   taskTypes,
   projectTasks,
   isRunning,
+  showRate = true,
   onStart,
   onStop,
 }: TimerControlsProps) {
@@ -95,7 +97,7 @@ export function TimerControls({
             <option value="">Select task type...</option>
             {taskTypes.map((taskType) => (
               <option key={taskType._id} value={taskType._id}>
-                {taskType.name} — ${taskType.rate}/hr
+                {showRate ? `${taskType.name} — $${taskType.rate}/hr` : taskType.name}
               </option>
             ))}
           </select>

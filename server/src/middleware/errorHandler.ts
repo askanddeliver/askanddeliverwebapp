@@ -20,13 +20,20 @@ export const notFoundHandler = (req: Request, res: Response, next: NextFunction)
 };
 
 export const errorHandler = (
-  err: AppError,
+  err: AppError & { code?: number; errors?: unknown },
   _req: Request,
   res: Response,
   _next: NextFunction
 ) => {
-  const statusCode = err.statusCode || 500;
+  let statusCode = err.statusCode || 500;
   const status = err.status || 'error';
+
+  // Mongoose validation / duplicate key errors
+  if (err.name === 'ValidationError') {
+    statusCode = 400;
+  } else if (err.code === 11000) {
+    statusCode = 400;
+  }
 
   // Log error in development
   if (process.env.NODE_ENV === 'development') {
@@ -34,6 +41,7 @@ export const errorHandler = (
       message: err.message,
       stack: err.stack,
       statusCode,
+      ...(err.code && { code: err.code }),
     });
   }
 

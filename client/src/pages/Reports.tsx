@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Clock, DollarSign } from 'lucide-react';
+import { Clock, DollarSign, TrendingUp, Wallet } from 'lucide-react';
 import { ReportFilters } from '../components/reports/ReportFilters';
 import { InvoicePreview } from '../components/reports/InvoicePreview';
 import { ExportButtons } from '../components/reports/ExportButtons';
@@ -316,7 +316,7 @@ function Reports() {
 
       {/* Summary Cards */}
       {invoice && invoice.items.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 print:hidden">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6 print:hidden">
           <div className="card flex items-center gap-4">
             <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
               <Clock className="w-5 h-5 text-blue-600" />
@@ -333,12 +333,38 @@ function Reports() {
               <DollarSign className="w-5 h-5 text-green-600" />
             </div>
             <div>
-              <p className="text-sm text-gray-500">Total Amount</p>
+              <p className="text-sm text-gray-500">Total Billed</p>
               <p className="text-2xl font-bold text-gray-900">
                 {formatCurrency(invoice.total)}
               </p>
             </div>
           </div>
+          {invoice.totalEarned != null && (
+            <div className="card flex items-center gap-4">
+              <div className="w-10 h-10 bg-amber-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                <Wallet className="w-5 h-5 text-amber-600" />
+              </div>
+              <div>
+                <p className="text-sm text-gray-500">Total Earned (Cost)</p>
+                <p className="text-2xl font-bold text-gray-700">
+                  {formatCurrency(invoice.totalEarned)}
+                </p>
+              </div>
+            </div>
+          )}
+          {invoice.totalMargin != null && (
+            <div className="card flex items-center gap-4">
+              <div className="w-10 h-10 bg-emerald-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                <TrendingUp className="w-5 h-5 text-emerald-600" />
+              </div>
+              <div>
+                <p className="text-sm text-gray-500">Margin</p>
+                <p className="text-2xl font-bold text-emerald-700">
+                  {formatCurrency(invoice.totalMargin)}
+                </p>
+              </div>
+            </div>
+          )}
         </div>
       )}
 

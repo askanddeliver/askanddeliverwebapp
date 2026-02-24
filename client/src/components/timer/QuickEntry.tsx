@@ -6,6 +6,7 @@ interface QuickEntryProps {
   projects: Project[];
   taskTypes: TaskType[];
   projectTasks: ProjectTask[];
+  showRate?: boolean;
   onSubmit: (data: {
     projectId: string;
     taskTypeId: string;
@@ -17,7 +18,7 @@ interface QuickEntryProps {
   }) => void;
 }
 
-export function QuickEntry({ projects, taskTypes, projectTasks, onSubmit }: QuickEntryProps) {
+export function QuickEntry({ projects, taskTypes, projectTasks, showRate = true, onSubmit }: QuickEntryProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [projectId, setProjectId] = useState('');
   const [taskTypeId, setTaskTypeId] = useState('');
@@ -130,7 +131,7 @@ export function QuickEntry({ projects, taskTypes, projectTasks, onSubmit }: Quic
               <option value="">Select task type...</option>
               {taskTypes.map((tt) => (
                 <option key={tt._id} value={tt._id}>
-                  {tt.name} — ${tt.rate}/hr
+                  {showRate ? `${tt.name} — $${tt.rate}/hr` : tt.name}
                 </option>
               ))}
             </select>

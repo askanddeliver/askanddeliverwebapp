@@ -1,5 +1,5 @@
 import { Router, Response } from 'express';
-import { checkJwt, AuthRequest, extractUserId } from '../middleware/auth';
+import { checkJwt, AuthRequest, extractUserId, getWorkspaceOwnerId, requireAdmin } from '../middleware/auth';
 import { asyncHandler, createError } from '../middleware/errorHandler';
 import { ProjectTask } from '../models';
 
@@ -8,17 +8,17 @@ const router = Router();
 // All routes require authentication
 router.use(checkJwt);
 
-// GET /api/project-tasks?projectId=xxx - Get tasks for a project
+// GET /api/project-tasks?projectId=xxx - Get tasks for a project (admin + member)
 router.get(
   '/',
   asyncHandler(async (req: AuthRequest, res: Response) => {
-    const userId = extractUserId(req);
-    if (!userId) throw createError('User ID not found in token', 401);
+    const workspaceOwnerId = await getWorkspaceOwnerId(req);
+    if (!workspaceOwnerId) throw createError('Workspace access required', 403);
 
     const { projectId } = req.query;
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const query: any = { userId };
+    const query: any = { userId: workspaceOwnerId };
     if (projectId) {
       query.projectId = projectId;
     }
@@ -32,16 +32,16 @@ router.get(
   })
 );
 
-// GET /api/project-tasks/:id - Get a single project task
+// GET /api/project-tasks/:id - Get a single project task (admin + member)
 router.get(
   '/:id',
   asyncHandler(async (req: AuthRequest, res: Response) => {
-    const userId = extractUserId(req);
-    if (!userId) throw createError('User ID not found in token', 401);
+    const workspaceOwnerId = await getWorkspaceOwnerId(req);
+    if (!workspaceOwnerId) throw createError('Workspace access required', 403);
 
     const task = await ProjectTask.findOne({
       _id: req.params.id,
-      userId,
+      userId: workspaceOwnerId,
     })
       .populate('projectId')
       .lean();
@@ -54,9 +54,10 @@ router.get(
   })
 );
 
-// POST /api/project-tasks - Create a project task
+// POST /api/project-tasks - Create a project task (admin only)
 router.post(
   '/',
+  requireAdmin,
   asyncHandler(async (req: AuthRequest, res: Response) => {
     const userId = extractUserId(req);
     if (!userId) throw createError('User ID not found in token', 401);
@@ -91,10 +92,11 @@ router.post(
   })
 );
 
-// PUT /api/project-tasks/reorder - Reorder tasks within a project
+// PUT /api/project-tasks/reorder - Reorder tasks (admin only)
 // NOTE: Must be defined BEFORE /:id to avoid "reorder" being treated as an ID
 router.put(
   '/reorder',
+  requireAdmin,
   asyncHandler(async (req: AuthRequest, res: Response) => {
     const userId = extractUserId(req);
     if (!userId) throw createError('User ID not found in token', 401);
@@ -125,9 +127,10 @@ router.put(
   })
 );
 
-// PUT /api/project-tasks/:id - Update a project task
+// PUT /api/project-tasks/:id - Update a project task (admin only)
 router.put(
   '/:id',
+  requireAdmin,
   asyncHandler(async (req: AuthRequest, res: Response) => {
     const userId = extractUserId(req);
     if (!userId) throw createError('User ID not found in token', 401);
@@ -155,9 +158,10 @@ router.put(
   })
 );
 
-// PATCH /api/project-tasks/:id/status - Toggle task status
+// PATCH /api/project-tasks/:id/status - Toggle task status (admin only)
 router.patch(
   '/:id/status',
+  requireAdmin,
   asyncHandler(async (req: AuthRequest, res: Response) => {
     const userId = extractUserId(req);
     if (!userId) throw createError('User ID not found in token', 401);
@@ -182,9 +186,10 @@ router.patch(
   })
 );
 
-// DELETE /api/project-tasks/:id - Delete a project task
+// DELETE /api/project-tasks/:id - Delete a project task (admin only)
 router.delete(
   '/:id',
+  requireAdmin,
   asyncHandler(async (req: AuthRequest, res: Response) => {
     const userId = extractUserId(req);
     if (!userId) throw createError('User ID not found in token', 401);
