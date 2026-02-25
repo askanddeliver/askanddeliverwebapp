@@ -12,14 +12,20 @@ function TopBar({ sidebarCollapsed, onToggleSidebar, onToggleMobile }: TopBarPro
   const { logout, user } = useAuth0();
 
   return (
-    <header className="bg-white border-b border-gray-200 sticky top-0 z-50 print:hidden">
-      <div className="flex items-center justify-between h-14 px-4">
+    <header
+      className="sticky top-0 z-50 print:hidden border-b transition-colors duration-200"
+      style={{
+        backgroundColor: 'var(--admin-cream, #F7F5F2)',
+        borderColor: 'color-mix(in srgb, var(--admin-charcoal, #2A2A2A) 8%, transparent)',
+      }}
+    >
+      <div className="flex items-center justify-between h-16 px-5 lg:px-6">
         {/* Left: Logo + sidebar toggle */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-4">
           {/* Mobile hamburger */}
           <button
             onClick={onToggleMobile}
-            className="lg:hidden p-1.5 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+            className="lg:hidden p-2 -ml-1 rounded-xl text-gray-600 hover:text-gray-900 hover:bg-white/60 transition-colors"
             aria-label="Toggle mobile menu"
           >
             <Menu className="w-5 h-5" />
@@ -28,7 +34,7 @@ function TopBar({ sidebarCollapsed, onToggleSidebar, onToggleMobile }: TopBarPro
           {/* Desktop sidebar toggle */}
           <button
             onClick={onToggleSidebar}
-            className="hidden lg:flex p-1.5 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+            className="hidden lg:flex p-2 -ml-1 rounded-xl text-gray-600 hover:text-gray-900 hover:bg-white/60 transition-colors"
             aria-label="Toggle sidebar"
           >
             {sidebarCollapsed ? (
@@ -38,11 +44,17 @@ function TopBar({ sidebarCollapsed, onToggleSidebar, onToggleMobile }: TopBarPro
             )}
           </button>
 
-          <Link to="/dashboard" className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-primary-600 rounded-lg flex items-center justify-center flex-shrink-0">
+          <Link
+            to="/dashboard"
+            className="flex items-center gap-3 group"
+          >
+            <div
+              className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 transition-transform group-hover:scale-[1.02]"
+              style={{ backgroundColor: 'var(--primary-600)' }}
+            >
               <span className="text-white font-bold text-sm">A&D</span>
             </div>
-            <span className="font-bold text-gray-900 hidden sm:inline">
+            <span className="font-semibold text-gray-900 hidden sm:inline tracking-tight">
               Ask &amp; Deliver
             </span>
           </Link>
@@ -50,16 +62,16 @@ function TopBar({ sidebarCollapsed, onToggleSidebar, onToggleMobile }: TopBarPro
 
         {/* Right: User info + logout */}
         <div className="flex items-center gap-3">
-          <div className="hidden sm:flex items-center gap-2">
+          <div className="hidden sm:flex items-center gap-3">
             {user?.picture && (
               <img
                 src={user.picture}
                 alt={user.name || 'User'}
-                className="w-8 h-8 rounded-full"
+                className="w-9 h-9 rounded-xl object-cover ring-1 ring-black/5"
                 referrerPolicy="no-referrer"
               />
             )}
-            <span className="text-sm font-medium text-gray-700">
+            <span className="text-sm font-medium text-gray-700 max-w-[140px] truncate">
               {user?.name}
             </span>
           </div>
@@ -67,7 +79,7 @@ function TopBar({ sidebarCollapsed, onToggleSidebar, onToggleMobile }: TopBarPro
             onClick={() =>
               logout({ logoutParams: { returnTo: window.location.origin } })
             }
-            className="btn-secondary text-sm !py-1.5 !px-3"
+            className="btn-secondary text-sm !py-2 !px-4 rounded-xl"
           >
             Log Out
           </button>

@@ -32,6 +32,20 @@
     @apply bg-brand-cream text-brand-charcoal;
   }
 
+  /* Admin theme: defaults for primary palette (overridden by AdminThemeContext from Site Config) */
+  [data-admin-theme] {
+    --primary-50: color-mix(in srgb, var(--brand-sage, #5B7765) 8%, white);
+    --primary-100: color-mix(in srgb, var(--brand-sage, #5B7765) 15%, white);
+    --primary-200: color-mix(in srgb, var(--brand-sage, #5B7765) 30%, white);
+    --primary-300: color-mix(in srgb, var(--brand-sage, #5B7765) 50%, white);
+    --primary-400: var(--brand-sage-light, #7A9A87);
+    --primary-500: var(--brand-sage-light, #7A9A87);
+    --primary-600: var(--brand-sage, #5B7765);
+    --primary-700: var(--brand-sage-dark, #3D5446);
+    --primary-800: #2d3f35;
+    --primary-900: #1e2a22;
+  }
+
   /* Display headings use Bitter Bold */
   .font-display {
     font-weight: 700;
@@ -64,7 +78,7 @@
   }
 
   .card {
-    @apply bg-white rounded-xl shadow-sm border border-gray-200 p-6;
+    @apply bg-white rounded-2xl shadow-sm border border-gray-200/80 p-6;
   }
 
   .link {

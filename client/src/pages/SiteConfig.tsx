@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Save, RotateCcw, Palette, Trash2, Check, Plus, X, Building2 } from 'lucide-react';
 import { siteConfigApi } from '../services/api';
+import { useAdminTheme } from '../contexts/AdminThemeContext';
 import type { ThemeColors, ColorPalette } from '../types';
 
 const DEFAULT_COLORS: ThemeColors = {
@@ -231,6 +232,7 @@ function ThemePreview({ colors }: { colors: ThemeColors }) {
 }
 
 function SiteConfigPage() {
+  const { refresh: refreshAdminTheme } = useAdminTheme();
   const [colors, setColors] = useState<ThemeColors>(DEFAULT_COLORS);
   const [savedColors, setSavedColors] = useState<ThemeColors>(DEFAULT_COLORS);
   const [palettes, setPalettes] = useState<ColorPalette[]>([]);
@@ -290,6 +292,7 @@ function SiteConfigPage() {
       setSavedColors(updatedColors);
       setColors(updatedColors);
       setPalettes(data.palettes || palettes);
+      await refreshAdminTheme();
       showSuccess('Theme colors saved successfully');
     } catch {
       setError('Failed to save colors. Please try again.');
@@ -307,6 +310,7 @@ function SiteConfigPage() {
       setColors(resetColors);
       setSavedColors(resetColors);
       setPalettes(data.palettes || palettes);
+      await refreshAdminTheme();
       showSuccess('Colors reset to defaults');
     } catch {
       setError('Failed to reset colors. Please try again.');
