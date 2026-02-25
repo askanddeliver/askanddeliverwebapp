@@ -367,7 +367,7 @@ router.put(
   })
 );
 
-// DELETE /api/users/me - Delete current user
+// DELETE /api/users/me - Delete current user (must be before /:id)
 router.delete(
   '/me',
   asyncHandler(async (req: AuthRequest, res: Response) => {
@@ -384,6 +384,34 @@ router.delete(
     }
 
     res.json({ message: 'User deleted successfully' });
+  })
+);
+
+// DELETE /api/users/:id - Remove user from workspace (admin only)
+// Use for orphaned/duplicate users (e.g. deleted from Auth0, wrong Add by Email)
+router.delete(
+  '/:id',
+  requireAdmin,
+  asyncHandler(async (req: AuthRequest, res: Response) => {
+    const auth0Id = extractUserId(req);
+    if (!auth0Id) throw createError('User ID not found in token', 401);
+
+    const targetUser = await User.findById(req.params.id);
+    if (!targetUser) throw createError('User not found', 404);
+
+    if (targetUser.auth0Id === auth0Id) {
+      throw createError('You cannot remove yourself. Use Profile to delete your account.', 400);
+    }
+
+    const canManage =
+      targetUser.workspaceOwnerId === auth0Id ||
+      (targetUser.role === 'pending' && !targetUser.workspaceOwnerId);
+    if (!canManage) {
+      throw createError('User not in your workspace', 403);
+    }
+
+    await User.findByIdAndDelete(req.params.id);
+    res.json({ message: 'User removed' });
   })
 );
 

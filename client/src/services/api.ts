@@ -76,6 +76,7 @@ export const usersApi = {
     api.post<User>('/users/add-by-email', { email }),
   update: (id: string, data: Partial<Pick<User, 'role' | 'status' | 'earnedRates'>>) =>
     api.put<User>(`/users/${id}`, data),
+  delete: (id: string) => api.delete<{ message: string }>(`/users/${id}`),
 };
 
 // Clients

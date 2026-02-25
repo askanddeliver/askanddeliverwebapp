@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
-import { UserPlus, Pencil, X, Copy, Check } from 'lucide-react';
+import { UserPlus, Pencil, Trash2, Copy, Check } from 'lucide-react';
 import { usersApi, taskTypesApi } from '../services/api';
 import type { User, TaskType } from '../types';
+import { useUserRole } from '../contexts/UserContext';
 import { UserEditModal } from '../components/users/UserEditModal';
 import { AddByEmailModal } from '../components/users/AddByEmailModal';
 
@@ -18,6 +19,7 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 function Users() {
+  const { user: currentUser } = useUserRole();
   const [users, setUsers] = useState<User[]>([]);
   const [taskTypes, setTaskTypes] = useState<TaskType[]>([]);
   const [loading, setLoading] = useState(true);
@@ -79,6 +81,18 @@ function Users() {
   const handleEdit = (user: User) => {
     setEditingUser(user);
     setEditModalOpen(true);
+  };
+
+  const handleRemove = async (user: User) => {
+    if (!window.confirm(`Remove ${user.name || user.email} from the team? This cannot be undone.`)) return;
+    try {
+      await usersApi.delete(user._id);
+      setUsers(users.filter((u) => u._id !== user._id));
+      setError(null);
+    } catch (err) {
+      console.error('Failed to remove user:', err);
+      setError('Failed to remove user');
+    }
   };
 
   const copySignupLink = () => {
@@ -201,13 +215,24 @@ function Users() {
                     {STATUS_LABELS[user.status] || user.status}
                   </span>
                 </div>
-                <button
-                  onClick={() => handleEdit(user)}
-                  className="p-2 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
-                  title="Edit user"
-                >
-                  <Pencil className="w-4 h-4" />
-                </button>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => handleEdit(user)}
+                    className="p-2 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
+                    title="Edit user"
+                  >
+                    <Pencil className="w-4 h-4" />
+                  </button>
+                  {currentUser?._id !== user._id && (
+                    <button
+                      onClick={() => handleRemove(user)}
+                      className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                      title="Remove from team"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
               </div>
             ))}
           </div>
