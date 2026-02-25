@@ -18,6 +18,8 @@ export interface User {
 }
 
 // Client types
+export type PaymentPreference = 'MAILED' | 'ACH';
+
 export interface Client {
   _id: string;
   name: string;
@@ -25,6 +27,7 @@ export interface Client {
   email?: string;
   businessEntity?: string;
   address?: string;
+  paymentPreference?: PaymentPreference;
   taskDiscounts: Record<string, number>;
   createdAt: string;
   updatedAt: string;
@@ -135,6 +138,7 @@ export interface CompanyInfo {
 }
 
 export interface Invoice {
+  invoiceNumber?: string;
   client?: Client;
   companyInfo?: CompanyInfo;
   items: InvoiceLineItem[];

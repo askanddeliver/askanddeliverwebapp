@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
-import type { Client, TaskType } from '../../types';
+import type { Client, TaskType, PaymentPreference } from '../../types';
 import { TaskDiscounts } from './TaskDiscounts';
 
 interface ClientModalProps {
@@ -14,6 +14,7 @@ interface ClientModalProps {
     email?: string;
     businessEntity?: string;
     address?: string;
+    paymentPreference?: PaymentPreference;
     taskDiscounts: Record<string, number>;
   }) => void;
 }
@@ -30,6 +31,7 @@ export function ClientModal({
   const [email, setEmail] = useState('');
   const [businessEntity, setBusinessEntity] = useState('');
   const [address, setAddress] = useState('');
+  const [paymentPreference, setPaymentPreference] = useState<PaymentPreference>('MAILED');
   const [taskDiscounts, setTaskDiscounts] = useState<Record<string, number>>(
     {}
   );
@@ -41,6 +43,7 @@ export function ClientModal({
       setEmail(client.email || '');
       setBusinessEntity(client.businessEntity || '');
       setAddress(client.address || '');
+      setPaymentPreference(client.paymentPreference || 'MAILED');
       setTaskDiscounts(client.taskDiscounts || {});
     } else {
       setName('');
@@ -48,6 +51,7 @@ export function ClientModal({
       setEmail('');
       setBusinessEntity('');
       setAddress('');
+      setPaymentPreference('MAILED');
       setTaskDiscounts({});
     }
   }, [client, isOpen]);
@@ -62,6 +66,7 @@ export function ClientModal({
       email: email.trim() || undefined,
       businessEntity: businessEntity.trim() || undefined,
       address: address.trim() || undefined,
+      paymentPreference,
       taskDiscounts,
     });
   };
@@ -149,6 +154,39 @@ export function ClientModal({
               placeholder="Street, City, State, ZIP"
               rows={3}
             />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Payment preference (for invoices)
+            </label>
+            <div className="flex gap-4">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name="paymentPreference"
+                  value="MAILED"
+                  checked={paymentPreference === 'MAILED'}
+                  onChange={() => setPaymentPreference('MAILED')}
+                  className="border-gray-300"
+                />
+                <span className="text-sm">Mailed payment</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name="paymentPreference"
+                  value="ACH"
+                  checked={paymentPreference === 'ACH'}
+                  onChange={() => setPaymentPreference('ACH')}
+                  className="border-gray-300"
+                />
+                <span className="text-sm">ACH transfer</span>
+              </label>
+            </div>
+            <p className="text-xs text-gray-500 mt-1">
+              Determines payment instructions shown on invoices for this client.
+            </p>
           </div>
 
           <div>

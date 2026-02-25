@@ -298,7 +298,7 @@ router.post(
         }
       : undefined;
 
-    // Serialize client with full fields (address, businessEntity) for invoice
+    // Serialize client with full fields (address, businessEntity, paymentPreference) for invoice
     const clientForInvoice = invoiceClient
       ? {
           _id: invoiceClient._id.toString(),
@@ -307,6 +307,7 @@ router.post(
           email: invoiceClient.email,
           businessEntity: (invoiceClient as IClient & { businessEntity?: string }).businessEntity,
           address: (invoiceClient as IClient & { address?: string }).address,
+          paymentPreference: (invoiceClient as IClient & { paymentPreference?: string }).paymentPreference || 'MAILED',
         }
       : undefined;
 

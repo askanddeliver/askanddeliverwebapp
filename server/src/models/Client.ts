@@ -1,5 +1,7 @@
 import mongoose, { Document, Schema } from 'mongoose';
 
+export type PaymentPreference = 'MAILED' | 'ACH';
+
 export interface IClient extends Document {
   userId: string;
   name: string;
@@ -9,6 +11,8 @@ export interface IClient extends Document {
   businessEntity?: string;
   /** Full address for invoices */
   address?: string;
+  /** Payment preference for invoices: mailed check or ACH transfer */
+  paymentPreference?: PaymentPreference;
   taskDiscounts: Map<string, number>;
   createdAt: Date;
   updatedAt: Date;
@@ -37,6 +41,7 @@ const ClientSchema = new Schema<IClient>(
     },
     businessEntity: { type: String, trim: true },
     address: { type: String, trim: true },
+    paymentPreference: { type: String, enum: ['MAILED', 'ACH'], default: 'MAILED' },
     taskDiscounts: {
       type: Map,
       of: Number,

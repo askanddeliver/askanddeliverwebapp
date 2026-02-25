@@ -21,7 +21,9 @@ export function InvoicePreview({ invoice }: InvoicePreviewProps) {
             alt="Ask+Deliver"
             className="h-8 mb-3 print:h-6 print:mb-2"
           />
-          <h2 className="text-xl font-bold text-gray-900 print:text-lg">Invoice</h2>
+          <h2 className="text-xl font-bold text-gray-900 print:text-lg">
+            Invoice{invoice.invoiceNumber ? ` #${invoice.invoiceNumber}` : ''}
+          </h2>
           {/* Company info for client payments */}
           {(companyInfo?.name || companyInfo?.address || companyInfo?.phone || companyInfo?.email) && (
             <div className="mt-3 text-sm text-gray-600 print:mt-2 print:text-xs space-y-0.5">
@@ -200,7 +202,9 @@ export function InvoicePreview({ invoice }: InvoicePreviewProps) {
           <div className="mt-4 pt-3 border-t border-gray-100 text-sm text-gray-500">
             <p className="font-medium text-gray-700">Payment</p>
             <p>
-              Please send payment to the address above. For questions, contact{' '}
+              {invoice.client?.paymentPreference === 'ACH'
+                ? 'Please remit payment via ACH transfer. For transfer details, contact '
+                : 'Please send payment to the address above. For questions, contact '}
               {companyInfo.email || companyInfo.phone}.
             </p>
           </div>
