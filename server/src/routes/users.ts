@@ -107,7 +107,8 @@ router.get(
       const isPlaceholder = user.email?.includes('@placeholder.') || user.email?.includes('@temp.');
       const syncUpdate: Record<string, unknown> = {};
       if (isPlaceholder && email) syncUpdate.email = email.trim().toLowerCase();
-      if (isPlaceholder && name) syncUpdate.name = name;
+      // Only sync name when Auth0 actually provides one - don't overwrite Profile edits with fallback "User"
+      if (isPlaceholder && payload?.name) syncUpdate.name = payload.name;
       if (nickname) syncUpdate.nickname = nickname; // always sync - enables add-by-email fallback
       if (picture !== undefined) syncUpdate.picture = picture;
       if (Object.keys(syncUpdate).length > 0) {
