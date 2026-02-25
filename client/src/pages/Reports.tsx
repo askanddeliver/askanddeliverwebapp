@@ -626,7 +626,7 @@ function Reports() {
 
       {/* Invoice print view: summary + entries on page 2 (when includeTimeEntries) */}
       {invoice && invoice.items.length > 0 && (
-        <div className="hidden print:block print:overflow-visible">
+        <div className="hidden print:block print:overflow-visible print:bg-white">
           <InvoicePreview invoice={invoice} />
           {includeTimeEntries && filteredEntries.length > 0 && (
             <div className="mt-6 break-before-page">

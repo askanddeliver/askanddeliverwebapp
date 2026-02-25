@@ -165,12 +165,28 @@
   @page {
     margin: 0.5in 0.6in;
     size: letter;
+    background: white;
+  }
+
+  /* Force pure white background for invoice PDF - ignore theme cream/charcoal */
+  html,
+  body {
+    background-color: #ffffff !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* Override theme backgrounds on layout ancestors when printing */
+  [data-admin-theme],
+  [data-admin-theme] > div,
+  [data-admin-theme] > div > div,
+  main,
+  main > * {
+    background-color: #ffffff !important;
   }
 
   body {
-    @apply bg-white text-sm;
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
+    @apply text-sm;
     overflow: visible !important;
   }
 
@@ -202,6 +218,7 @@
 
   #invoice-preview {
     @apply text-xs;
+    background-color: #ffffff !important;
   }
 
   /* No scrollbars on invoice tables when printing */
