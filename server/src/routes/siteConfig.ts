@@ -14,9 +14,7 @@ const DEFAULT_COLORS = {
   brandCream: '#F7F5F2',
   brandCreamDark: '#EDE9E3',
   accentWarm: '#E8A87C',
-  accentWarmLight: '#F2C9A8',
   accentCool: '#6B9BAE',
-  accentCoolLight: '#9DC0CE',
 };
 
 // ---- PUBLIC (no auth) ----

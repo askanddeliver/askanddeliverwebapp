@@ -455,7 +455,7 @@ Intake form submissions with pipeline management. Tracks `projectType`, `budget`
 Case study entries for the public website with `title`, `client`, `description`, `categories`, `disciplines`, challenge/solution/results, `testimonial`, image fields, and publish/feature controls.
 
 ### SiteConfig
-Per-user theme configuration. Stores `colors` (an object with 10 brand color values: brandSage, brandSageLight, brandSageDark, brandCharcoal, brandCream, brandCreamDark, accentWarm, accentWarmLight, accentCool, accentCoolLight) and `palettes` (an array of named color presets).
+Per-user theme configuration. Stores `colors` (an object with 8 brand color values: brandSage, brandSageLight, brandSageDark, brandCharcoal, brandCream, brandCreamDark, accentWarm, accentCool) and `palettes` (an array of named color presets).
 
 ---
 

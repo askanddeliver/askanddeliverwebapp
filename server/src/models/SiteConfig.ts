@@ -14,9 +14,7 @@ export interface IThemeColors {
   brandCream: string;
   brandCreamDark: string;
   accentWarm: string;
-  accentWarmLight: string;
   accentCool: string;
-  accentCoolLight: string;
 }
 
 export interface ISiteConfig extends Document {
@@ -41,9 +39,7 @@ const ThemeColorsSchema = new Schema<IThemeColors>(
     brandCream: { type: String, default: '#F7F5F2' },
     brandCreamDark: { type: String, default: '#EDE9E3' },
     accentWarm: { type: String, default: '#E8A87C' },
-    accentWarmLight: { type: String, default: '#F2C9A8' },
     accentCool: { type: String, default: '#6B9BAE' },
-    accentCoolLight: { type: String, default: '#9DC0CE' },
   },
   { _id: false }
 );

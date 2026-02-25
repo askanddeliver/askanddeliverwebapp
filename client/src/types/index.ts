@@ -262,9 +262,7 @@ export interface ThemeColors {
   brandCream: string;
   brandCreamDark: string;
   accentWarm: string;
-  accentWarmLight: string;
   accentCool: string;
-  accentCoolLight: string;
 }
 
 export interface ColorPalette {

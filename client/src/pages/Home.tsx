@@ -56,12 +56,6 @@ function Home() {
           HERO SECTION
           ============================================ */}
       <section className="relative min-h-screen flex items-center pt-20">
-        {/* Background decorative elements */}
-        <div className="absolute inset-0 -z-10 overflow-hidden">
-          <div className="absolute top-1/4 right-0 w-[500px] h-[500px] bg-brand-sage/5 rounded-full blur-3xl" />
-          <div className="absolute bottom-1/4 left-0 w-[400px] h-[400px] bg-accent-warm/5 rounded-full blur-3xl" />
-        </div>
-
         <div className="container-public">
           <div className="max-w-4xl">
             <motion.div

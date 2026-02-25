@@ -12,10 +12,22 @@ const DEFAULT_COLORS: ThemeColors = {
   brandCream: '#F7F5F2',
   brandCreamDark: '#EDE9E3',
   accentWarm: '#E8A87C',
-  accentWarmLight: '#F2C9A8',
   accentCool: '#6B9BAE',
-  accentCoolLight: '#9DC0CE',
 };
+
+const THEME_COLOR_KEYS: (keyof ThemeColors)[] = [
+  'brandSage', 'brandSageLight', 'brandSageDark',
+  'brandCharcoal', 'brandCream', 'brandCreamDark',
+  'accentWarm', 'accentCool',
+];
+
+function normalizeColors(raw: Partial<ThemeColors>): ThemeColors {
+  const out = { ...DEFAULT_COLORS };
+  for (const key of THEME_COLOR_KEYS) {
+    if (raw[key]) out[key] = raw[key];
+  }
+  return out;
+}
 
 interface ColorTier {
   label: string;
@@ -48,19 +60,13 @@ const COLOR_TIERS: ColorTier[] = [
   },
   {
     label: 'Accent Warm',
-    description: 'Warm accent tones for highlights, badges, and decorative elements.',
-    keys: [
-      { key: 'accentWarm', label: 'Warm' },
-      { key: 'accentWarmLight', label: 'Warm Light' },
-    ],
+    description: 'Warm accent for highlights, badges, and decorative elements. Use opacity (e.g. /10, /20) for lighter shades.',
+    keys: [{ key: 'accentWarm', label: 'Warm' }],
   },
   {
     label: 'Accent Cool',
-    description: 'Cool accent tones for secondary highlights and informational elements.',
-    keys: [
-      { key: 'accentCool', label: 'Cool' },
-      { key: 'accentCoolLight', label: 'Cool Light' },
-    ],
+    description: 'Cool accent for secondary highlights and informational elements. Use opacity for lighter shades.',
+    keys: [{ key: 'accentCool', label: 'Cool' }],
   },
 ];
 
@@ -216,15 +222,7 @@ function ThemePreview({ colors }: { colors: ThemeColors }) {
         />
         <div
           className="flex-1 h-2 rounded-full"
-          style={{ backgroundColor: colors.accentWarmLight }}
-        />
-        <div
-          className="flex-1 h-2 rounded-full"
           style={{ backgroundColor: colors.accentCool }}
-        />
-        <div
-          className="flex-1 h-2 rounded-full"
-          style={{ backgroundColor: colors.accentCoolLight }}
         />
       </div>
     </div>
@@ -254,7 +252,7 @@ function SiteConfigPage() {
     try {
       setLoading(true);
       const { data } = await siteConfigApi.get();
-      const loadedColors = data.colors || DEFAULT_COLORS;
+      const loadedColors = normalizeColors(data.colors || DEFAULT_COLORS);
       setColors(loadedColors);
       setSavedColors(loadedColors);
       setPalettes(data.palettes || []);
@@ -334,7 +332,7 @@ function SiteConfigPage() {
   };
 
   const handleLoadPalette = (palette: ColorPalette) => {
-    setColors(palette.colors);
+    setColors(normalizeColors(palette.colors));
     setError('');
   };
 
@@ -646,15 +644,15 @@ function SiteConfigPage() {
             <h3 className="text-sm font-semibold text-gray-900 mb-3">
               Color Reference
             </h3>
-            <div className="grid grid-cols-5 gap-1">
-              {Object.entries(colors).map(([key, value]) => (
+            <div className="grid grid-cols-4 gap-1">
+              {THEME_COLOR_KEYS.map((key) => (
                 <div key={key} className="text-center">
                   <div
                     className="w-full aspect-square rounded-md border border-gray-200 mb-1"
-                    style={{ backgroundColor: value }}
+                    style={{ backgroundColor: colors[key] }}
                   />
                   <p className="text-[9px] font-mono text-gray-400 leading-none">
-                    {value}
+                    {colors[key]}
                   </p>
                 </div>
               ))}

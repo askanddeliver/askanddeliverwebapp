@@ -18,9 +18,7 @@ const DEFAULT_COLORS: ThemeColors = {
   brandCream: '#F7F5F2',
   brandCreamDark: '#EDE9E3',
   accentWarm: '#E8A87C',
-  accentWarmLight: '#F2C9A8',
   accentCool: '#6B9BAE',
-  accentCoolLight: '#9DC0CE',
 };
 
 interface AdminThemeContextValue {
@@ -54,6 +52,8 @@ function applyAdminThemeVars(colors: ThemeColors, root: HTMLElement) {
   root.style.setProperty('--admin-cream', colors.brandCream);
   root.style.setProperty('--admin-cream-dark', colors.brandCreamDark);
   root.style.setProperty('--admin-charcoal', colors.brandCharcoal);
+  root.style.setProperty('--accent-warm', colors.accentWarm);
+  root.style.setProperty('--accent-cool', colors.accentCool);
 }
 
 /** Mix hex color with white at given ratio (0–1 = amount of base color) */

@@ -43,9 +43,7 @@ export default {
         },
         accent: {
           warm: 'var(--accent-warm, #E8A87C)',
-          'warm-light': 'var(--accent-warm-light, #F2C9A8)',
           cool: 'var(--accent-cool, #6B9BAE)',
-          'cool-light': 'var(--accent-cool-light, #9DC0CE)',
         },
       },
       fontFamily: {

@@ -12,9 +12,7 @@ const CSS_VAR_MAP: Record<keyof ThemeColors, string> = {
   brandCream: '--brand-cream',
   brandCreamDark: '--brand-cream-dark',
   accentWarm: '--accent-warm',
-  accentWarmLight: '--accent-warm-light',
   accentCool: '--accent-cool',
-  accentCoolLight: '--accent-cool-light',
 };
 
 function applyThemeColors(colors: ThemeColors) {
