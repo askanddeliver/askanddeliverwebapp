@@ -75,19 +75,21 @@ export function TaskDiscounts({
           return (
             <div
               key={taskType._id}
-              className="flex items-center gap-3 text-sm"
+              className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3 text-sm"
             >
-              <div
-                className="w-3 h-3 rounded-full flex-shrink-0"
-                style={{ backgroundColor: taskType.color }}
-              />
-              <div className="flex-1 font-medium text-gray-800">
-                {taskType.name}
+              <div className="flex items-center gap-3 flex-1 min-w-0">
+                <div
+                  className="w-3 h-3 rounded-full flex-shrink-0"
+                  style={{ backgroundColor: taskType.color }}
+                />
+                <div className="font-medium text-gray-800 truncate">
+                  {taskType.name}
+                </div>
+                <div className="text-gray-500 w-20 flex-shrink-0 text-right">
+                  ${taskType.rate}/hr
+                </div>
               </div>
-              <div className="text-gray-500 w-20 text-right">
-                ${taskType.rate}/hr
-              </div>
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-2 sm:gap-1 flex-1 sm:flex-initial">
                 <input
                   type="number"
                   min="0"
@@ -96,12 +98,12 @@ export function TaskDiscounts({
                   onChange={(e) =>
                     updateDiscount(taskType._id, Number(e.target.value))
                   }
-                  className="input w-16 text-center text-sm py-1"
+                  className="input w-full min-w-0 sm:w-24 text-center text-sm py-1.5"
                 />
-                <span className="text-gray-500 text-xs">%</span>
-              </div>
-              <div className="font-bold text-green-600 w-24 text-right">
-                ${effectiveRate.toFixed(2)}/hr
+                <span className="text-gray-500 text-xs flex-shrink-0">%</span>
+                <div className="font-bold text-green-600 w-24 flex-shrink-0 text-right">
+                  ${effectiveRate.toFixed(2)}/hr
+                </div>
               </div>
             </div>
           );

@@ -160,7 +160,7 @@ export function ClientModal({
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Payment preference (for invoices)
             </label>
-            <div className="flex gap-4">
+            <div className="flex flex-col gap-2 sm:flex-row sm:gap-4">
               <label className="flex items-center gap-2 cursor-pointer">
                 <input
                   type="radio"
