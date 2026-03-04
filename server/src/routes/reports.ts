@@ -227,7 +227,16 @@ router.post(
       },
     };
     if (clientId) lineItemQuery.clientId = clientId;
-    if (projectId) lineItemQuery.projectId = projectId;
+
+    // Filter by selected projects: include line items assigned to one of
+    // the selected projects OR line items with no project (client-level charges)
+    if (requestedIds.length > 0) {
+      lineItemQuery.$or = [
+        { projectId: { $in: requestedIds } },
+        { projectId: { $exists: false } },
+        { projectId: null },
+      ];
+    }
 
     const fixedCostItems = await LineItem.find(lineItemQuery)
       .populate('projectId', 'title clientId')

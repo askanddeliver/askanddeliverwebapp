@@ -148,7 +148,13 @@ router.post(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const lineItemQuery: any = { userId: workspaceOwnerId };
     if (clientId) lineItemQuery.clientId = clientId;
-    if (projectId) lineItemQuery.projectId = projectId;
+    if (requestedIds.length > 0) {
+      lineItemQuery.$or = [
+        { projectId: { $in: requestedIds } },
+        { projectId: { $exists: false } },
+        { projectId: null },
+      ];
+    }
     if (startDate || endDate) {
       lineItemQuery.date = {};
       if (startDate) lineItemQuery.date.$gte = new Date(startDate + 'T00:00:00');
