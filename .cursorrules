@@ -1,90 +1,182 @@
-# MERN Starter - Cursor IDE Rules
+# Ask And Deliver — Cursor IDE Rules
 
-You are working on a MERN stack application with the following architecture:
+You are working on **Ask And Deliver**, a full-featured time tracking, invoicing, and portfolio application for freelancers and creative consultants. This is NOT a generic MERN starter — it is a production application with specific business logic.
 
 ## Tech Stack
 - **Frontend**: Vite + React 18 + TypeScript
-- **Styling**: Tailwind CSS (utility-first)
+- **Styling**: Tailwind CSS (utility-first) with dynamic CSS custom properties for theming
+- **Animations**: Framer Motion
+- **Icons**: Lucide React
+- **Drag & Drop**: dnd-kit
+- **Routing**: React Router v6
 - **Backend**: Express.js + TypeScript
 - **Database**: MongoDB with Mongoose ODM
-- **Authentication**: Auth0 (JWT-based)
+- **Authentication**: Auth0 (SPA flow + M2M for user lookup)
+- **File Uploads**: Multer + Cloudinary (images + video)
+- **Security**: Helmet, CORS, JWT validation via `express-oauth2-jwt-bearer`
 
 ## Project Structure
 ```
-client/          # React frontend
+client/                        # React frontend (Vite)
   src/
-    components/  # Reusable UI components
-    pages/       # Route-level components
-    hooks/       # Custom React hooks
-    services/    # API calls (axios)
-    context/     # React context providers
-    types/       # TypeScript interfaces
-server/          # Express backend
+    components/
+      clients/                 # Client cards, list, modal, task discounts
+      entries/                 # Time entry list, row, modal
+      leads/                   # Lead detail modal, convert modal
+      portfolio/               # Portfolio project list, modal, image upload
+      projects/                # Project cards, list, modal
+      projectTasks/            # Project task list, modal
+      public/                  # Public layout, navbar, footer, lightbox
+      reports/                 # Invoice preview, filters, export, line items, member contributions
+      taskTypes/               # Task type list, modal
+      timer/                   # Timer display, controls, quick entry
+      users/                   # User edit modal, add-by-email modal
+      Layout.tsx               # Admin layout shell (sidebar + topbar + theme provider)
+      Sidebar.tsx              # Admin sidebar navigation
+      TopBar.tsx               # Admin top bar
+      AdminRoute.tsx           # Admin-only route guard
+      ProtectedRoute.tsx       # Auth guard (waits for token readiness)
+      Loading.tsx
+    pages/                     # Route-level components (16 pages)
+    contexts/
+      ApiAuthContext.tsx        # Token lifecycle, readiness flag, public vs auth API instances
+      UserContext.tsx           # User role (admin/member/pending), workspace context
+      AdminThemeContext.tsx     # Dynamic theme: fetches SiteConfig, applies CSS variables
+    hooks/
+      useApiAuth.ts            # Auth token injection
+      usePublicPortfolio.ts    # Public portfolio data fetching
+    services/
+      api.ts                   # Axios instances (auth + public), all API modules
+    types/
+      index.ts                 # All TypeScript interfaces and type unions
+    utils/
+      calculations.ts          # Duration formatting, discount math, date helpers
+    data/                      # Static data helpers
+    styles/
+      index.css                # Tailwind base + theme CSS variables
+server/                        # Express backend
   src/
-    controllers/ # Business logic (currently inline in routes)
-    middleware/  # Express middleware (auth, errors)
-    models/      # Mongoose schemas
-    routes/      # API route definitions
-    services/    # External service integrations
-    config/      # Configuration (database, etc.)
-    types/       # TypeScript interfaces
+    routes/                    # 14 route modules (see below)
+    models/                    # 10 Mongoose models (see below)
+    middleware/
+      auth.ts                  # checkJwt, extractUserId, requireAdmin, getWorkspaceOwnerId, optionalAuth, loadUser
+      errorHandler.ts          # asyncHandler, createError, notFoundHandler, errorHandler
+    config/
+      database.ts              # MongoDB connection
+      cloudinary.ts            # Cloudinary upload config
+    lib/
+      auth0Management.ts       # Auth0 Management API client (M2M for add-by-email)
+    utils/
+      calculations.ts          # getEffectiveRate, calculateAmount, formatDuration, formatCurrency, secondsToHours
+    types/
+      index.ts                 # Server-side TypeScript types
 ```
+
+## Core Business Concepts
+
+### Discount System (Critical)
+Each client has a `taskDiscounts` map: `Map<taskTypeId, discountPercentage>`. The effective rate formula:
+```
+effectiveRate = baseRate * (1 - clamp(discount, 0, 100) / 100)
+```
+This is the core pricing innovation — Design at $75/hr can be 50% off for one client ($37.50) while Strategy at $125/hr is pro-bono for another (100% off = $0).
+
+### Profit Margin Tracking
+Users (team members) can have `earnedRates`: `Record<taskTypeId, earnedHourlyRate>`. Invoice generation computes:
+- **Billed amount** = effective rate (after client discount) × hours
+- **Earned amount** = member's earned rate × hours
+- **Margin** = billed - earned
+
+This enables tracking what you charge clients vs. what you pay team members per task type.
+
+### Workspace / Multi-Tenant Model
+Two data scoping patterns coexist:
+
+**Pattern A — Direct userId scoping**: The entity's `userId` field equals `extractUserId(req)`. Used for: Clients, Portfolio, Uploads, Line Items, SiteConfig (most endpoints).
+
+**Pattern B — Workspace-scoped via `getWorkspaceOwnerId`**: Resolves the workspace owner (admin = self, member = their admin's auth0Id), then queries `{ userId: workspaceOwnerId }`. Allows members to access shared data. Used for: Projects, Task Types, Project Tasks, Time Entries, Reports, Export.
+
+**Time entries have dual scoping**: Admin sees all workspace entries; Member sees only their own (filtered by `userId` on the entry).
+
+### Role System
+- **admin**: Full access to all features. Owns the workspace.
+- **member**: Can track time, view projects, manage own entries. Cannot see rates/amounts, manage clients, leads, reports, portfolio, task types, or team.
+- **pending**: Sees "Account Pending Approval" message. Cannot access any features until an admin adds them.
+
+Role assignment on first login (`GET /api/users/me`):
+1. `PRIMARY_ADMIN_EMAIL` env match → admin
+2. First user in the database → admin
+3. All other new signups → pending
 
 ## Code Conventions
 
 ### TypeScript
 - Use strict mode
-- Define interfaces for all data structures
+- Define interfaces for all data structures in `types/index.ts`
 - Prefer `interface` over `type` for object shapes
-- Use explicit return types for functions when not obvious
+- Use explicit return types for non-obvious functions
 
 ### React (Frontend)
-- Use functional components with hooks
-- Use `useAuth0` hook for authentication
-- API calls go through `services/api.ts` with token injection
-- Use Tailwind utility classes, avoid custom CSS unless necessary
+- Functional components with hooks
+- Use `useAuth0` hook for authentication state
+- API calls go through `services/api.ts` with token injection via `ApiAuthContext`
+- Use Tailwind utility classes; theme via CSS custom properties (not inline hex)
 - Component files use PascalCase: `MyComponent.tsx`
+- Feature components grouped in subdirectories: `components/clients/`, `components/timer/`, etc.
+- Use `useUserRole()` hook for role checks (`isAdmin`, `isMember`, `isPending`)
+- Pass `showRate={isAdmin}` / `showAmount={isAdmin}` to hide financial data from members
 
 ### Express (Backend)
-- Use async/await with asyncHandler wrapper for error handling
+- Use `asyncHandler` wrapper for all route handlers (automatic error catching)
+- Use `createError(message, statusCode)` for HTTP errors
 - Routes are protected with `checkJwt` middleware from Auth0
-- Extract user ID with `extractUserId(req)` from auth payload
-- Use Mongoose models for database operations
-- Return consistent JSON responses
+- Admin-only routes add `requireAdmin` middleware
+- Extract user ID with `extractUserId(req)` from `req.auth.payload.sub`
+- Workspace-scoped data uses `getWorkspaceOwnerId(req)` to resolve the correct userId
+- Return consistent JSON responses: `res.json(data)` or `res.json({ message: '...' })`
+- Use Mongoose models for database operations with proper index definitions
 
-### Patterns to Follow
+## Route Patterns
 
-**Creating a new API route:**
+### Creating a new API route
 ```typescript
 // server/src/routes/newRoute.ts
 import { Router, Response } from 'express';
-import { checkJwt, AuthRequest, extractUserId } from '../middleware/auth';
+import { checkJwt, AuthRequest, extractUserId, requireAdmin, getWorkspaceOwnerId } from '../middleware/auth';
 import { asyncHandler, createError } from '../middleware/errorHandler';
 import { Model } from '../models';
 
 const router = Router();
 router.use(checkJwt);
 
+// Workspace-scoped read (members + admins can access)
 router.get('/', asyncHandler(async (req: AuthRequest, res: Response) => {
+  const workspaceOwner = await getWorkspaceOwnerId(req);
+  if (!workspaceOwner) throw createError('No workspace found', 403);
+  const items = await Model.find({ userId: workspaceOwner }).sort({ createdAt: -1 });
+  res.json(items);
+}));
+
+// Admin-only write
+router.post('/', requireAdmin, asyncHandler(async (req: AuthRequest, res: Response) => {
   const userId = extractUserId(req);
   if (!userId) throw createError('Unauthorized', 401);
-  
-  const items = await Model.find({ user: userId });
-  res.json(items);
+  const item = await Model.create({ ...req.body, userId });
+  res.status(201).json(item);
 }));
 
 export default router;
 ```
 
-**Creating a new React page:**
+### Creating a new React page
 ```typescript
 // client/src/pages/NewPage.tsx
 import { useState, useEffect } from 'react';
-import { useAuth0 } from '@auth0/auth0-react';
+import { useUserRole } from '../contexts/UserContext';
 import api from '../services/api';
 
 function NewPage() {
-  const { user } = useAuth0();
+  const { isAdmin } = useUserRole();
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -114,66 +206,114 @@ function NewPage() {
 export default NewPage;
 ```
 
-**Creating a new Mongoose model:**
+### Creating a new Mongoose model
 ```typescript
 // server/src/models/NewModel.ts
 import mongoose, { Document, Schema } from 'mongoose';
 
 export interface INewModel extends Document {
+  userId: string;
   name: string;
-  user: string;
   createdAt: Date;
   updatedAt: Date;
 }
 
-const newModelSchema = new Schema<INewModel>(
+const NewModelSchema = new Schema<INewModel>(
   {
+    userId: { type: String, required: true, index: true },
     name: { type: String, required: true, trim: true },
-    user: { type: String, required: true, index: true },
   },
   { timestamps: true }
 );
 
-export const NewModel = mongoose.model<INewModel>('NewModel', newModelSchema);
+NewModelSchema.index({ userId: 1, createdAt: -1 });
+
+export const NewModel = mongoose.model<INewModel>('NewModel', NewModelSchema);
 ```
+
+## Models (10 total)
+
+| Model | Key Fields | Scoping |
+|-------|-----------|---------|
+| User | auth0Id, email, name, role, workspaceOwnerId, earnedRates, status | By auth0Id |
+| Client | name, company, email, businessEntity, address, paymentPreference, taskDiscounts | userId (Pattern A) |
+| Project | clientId, title, description, status, budget | userId (Pattern B) |
+| TaskType | name, rate, color | userId (Pattern B) |
+| TimeEntry | projectId, taskTypeId, projectTaskId, startTime, endTime, duration, isRunning | userId (Pattern B, dual) |
+| ProjectTask | projectId, title, status, order, estimatedHours | userId (Pattern B) |
+| LineItem | clientId, projectId, description, amount, category, date | userId (Pattern A) |
+| Lead | confidence, projectType, budget, timeline, name, email, status, priority, notes | No userId (global) |
+| PortfolioProject | slug, title, client, categories, disciplines, images, published, featured, order | userId (Pattern A) |
+| SiteConfig | colors, palettes, companyName, companyAddress, companyPhone, companyEmail | userId (Pattern A) |
+
+## Routes (14 modules)
+
+| Mount Path | Module | Auth | Key Features |
+|-----------|--------|------|-------------|
+| `/api/health` | health.ts | None | Health check + detailed MongoDB/memory status |
+| `/api/users` | users.ts | checkJwt; requireAdmin on admin endpoints | Profile, team, add-by-email, earned rates, account deletion |
+| `/api/clients` | clients.ts | checkJwt + requireAdmin | CRUD with business entity, address, payment pref, task discounts |
+| `/api/projects` | projects.ts | checkJwt; requireAdmin on writes | CRUD, archive, status counts, filter/search/sort |
+| `/api/task-types` | taskTypes.ts | checkJwt; requireAdmin on writes | CRUD + seed defaults |
+| `/api/time-entries` | timeEntries.ts | checkJwt | Timer start/stop/continue, manual entry, workspace-scoped reads |
+| `/api/project-tasks` | projectTasks.ts | checkJwt; requireAdmin on writes | CRUD + drag-and-drop reorder + status toggle |
+| `/api/reports` | reports.ts | checkJwt + requireAdmin | Invoice generation (discount + margin), summary stats |
+| `/api/export` | export.ts | checkJwt + requireAdmin | CSV export + full JSON workspace backup |
+| `/api/line-items` | lineItems.ts | checkJwt + requireAdmin | Fixed-cost item CRUD with date/project filtering |
+| `/api/portfolio` | portfolio.ts | Mixed (3 public, rest admin) | CRUD, publish/feature toggle, reorder, seed, slug routing |
+| `/api/uploads` | uploads.ts | checkJwt + requireAdmin | Cloudinary image + video upload/list/delete |
+| `/api/leads` | leads.ts | Mixed (1 public, rest admin) | Pipeline management, notes, conversion to client+project |
+| `/api/site-config` | siteConfig.ts | Mixed (1 public, rest admin) | Theme colors, palettes, company info |
 
 ## Common Tasks
 
 ### Add a protected route
 1. Create route file in `server/src/routes/`
-2. Import and use `checkJwt` middleware
-3. Register route in `server/src/index.ts`
+2. Import and use `checkJwt` middleware (and `requireAdmin` if admin-only)
+3. Register route in `server/src/index.ts` with `app.use('/api/path', newRoutes)`
 
 ### Add a new page
 1. Create component in `client/src/pages/`
 2. Add route in `client/src/App.tsx`
-3. Wrap with `<ProtectedRoute>` if auth required
+3. Wrap with `<ProtectedRoute>` for auth, add `<AdminRoute>` wrapper for admin-only
+4. Add navigation item in `client/src/components/Sidebar.tsx`
 
 ### Add a database model
 1. Create model in `server/src/models/`
 2. Export from `server/src/models/index.ts`
-3. Create corresponding routes/controllers
+3. Always include `userId: string` field (indexed) for multi-tenant isolation
+4. Create corresponding routes
+
+### Add API methods
+1. Add endpoint functions in `client/src/services/api.ts` under the appropriate API module
+2. Add TypeScript types in `client/src/types/index.ts`
 
 ## Environment Variables
 
 ### Client (.env)
-- `VITE_API_URL` - Backend API URL
-- `VITE_AUTH0_DOMAIN` - Auth0 tenant domain
-- `VITE_AUTH0_CLIENT_ID` - Auth0 application client ID
-- `VITE_AUTH0_AUDIENCE` - Auth0 API identifier
+- `VITE_API_URL` — Backend API URL (default: `http://localhost:3001/api`)
+- `VITE_AUTH0_DOMAIN` — Auth0 tenant domain
+- `VITE_AUTH0_CLIENT_ID` — Auth0 SPA client ID
+- `VITE_AUTH0_AUDIENCE` — Auth0 API identifier
 
 ### Server (.env)
-- `PORT` - Server port (default: 3001)
-- `MONGODB_URI` - MongoDB connection string
-- `AUTH0_DOMAIN` - Auth0 tenant domain
-- `AUTH0_AUDIENCE` - Auth0 API identifier
+- `PORT` — Server port (default: 3001)
+- `MONGODB_URI` — MongoDB connection string
+- `AUTH0_DOMAIN` — Auth0 tenant domain
+- `AUTH0_AUDIENCE` — Auth0 API identifier
+- `CLOUDINARY_CLOUD_NAME` / `CLOUDINARY_API_KEY` / `CLOUDINARY_API_SECRET` — Media uploads
+- `PRIMARY_ADMIN_EMAIL` — (Optional) Email that always gets admin role
+- `AUTH0_M2M_CLIENT_ID` / `AUTH0_M2M_CLIENT_SECRET` — (Optional) For add-by-email user lookup
 
-## Shopify Integration Notes
+## Key Implementation Rules
 
-For Shopify embedded apps, you'll need to:
-1. Install `@shopify/app-bridge-react`
-2. Replace Auth0Provider with Shopify's AppBridgeProvider
-3. Use Shopify session tokens instead of Auth0 JWT
-4. Configure Shopify OAuth flow in server
-
-The current auth setup is modular - the `checkJwt` middleware can be swapped for Shopify verification.
+1. **Always scope data by userId** — Every model (except Lead) has a `userId` field. Never return data without filtering by the appropriate user/workspace owner.
+2. **Use `getWorkspaceOwnerId`** for shared data — Projects, TaskTypes, ProjectTasks, TimeEntries, Reports, and Export use workspace scoping so members can access admin-owned data.
+3. **Use `extractUserId`** for owned data — Clients, LineItems, Portfolio, SiteConfig, and Uploads are admin-only and scoped directly.
+4. **Hide financials from members** — Pass `showRate={isAdmin}` and `showAmount={isAdmin}` to components. Members track time; only admins see money.
+5. **Discount formula**: `effectiveRate = baseRate * (1 - clamp(discount, 0, 100) / 100)`
+6. **Timer auto-stops** — Starting a new timer automatically stops any running one (accumulating its duration).
+7. **Timer duration accumulates** — The `duration` field on TimeEntry stores accumulated seconds across pause/resume cycles.
+8. **Leads have no userId** — Lead intake is public; leads are visible to all admins (not workspace-scoped).
+9. **Portfolio has dual access** — Public routes serve published projects (no auth); admin routes require `checkJwt` + `requireAdmin`.
+10. **CSS theme variables** — AdminThemeContext generates `--primary-50` through `--primary-900` from `brandSage`. Use `bg-primary-600`, `text-primary-50`, etc. in Tailwind classes.

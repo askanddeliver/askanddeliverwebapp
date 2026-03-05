@@ -1,74 +1,91 @@
 # Ask And Deliver — Time Tracking & Invoicing System
 
-A full-featured time tracking, client management, and invoicing application built for freelancers and consultants. Includes a live timer with resume, per-client discount pricing, invoice generation, lead pipeline management, a public-facing portfolio website, theme customization, and multi-user workspace support with role-based access (admin, member, pending).
+A full-featured time tracking, client management, and invoicing application built for freelancers and consultants. Includes a live timer with resume, per-client discount pricing, profit margin tracking, invoice generation with company branding, lead pipeline management, a public-facing portfolio website, theme customization, data backup/export, and multi-user workspace support with role-based access (admin, member, pending).
 
 ## Features
 
 ### Core Time Tracking
 - **Live timer** — Start/stop tracking with one click from the Dashboard
-- **Resume timer** — Continue tracking from any previous time entry
+- **Resume timer** — Continue tracking from any previous time entry (preserves accumulated duration)
 - **Manual time entry** — Log time after the fact with custom start/end times
 - **Quick entry** — Streamlined form for fast time logging
 - **Per-project & per-task tracking** — Associate entries with projects, task types, and project tasks
+- **Workspace-scoped entries** — Admins see all workspace entries; members see only their own
 
 ### Client Management & Discount Pricing
-- **Client CRUD** — Manage clients with name, company, and email
+- **Client CRUD** — Manage clients with name, company, email, business entity, address, and payment preference (ACH or mailed check)
 - **Per-client, per-task-type discounts** — Each client can have a unique discount percentage for each task type (e.g., Design at 50% off, Strategy at 100% off for pro-bono work)
 - **Effective rate calculation** — Base rate minus client-specific discount applied automatically
+- **Invoice-ready client data** — Business entity and address fields populate directly into invoice templates
 
 ### Project Management
 - **Project CRUD** — Create and manage projects tied to specific clients
 - **Status tracking** — ACTIVE, PAUSED, COMPLETED, ARCHIVED workflow with status tabs and counts
-- **Filtering & search** — Filter by status, client, or search term; sort by date or title
+- **Filtering & search** — Filter by status, client, or search term; sort by date, title, or budget
 - **Budget tracking** — Optional budget field per project
+- **Archive vs. delete** — Soft-archive projects to hide them, or permanently delete
 - **Project tasks** — Break projects into individual tasks with status (TODO, IN_PROGRESS, COMPLETED), drag-and-drop ordering, and estimated hours
 
 ### Task Type Configuration
 - **Task types** — Define billable categories (e.g., Design, Development, Strategy) with hourly rates and color coding
-- **Default seeding** — Pre-populate common task types on first use
+- **Default seeding** — Pre-populate common task types on first use (Design $75, Development $100, Strategy $125, Meeting $50, Admin $0)
 
 ### Invoicing & Reports
 - **Invoice generation** — Generate invoices with full discount calculations, showing base vs. effective rates; supports single-client or all-clients mode
+- **Company branding** — Company name, address, phone, and email appear in invoice headers (configured in Site Config)
+- **Client billing details** — Business entity, address, and payment preference (ACH/mailed check) on invoices
 - **Fixed-cost line items** — Add third-party costs (plugins, hosting, subcontractors, etc.) as flat-fee charges on invoices, separate from hourly time entries
+- **Profit margin tracking** — Per-member earned rates allow tracking billed amount vs. earned amount per task type, with margin calculations and cost breakdown per entry
 - **Date range filtering** — Filter entries by date range, client, and project
 - **Summary statistics** — Overview of total hours, total billed, and effective rates
-- **CSV export** — Export time entries and fixed-cost line items for external use
+- **CSV export** — Export time entries and fixed-cost line items for external accounting
+- **Full data backup** — Export entire workspace as JSON (clients, projects, task types, project tasks, time entries, line items)
 
 ### Lead Management
-- **Public intake form** — Prospective clients submit project inquiries from the public website
+- **Public intake form** — Prospective clients submit project inquiries from the public website with confidence level (YES, MAYBE, UNSURE), project type, budget, timeline, and message
 - **Lead pipeline** — Track leads through stages: NEW, CONTACTED, QUALIFIED, PROPOSAL, WON, LOST
+- **Pipeline statistics** — Aggregated counts per pipeline stage
 - **Priority levels** — LOW, MEDIUM, HIGH priority classification
-- **Notes system** — Add internal notes to leads
-- **Lead conversion** — Convert a qualified lead directly into a Client and Project
+- **Notes system** — Add timestamped internal notes to leads
+- **Lead conversion** — Convert a qualified lead directly into a Client and Project (with conversion tracking)
 
 ### Public Portfolio Website
-- **Portfolio project management** — Create portfolio case studies with title, client, description, categories, disciplines, challenge/solution/results, and testimonials
-- **Media uploads** — Upload images and videos (MP4, MOV, WebM) for portfolio projects via Cloudinary
+- **Portfolio project management** — Create portfolio case studies with title, client, excerpt, description, categories, disciplines, year, challenge/solution/results, testimonials, and live URL
+- **Media uploads** — Upload images (JPEG, PNG, GIF, WebP, SVG) and videos (MP4, MOV, WebM up to 100MB) via Cloudinary
 - **Image lightbox** — Full-screen image viewer on public portfolio pages
 - **Publish/unpublish** — Control which projects are visible on the public site
 - **Featured projects** — Highlight key work on the homepage
 - **Drag-and-drop ordering** — Reorder portfolio projects visually
 - **Slug-based routing** — Clean URLs for portfolio detail pages
+- **Portfolio seeding** — Seed sample portfolio projects from provided data
 
-### Site Theme Customization
+### Site Theme & Company Configuration
 - **Brand color editor** — Customize all brand colors (sage, charcoal, cream, accent warm/cool) with live preview
+- **Dynamic CSS variables** — Theme colors generate a full primary-50 through primary-900 scale for the admin UI
 - **Color palettes** — Save, load, rename, and delete named color palettes
 - **Reset to defaults** — One-click reset to the default color scheme
+- **Company info** — Configure company name, address, phone, and email for invoice headers
 - **Public API** — Active theme colors are served to the public site automatically
 
 ### Team & Workspace
 - **Role-based access** — Admin, member, and pending roles control what each user can see and do
 - **Workspace model** — Admins own a workspace; members belong to an admin's workspace
 - **Add by email** — Admins can add team members by email (requires Auth0 M2M app for lookup)
+- **Remove team members** — Admins can remove members from the workspace
 - **Invite link** — Share your app URL; new users sign up, then admins add them via email
 - **Primary admin** — Set `PRIMARY_ADMIN_EMAIL` in env to ensure the intended owner always has admin (fixes signup-order edge cases)
 - **Member permissions** — Members can track time and manage projects; admins manage clients, leads, reports, portfolio, task types, and team
+- **Financial privacy** — Members cannot see hourly rates or dollar amounts; only time and descriptions are visible to them
+- **Earned rates** — Assign per-task-type earned rates to members for cost/margin tracking on invoices
+- **Account deletion** — Users can delete their own account
 
 ### Authentication & Security
 - **Auth0 integration** — Secure login/logout with Auth0 Single Page Application flow
 - **Protected routes** — Admin-only routes redirect non-admins to the dashboard
+- **Pending user handling** — New signups see an "Account Pending Approval" message until an admin adds them
 - **Multi-tenant data isolation** — Data scoped by workspace (admin + their members)
 - **JWT validation** — Server-side token verification via `express-oauth2-jwt-bearer`
+- **Token persistence** — Auth tokens stored in localStorage for session persistence across refreshes
 
 ---
 
@@ -84,7 +101,7 @@ A full-featured time tracking, client management, and invoicing application buil
 | Routing | React Router v6 |
 | Backend | Express.js + TypeScript |
 | Database | MongoDB + Mongoose |
-| Authentication | Auth0 |
+| Authentication | Auth0 (SPA + M2M) |
 | File Uploads | Multer + Cloudinary |
 | Security | Helmet, CORS |
 | Dev Tools | ESLint, Prettier, Nodemon, Concurrently |
@@ -105,16 +122,16 @@ askanddeliverwebapp/
 │   │   │   ├── projects/         # Project cards, list, modal
 │   │   │   ├── projectTasks/     # Project task list, modal
 │   │   │   ├── public/           # Public layout, navbar, footer, lightbox
-│   │   │   ├── reports/          # Invoice preview, filters, export, line items panel
+│   │   │   ├── reports/          # Invoice preview, filters, export, line items, member contributions
 │   │   │   ├── taskTypes/        # Task type list, modal
 │   │   │   ├── timer/            # Timer display, controls, quick entry
 │   │   │   ├── users/            # User edit modal, add-by-email modal
-│   │   │   ├── Layout.tsx        # Admin layout shell
+│   │   │   ├── Layout.tsx        # Admin layout shell (sidebar, topbar, theme)
 │   │   │   ├── AdminRoute.tsx    # Admin-only route guard
 │   │   │   ├── Sidebar.tsx       # Admin sidebar navigation
 │   │   │   ├── TopBar.tsx        # Admin top bar
 │   │   │   ├── Navbar.tsx        # Admin navigation bar
-│   │   │   ├── ProtectedRoute.tsx
+│   │   │   ├── ProtectedRoute.tsx # Auth guard (waits for token)
 │   │   │   └── Loading.tsx
 │   │   ├── pages/
 │   │   │   ├── Home.tsx          # Public landing page
@@ -130,69 +147,71 @@ askanddeliverwebapp/
 │   │   │   ├── Reports.tsx       # Invoice generation and reports
 │   │   │   ├── Leads.tsx         # Lead pipeline management
 │   │   │   ├── PortfolioAdmin.tsx # Portfolio project management
-│   │   │   ├── SiteConfig.tsx    # Theme color customization
+│   │   │   ├── SiteConfig.tsx    # Theme colors + company info
 │   │   │   ├── Users.tsx         # Team management (admin)
 │   │   │   └── Profile.tsx       # User profile
 │   │   ├── contexts/
-│   │   │   ├── ApiAuthContext.tsx
-│   │   │   └── UserContext.tsx   # User role/workspace context
+│   │   │   ├── ApiAuthContext.tsx # Token lifecycle + readiness flag
+│   │   │   ├── UserContext.tsx    # User role/workspace context
+│   │   │   └── AdminThemeContext.tsx # Dynamic CSS variable theming
 │   │   ├── services/
-│   │   │   └── api.ts            # Axios API service layer
+│   │   │   └── api.ts            # Axios API service layer (auth + public instances)
 │   │   ├── hooks/
 │   │   │   ├── useApiAuth.ts     # Auth token injection hook
 │   │   │   └── usePublicPortfolio.ts
 │   │   ├── types/                # TypeScript type definitions
 │   │   ├── utils/
-│   │   │   └── calculations.ts   # Duration formatting, discount math
+│   │   │   └── calculations.ts   # Duration formatting, discount math, date helpers
 │   │   ├── data/
 │   │   │   └── portfolioProjects.ts
-│   │   └── styles/               # Global styles
+│   │   └── styles/               # Global styles + Tailwind config
 │   └── public/
+│       └── brand/                # Logo SVGs (header, footer, favicon, standard)
 ├── server/                       # Express backend
 │   ├── src/
 │   │   ├── routes/
-│   │   │   ├── users.ts          # User profile + account deletion
-│   │   │   ├── clients.ts        # Client CRUD
+│   │   │   ├── users.ts          # User profile, team management, add-by-email, account deletion
+│   │   │   ├── clients.ts        # Client CRUD (with business entity, address, payment pref)
 │   │   │   ├── projects.ts       # Project CRUD + archive + counts
 │   │   │   ├── taskTypes.ts      # Task type CRUD + seeding
 │   │   │   ├── timeEntries.ts    # Timer start/stop/continue, manual entry, CRUD
 │   │   │   ├── projectTasks.ts   # Project task CRUD + reorder
-│   │   │   ├── reports.ts        # Invoice generation + summary
-│   │   │   ├── export.ts         # CSV export
+│   │   │   ├── reports.ts        # Invoice generation + summary + margin tracking
+│   │   │   ├── export.ts         # CSV export + full JSON backup
 │   │   │   ├── lineItems.ts      # Fixed-cost line item CRUD
-│   │   │   ├── portfolio.ts      # Portfolio CRUD + publish/feature
-│   │   │   ├── leads.ts          # Lead pipeline + conversion
+│   │   │   ├── portfolio.ts      # Portfolio CRUD + publish/feature/reorder/seed
+│   │   │   ├── leads.ts          # Lead pipeline + notes + conversion
 │   │   │   ├── uploads.ts        # Media upload endpoints (Cloudinary)
-│   │   │   ├── siteConfig.ts     # Theme colors + palette management
-│   │   │   ├── health.ts         # Health check + detailed status
-│   │   │   └── items.ts          # (legacy template route)
+│   │   │   ├── siteConfig.ts     # Theme colors + palettes + company info
+│   │   │   └── health.ts         # Health check + detailed status
 │   │   ├── models/
-│   │   │   ├── User.ts           # Auth0-linked user profile
-│   │   │   ├── Client.ts         # Client with task discount map
+│   │   │   ├── User.ts           # Auth0-linked user with role, workspace, earnedRates
+│   │   │   ├── Client.ts         # Client with task discounts, business entity, payment pref
 │   │   │   ├── Project.ts        # Project with client ref and status
-│   │   │   ├── TaskType.ts       # Billable task categories
+│   │   │   ├── TaskType.ts       # Billable task categories with rate and color
 │   │   │   ├── TimeEntry.ts      # Time records with timer support
-│   │   │   ├── ProjectTask.ts    # Project sub-tasks
-│   │   │   ├── LineItem.ts        # Fixed-cost billing items
-│   │   │   ├── Lead.ts           # Lead pipeline with notes
-│   │   │   ├── PortfolioProject.ts # Portfolio case studies
-│   │   │   └── SiteConfig.ts     # Theme colors + saved palettes
+│   │   │   ├── ProjectTask.ts    # Project sub-tasks with ordering
+│   │   │   ├── LineItem.ts       # Fixed-cost billing items
+│   │   │   ├── Lead.ts           # Lead pipeline with notes + conversion tracking
+│   │   │   ├── PortfolioProject.ts # Portfolio case studies with media
+│   │   │   └── SiteConfig.ts     # Theme colors + palettes + company info
 │   │   ├── middleware/
-│   │   │   ├── auth.ts           # JWT validation, user ID extraction
+│   │   │   ├── auth.ts           # JWT validation, extractUserId, requireAdmin, getWorkspaceOwnerId
 │   │   │   └── errorHandler.ts   # Error handling + async wrapper
 │   │   ├── config/
 │   │   │   ├── database.ts       # MongoDB connection
 │   │   │   └── cloudinary.ts     # Cloudinary media upload config
 │   │   ├── lib/
-│   │   │   └── auth0Management.ts # Auth0 Management API (add-by-email)
+│   │   │   └── auth0Management.ts # Auth0 Management API (add-by-email lookup)
 │   │   ├── utils/
-│   │   │   └── calculations.ts   # Discount and rate calculations
+│   │   │   └── calculations.ts   # Discount rate, amount, duration, currency utilities
 │   │   └── types/                # TypeScript type definitions
 ├── docs/
-│   └── SHOPIFY_AUTH.md
+│   └── SHOPIFY_AUTH.md           # Auth adaptation guide for Shopify embedded apps
 ├── .env.example
 ├── package.json
 ├── SETUP.md
+├── ARCHITECTURE.md
 └── README.md
 ```
 
@@ -295,7 +314,7 @@ See [SETUP.md](SETUP.md) for detailed MongoDB Atlas, Auth0, and Cloudinary confi
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | `GET` | `/api/health` | Health check |
-| `GET` | `/api/health/detailed` | Detailed health check with MongoDB status |
+| `GET` | `/api/health/detailed` | Detailed health (MongoDB state, memory usage) |
 | `GET` | `/api/portfolio/public` | Published portfolio projects |
 | `GET` | `/api/portfolio/public/featured` | Featured portfolio projects |
 | `GET` | `/api/portfolio/public/:slug` | Portfolio project by slug |
@@ -307,26 +326,27 @@ See [SETUP.md](SETUP.md) for detailed MongoDB Atlas, Auth0, and Cloudinary confi
 #### Users
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| `GET` | `/api/users/me` | Get current user profile (with role) |
+| `GET` | `/api/users/me` | Get current user profile (auto-creates on first login) |
 | `PUT` | `/api/users/me` | Update current user profile |
 | `DELETE` | `/api/users/me` | Delete current user account |
 | `GET` | `/api/users` | List workspace users (admin only) |
 | `POST` | `/api/users/add-by-email` | Add user to workspace by email (admin only) |
 | `PUT` | `/api/users/:id` | Update user role/status/earnedRates (admin only) |
+| `DELETE` | `/api/users/:id` | Remove user from workspace (admin only) |
 
 #### Clients
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | `GET` | `/api/clients` | List all clients |
 | `GET` | `/api/clients/:id` | Get single client |
-| `POST` | `/api/clients` | Create client |
+| `POST` | `/api/clients` | Create client (name, company, email, businessEntity, address, paymentPreference, taskDiscounts) |
 | `PUT` | `/api/clients/:id` | Update client |
 | `DELETE` | `/api/clients/:id` | Delete client |
 
 #### Projects
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| `GET` | `/api/projects` | List all projects (filters: status, search, sort, clientId) |
+| `GET` | `/api/projects` | List projects (filters: status, search, sort, clientId) |
 | `GET` | `/api/projects/counts` | Project counts by status |
 | `GET` | `/api/projects/client/:clientId` | Projects by client |
 | `POST` | `/api/projects` | Create project |
@@ -346,9 +366,9 @@ See [SETUP.md](SETUP.md) for detailed MongoDB Atlas, Auth0, and Cloudinary confi
 #### Time Entries
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| `GET` | `/api/time-entries` | List entries (filters: startDate, endDate, projectId) |
+| `GET` | `/api/time-entries` | List entries (filters: startDate, endDate, projectId, projectIds) |
 | `GET` | `/api/time-entries/active` | Get active timer |
-| `POST` | `/api/time-entries/start` | Start timer |
+| `POST` | `/api/time-entries/start` | Start timer (auto-stops any running timer) |
 | `POST` | `/api/time-entries/stop` | Stop timer |
 | `POST` | `/api/time-entries/:id/continue` | Resume a previous entry as new timer |
 | `POST` | `/api/time-entries` | Create manual entry |
@@ -369,14 +389,15 @@ See [SETUP.md](SETUP.md) for detailed MongoDB Atlas, Auth0, and Cloudinary confi
 #### Reports & Export
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| `POST` | `/api/reports/generate-invoice` | Generate invoice with discount calculations |
+| `POST` | `/api/reports/generate-invoice` | Generate invoice with discount + margin calculations |
 | `GET` | `/api/reports/summary` | Summary statistics |
 | `POST` | `/api/export/csv` | Export time entries and line items as CSV |
+| `POST` | `/api/export/backup` | Full workspace JSON backup download |
 
 #### Line Items
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| `GET` | `/api/line-items` | List line items (filters: clientId, projectId, startDate, endDate) |
+| `GET` | `/api/line-items` | List line items (filters: clientId, projectId, projectIds, startDate, endDate) |
 | `POST` | `/api/line-items` | Create fixed-cost line item |
 | `PUT` | `/api/line-items/:id` | Update line item |
 | `DELETE` | `/api/line-items/:id` | Delete line item |
@@ -408,7 +429,7 @@ See [SETUP.md](SETUP.md) for detailed MongoDB Atlas, Auth0, and Cloudinary confi
 #### Uploads (Cloudinary)
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| `POST` | `/api/uploads/portfolio/:slug/single` | Upload single file (image or video) |
+| `POST` | `/api/uploads/portfolio/:slug/single` | Upload single file (image or video, up to 100MB) |
 | `POST` | `/api/uploads/portfolio/:slug` | Upload multiple files (max 10) |
 | `GET` | `/api/uploads/portfolio/:slug` | List uploaded files |
 | `DELETE` | `/api/uploads/portfolio/:slug/:filename` | Delete uploaded file |
@@ -419,6 +440,7 @@ See [SETUP.md](SETUP.md) for detailed MongoDB Atlas, Auth0, and Cloudinary confi
 | `GET` | `/api/site-config` | Get site configuration |
 | `PUT` | `/api/site-config/colors` | Update active theme colors |
 | `PUT` | `/api/site-config/reset` | Reset colors to defaults |
+| `PUT` | `/api/site-config/company` | Update company info (name, address, phone, email) |
 | `POST` | `/api/site-config/palettes` | Save current colors as named palette |
 | `PUT` | `/api/site-config/palettes/:paletteId` | Rename a saved palette |
 | `DELETE` | `/api/site-config/palettes/:paletteId` | Delete a saved palette |
@@ -428,10 +450,10 @@ See [SETUP.md](SETUP.md) for detailed MongoDB Atlas, Auth0, and Cloudinary confi
 ## Data Models
 
 ### User
-Auth0-linked user profile with `auth0Id`, `email`, `name`, `picture`, and `nickname`. Supports workspace/team model: `role` (admin | member | pending), `status` (active | pending | disabled), `workspaceOwnerId` (admin who owns this user's workspace), `invitedBy`, and `earnedRates` (optional per-task-type rates for members).
+Auth0-linked user profile with `auth0Id`, `email`, `name`, `picture`, and `nickname`. Supports workspace/team model: `role` (admin | member | pending), `status` (active | pending | disabled), `workspaceOwnerId` (admin who owns this user's workspace), `invitedBy`, and `earnedRates` (optional `Record<string, number>` mapping task type IDs to per-member earned rates for margin tracking).
 
 ### Client
-Client record with `name`, `company`, `email`, and a `taskDiscounts` map — a `Map<string, number>` where each key is a TaskType ID and the value is a discount percentage (0–100).
+Client record with `name`, `company`, `email`, `businessEntity` (official entity name for invoices), `address` (for invoices), `paymentPreference` (ACH | MAILED, defaults to MAILED), and a `taskDiscounts` map — a `Map<string, number>` where each key is a TaskType ID and the value is a discount percentage (0–100).
 
 ### Project
 Linked to a Client. Tracks `title`, `description`, `status` (ACTIVE / PAUSED / COMPLETED / ARCHIVED), and optional `budget`.
@@ -440,22 +462,22 @@ Linked to a Client. Tracks `title`, `description`, `status` (ACTIVE / PAUSED / C
 Billable categories (e.g., "Design", "Development") with `name`, `rate` (hourly), and `color`.
 
 ### TimeEntry
-Time records with `startTime`, `endTime`, `duration` (seconds), and `isRunning` flag for live timer support. Linked to Project, TaskType, and optionally a ProjectTask.
+Time records with `startTime`, `endTime`, `duration` (seconds), and `isRunning` flag for live timer support. Linked to Project, TaskType, and optionally a ProjectTask. Duration accumulates across pause/resume cycles.
 
 ### ProjectTask
-Sub-tasks within a Project. Tracks `title`, `description`, `status` (TODO / IN_PROGRESS / COMPLETED), `order`, and `estimatedHours`.
+Sub-tasks within a Project. Tracks `title`, `description`, `status` (TODO / IN_PROGRESS / COMPLETED), `order` (for drag-and-drop), and `estimatedHours`.
 
 ### LineItem
 Fixed-cost billing entries for non-hourly charges. Linked to a Client and optionally a Project. Tracks `description`, `amount`, `category` (e.g., Software/Plugin, Hosting, Subcontractor), and `date`. Included alongside time entries in invoices and CSV exports.
 
 ### Lead
-Intake form submissions with pipeline management. Tracks `projectType`, `budget`, `timeline`, contact info, `status` (NEW through WON/LOST), `priority`, `notes`, and conversion references.
+Intake form submissions with pipeline management. Captures `confidence` (YES / MAYBE / UNSURE), `projectType`, `budget`, `timeline`, contact info (`name`, `email`, `company`, `message`), `description`, pipeline `status` (NEW through WON/LOST), `priority`, timestamped `notes` (with `createdBy`), and conversion references (`convertedClientId`, `convertedProjectId`).
 
 ### PortfolioProject
-Case study entries for the public website with `title`, `client`, `description`, `categories`, `disciplines`, challenge/solution/results, `testimonial`, image fields, and publish/feature controls.
+Case study entries for the public website with `slug`, `title`, `client`, `excerpt`, `description`, `categories`, `disciplines`, `year`, `featuredImage`, `images` (url + caption), `challenge`, `solution`, `results`, `testimonial` (quote, author, role), `liveUrl`, `color`, `order`, and `published`/`featured` controls.
 
 ### SiteConfig
-Per-user theme configuration. Stores `colors` (an object with 8 brand color values: brandSage, brandSageLight, brandSageDark, brandCharcoal, brandCream, brandCreamDark, accentWarm, accentCool) and `palettes` (an array of named color presets).
+Per-user configuration. Stores `colors` (8 brand color values: brandSage, brandSageLight, brandSageDark, brandCharcoal, brandCream, brandCreamDark, accentWarm, accentCool), `palettes` (array of named color presets), and company info (`companyName`, `companyAddress`, `companyPhone`, `companyEmail`) used in invoice headers.
 
 ---
 
@@ -464,10 +486,12 @@ Per-user theme configuration. Stores `colors` (an object with 8 brand color valu
 1. User clicks "Login" on the public site
 2. Redirected to Auth0 Universal Login
 3. Auth0 authenticates and returns to the app with an access token
-4. Frontend stores the token and injects it into all API requests via the API auth context
+4. Frontend stores the token in localStorage and injects it into all API requests via the API auth context
 5. Backend validates the token using `express-oauth2-jwt-bearer`
-6. First user or `PRIMARY_ADMIN_EMAIL` match → admin; other new signups → pending until an admin adds them
-7. Protected data is scoped by workspace (admin + their members)
+6. `GET /api/users/me` auto-creates the user record on first login, syncing Auth0 profile data
+7. Role assignment: `PRIMARY_ADMIN_EMAIL` match → admin; first user in DB → admin; all others → pending
+8. Pending users see "Account Pending Approval" until an admin adds them to the workspace
+9. Protected data is scoped by workspace (admin + their members) via `getWorkspaceOwnerId`
 
 ---
 
@@ -515,6 +539,16 @@ npm run build
 ### Timer Not Starting
 - Ensure at least one Task Type and one Project exist before starting the timer
 - The Dashboard displays setup prompts if these are missing
+
+### Uploads Not Working
+- Verify your Cloudinary credentials are correct in `server/.env`
+- Check that all three Cloudinary variables are set: `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`
+- Ensure `cloudinary` and `multer` are installed (`npm list cloudinary multer` in the server directory)
+
+### "Add by Email" Fails
+- Ensure `AUTH0_M2M_CLIENT_ID` and `AUTH0_M2M_CLIENT_SECRET` are set in `server/.env`
+- Follow [server/AUTH0_M2M_SETUP.md](server/AUTH0_M2M_SETUP.md) to create a Machine-to-Machine app with `read:users` permission
+- The user must have signed up in Auth0 first (share the invite link; they create an account, then you add them)
 
 ---
 

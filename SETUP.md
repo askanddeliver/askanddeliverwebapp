@@ -229,6 +229,9 @@ Go to **Team** to invite members. Share the invite link; after they sign up with
 ### Use the `.cursorrules` file
 The project includes a `.cursorrules` file that provides context to Cursor's AI about the project structure, conventions, and patterns. It's loaded automatically when you open the project.
 
+### Review the architecture document
+`ARCHITECTURE.md` provides a comprehensive technical reference including system overview, auth flow, data architecture, multi-tenant scoping, business logic, and deployment patterns. Useful for onboarding and complex feature work.
+
 ### Recommended extensions
 - ESLint
 - Prettier
