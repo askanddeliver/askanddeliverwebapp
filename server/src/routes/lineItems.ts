@@ -22,7 +22,13 @@ router.get(
 
     if (clientId) query.clientId = clientId;
     if (projectIds) {
-      const ids = Array.isArray(projectIds) ? projectIds : (projectIds as string).split(',').map((s) => s.trim()).filter(Boolean);
+      const ids = Array.isArray(projectIds)
+        ? projectIds
+        : typeof projectIds === 'string'
+          ? projectIds.split(',').map((s) => s.trim()).filter(Boolean)
+          : typeof projectIds === 'object'
+            ? Object.values(projectIds as Record<string, unknown>)
+            : [];
       if (ids.length > 0) query.projectId = { $in: ids };
     } else if (projectId) {
       query.projectId = projectId;

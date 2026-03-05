@@ -63,13 +63,16 @@ router.get(
     }
 
     // Filter by project(s): projectIds array or single projectId
+    // qs parses arrays >20 items as objects — handle that case
     const ids = Array.isArray(projectIds)
       ? projectIds
-      : projectIds
-        ? (projectIds as string).split(',').map((s) => s.trim()).filter(Boolean)
-        : projectId
-          ? [projectId]
-          : [];
+      : typeof projectIds === 'string'
+        ? projectIds.split(',').map((s) => s.trim()).filter(Boolean)
+        : typeof projectIds === 'object' && projectIds
+          ? Object.values(projectIds as Record<string, unknown>)
+          : projectId
+            ? [projectId]
+            : [];
     if (ids.length > 0 && admin) {
       const valid = ids.filter((id) =>
         typeof id === 'string' && mongoose.Types.ObjectId.isValid(id) &&
