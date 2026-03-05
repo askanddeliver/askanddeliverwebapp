@@ -99,7 +99,6 @@ function Reports() {
   const [endDate, setEndDate] = useState(getTodayString());
 
   // Invoice PDF display options
-  const [invoiceNumber, setInvoiceNumber] = useState('');
   const [includeTimeEntries, setIncludeTimeEntries] = useState(true);
   const [includeEntryDescriptions, setIncludeEntryDescriptions] = useState(false);
 
@@ -356,21 +355,8 @@ function Reports() {
         </div>
 
         <div className="border-t border-gray-100 pt-4">
-          <h4 className="text-sm font-semibold text-gray-700 mb-2">Invoice / PDF options</h4>
+          <h4 className="text-sm font-semibold text-gray-700 mb-2">PDF options</h4>
           <div className="flex flex-wrap gap-6 items-center">
-            <div className="flex items-center gap-2">
-              <label htmlFor="invoice-number" className="text-sm text-gray-700 whitespace-nowrap">
-                Invoice number
-              </label>
-              <input
-                id="invoice-number"
-                type="text"
-                value={invoiceNumber}
-                onChange={(e) => setInvoiceNumber(e.target.value)}
-                placeholder="e.g. INV-2025-001"
-                className="input w-40 text-sm py-1.5"
-              />
-            </div>
             <label className="flex items-center gap-2 cursor-pointer">
               <input
                 type="checkbox"
@@ -567,7 +553,7 @@ function Reports() {
               </button>
             </div>
           )}
-          <InvoicePreview invoice={{ ...invoice, invoiceNumber: invoiceNumber || undefined }} />
+          <InvoicePreview invoice={invoice} />
         </div>
       )}
 
@@ -656,7 +642,7 @@ function Reports() {
       {/* Invoice print view: summary + entries on page 2 (when includeTimeEntries) */}
       {invoice && invoice.items.length > 0 && (
         <div className="hidden print:block print:overflow-visible print:bg-white">
-          <InvoicePreview invoice={{ ...invoice, invoiceNumber: invoiceNumber || undefined }} />
+          <InvoicePreview invoice={invoice} />
           {includeTimeEntries && filteredEntries.length > 0 && (
             <div className="mt-6 break-before-page">
               <h3 className="text-lg font-bold text-gray-900 mb-4">

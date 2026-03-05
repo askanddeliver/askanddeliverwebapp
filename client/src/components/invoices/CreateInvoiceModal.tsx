@@ -158,7 +158,7 @@ export function CreateInvoiceModal({
               type="text"
               value={invoiceNumber}
               onChange={(e) => setInvoiceNumber(e.target.value)}
-              placeholder="e.g. INV-2026-001"
+              placeholder="e.g. 260304-1"
               className="input"
             />
           </div>

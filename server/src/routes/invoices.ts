@@ -16,21 +16,27 @@ const VALID_TRANSITIONS: Record<InvoiceStatus, InvoiceStatus[]> = {
 };
 
 async function getNextInvoiceNumber(userId: string): Promise<string> {
-  const year = new Date().getFullYear();
-  const prefix = `INV-${year}-`;
+  const now = new Date();
+  const yy = String(now.getFullYear()).slice(2);
+  const mm = String(now.getMonth() + 1).padStart(2, '0');
+  const dd = String(now.getDate()).padStart(2, '0');
+  const datePrefix = `${yy}${mm}${dd}-`;
 
-  const latest = await Invoice.findOne({
+  const todaysInvoices = await Invoice.find({
     userId,
-    invoiceNumber: { $regex: `^${prefix}` },
+    invoiceNumber: { $regex: `^${datePrefix}` },
   })
     .sort({ invoiceNumber: -1 })
     .lean();
 
-  if (!latest) return `${prefix}001`;
+  if (todaysInvoices.length === 0) return `${datePrefix}1`;
 
-  const lastNum = parseInt(latest.invoiceNumber.replace(prefix, ''), 10);
-  const next = (isNaN(lastNum) ? 0 : lastNum) + 1;
-  return `${prefix}${next.toString().padStart(3, '0')}`;
+  const maxSeq = todaysInvoices.reduce((max, inv) => {
+    const seq = parseInt(inv.invoiceNumber.replace(datePrefix, ''), 10);
+    return isNaN(seq) ? max : Math.max(max, seq);
+  }, 0);
+
+  return `${datePrefix}${maxSeq + 1}`;
 }
 
 // GET /api/invoices/next-number — Get next auto-generated invoice number
