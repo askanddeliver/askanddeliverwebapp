@@ -28,17 +28,20 @@ export const errorHandler = (
   let statusCode = err.statusCode || 500;
   const status = err.status || 'error';
 
-  // Mongoose validation / duplicate key errors
+  // Mongoose validation / duplicate key / cast errors
   if (err.name === 'ValidationError') {
+    statusCode = 400;
+  } else if (err.name === 'CastError') {
     statusCode = 400;
   } else if (err.code === 11000) {
     statusCode = 400;
   }
 
-  // Log error in development
-  if (process.env.NODE_ENV === 'development') {
+  // Always log server errors for debugging
+  if (statusCode >= 500 || process.env.NODE_ENV === 'development') {
     console.error('Error:', {
       message: err.message,
+      name: err.name,
       stack: err.stack,
       statusCode,
       ...(err.code && { code: err.code }),

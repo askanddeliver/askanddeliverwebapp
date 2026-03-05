@@ -194,9 +194,13 @@ function Reports() {
         });
       }
       setFilteredEntries(entries);
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Failed to generate report:', err);
-      setError('Failed to generate report');
+      const serverMsg =
+        err && typeof err === 'object' && 'response' in err
+          ? (err as { response?: { data?: { message?: string } } }).response?.data?.message
+          : undefined;
+      setError(serverMsg ? `Failed to generate report: ${serverMsg}` : 'Failed to generate report');
     } finally {
       setGenerating(false);
     }
