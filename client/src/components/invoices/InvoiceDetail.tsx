@@ -384,6 +384,26 @@ export function InvoiceDetail({ invoice, onClose, onUpdated, onDeleted }: Invoic
                 {showEntryIds ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
                 {invoice.timeEntryIds.length} linked entries, {invoice.lineItemIds.length} linked line items
               </button>
+              {showEntryIds && (
+                <div className="mt-2 bg-gray-50 rounded-lg p-3 text-xs text-gray-500 space-y-1.5 max-h-48 overflow-y-auto">
+                  {invoice.timeEntryIds.length > 0 && (
+                    <div>
+                      <p className="font-medium text-gray-600 mb-1">Time Entry IDs</p>
+                      <p className="font-mono break-all leading-relaxed">
+                        {invoice.timeEntryIds.join(', ')}
+                      </p>
+                    </div>
+                  )}
+                  {invoice.lineItemIds.length > 0 && (
+                    <div>
+                      <p className="font-medium text-gray-600 mb-1">Line Item IDs</p>
+                      <p className="font-mono break-all leading-relaxed">
+                        {invoice.lineItemIds.join(', ')}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
         </div>

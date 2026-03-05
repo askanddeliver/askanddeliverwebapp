@@ -213,6 +213,11 @@ function Invoices() {
                 <p className="text-sm text-gray-600 truncate">
                   {inv.clientInfo.name}
                 </p>
+                {inv.notes && (
+                  <p className="text-xs text-gray-400 truncate mt-0.5">
+                    {inv.notes}
+                  </p>
+                )}
               </div>
               <div className="text-right flex-shrink-0">
                 <p className="font-bold text-gray-900">{formatCurrency(inv.total)}</p>
