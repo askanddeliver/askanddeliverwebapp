@@ -2,7 +2,7 @@ import { Router, Response } from 'express';
 import mongoose from 'mongoose';
 import { checkJwt, AuthRequest, extractUserId, getWorkspaceOwnerId } from '../middleware/auth';
 import { asyncHandler, createError } from '../middleware/errorHandler';
-import { TimeEntry, Project } from '../models';
+import { TimeEntry, Project, Invoice } from '../models';
 import { User } from '../models';
 
 const router = Router();
@@ -38,7 +38,7 @@ router.get(
     const workspaceOwnerId = await getWorkspaceOwnerId(req);
     if (!workspaceOwnerId) throw createError('Workspace access required', 403);
 
-    const { startDate, endDate, projectId, projectIds } = req.query;
+    const { startDate, endDate, projectId, projectIds, billingStatus } = req.query;
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const query: any = {};
@@ -78,6 +78,21 @@ router.get(
       if (valid.length > 0) {
         query.projectId = { $in: valid };
       }
+    }
+
+    // billingStatus filter: unbilled (no paid invoice), billed, paid, all
+    if (billingStatus === 'unbilled') {
+      const paidInvoiceIds = await Invoice.find({
+        userId: workspaceOwnerId,
+        status: 'PAID',
+      }).distinct('_id');
+      query.invoiceId = { $nin: paidInvoiceIds };
+    } else if (billingStatus === 'paid') {
+      const paidInvoiceIds = await Invoice.find({
+        userId: workspaceOwnerId,
+        status: 'PAID',
+      }).distinct('_id');
+      query.invoiceId = { $in: paidInvoiceIds };
     }
 
     const entries = await TimeEntry.find(query)

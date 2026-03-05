@@ -3,6 +3,7 @@ import {
   LayoutDashboard,
   FileText,
   BarChart3,
+  Receipt,
   Users,
   FolderOpen,
   Inbox,
@@ -41,6 +42,7 @@ const navSections: NavSection[] = [
     items: [
       { to: '/entries', label: 'Entries', icon: FileText },
       { to: '/reports', label: 'Reports', icon: BarChart3, adminOnly: true },
+      { to: '/invoices', label: 'Invoices', icon: Receipt, adminOnly: true },
     ],
   },
   {

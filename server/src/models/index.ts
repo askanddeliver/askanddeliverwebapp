@@ -8,3 +8,5 @@ export { PortfolioProject, IPortfolioProject } from './PortfolioProject';
 export { LineItem, ILineItem } from './LineItem';
 export { Lead, ILead, ILeadNote } from './Lead';
 export { SiteConfig, ISiteConfig, IThemeColors, IColorPalette } from './SiteConfig';
+export { Invoice, IInvoice, IInvoiceItem, IInvoiceCompanyInfo, IInvoiceClientInfo } from './Invoice';
+export type { InvoiceStatus } from './Invoice';

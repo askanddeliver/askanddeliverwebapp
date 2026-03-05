@@ -1,9 +1,11 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Clock, DollarSign, TrendingUp, Wallet, FileText, List, Users, ChevronDown, ChevronUp } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Clock, DollarSign, TrendingUp, Wallet, FileText, List, Users, ChevronDown, ChevronUp, Plus } from 'lucide-react';
 import { InvoicePreview } from '../components/reports/InvoicePreview';
 import { ExportButtons } from '../components/reports/ExportButtons';
 import { LineItemsPanel } from '../components/reports/LineItemsPanel';
 import { MemberContributionsPanel } from '../components/reports/MemberContributionsPanel';
+import { CreateInvoiceModal } from '../components/invoices/CreateInvoiceModal';
 import { EntryRow } from '../components/entries/EntryRow';
 import {
   clientsApi,
@@ -76,9 +78,11 @@ function ProjectMultiSelect({
 type EntrySortKey = 'date' | 'client' | 'amount' | 'member';
 
 function Reports() {
+  const navigate = useNavigate();
   const [clients, setClients] = useState<Client[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [users, setUsers] = useState<User[]>([]);
+  const [createModalOpen, setCreateModalOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -283,7 +287,7 @@ function Reports() {
           Reports & Invoicing
         </h1>
         <p className="text-gray-500 mt-1">
-          Generate invoices, filter by client, and view member contributions
+          Preview billing, create invoices, and view member contributions
         </p>
       </div>
 
@@ -408,7 +412,7 @@ function Reports() {
             disabled={generating || !startDate || !endDate}
             className="btn-primary disabled:opacity-50"
           >
-            {generating ? 'Generating...' : 'Generate Invoice'}
+            {generating ? 'Loading...' : 'Preview'}
           </button>
 
           <div className="flex gap-2 text-xs">
@@ -552,6 +556,17 @@ function Reports() {
       {/* Tab content (hidden when printing - use print block below) */}
       {activeTab === 'invoice' && invoice && invoice.items.length > 0 && (
         <div className="mb-6 print:hidden">
+          {clientId && (
+            <div className="flex justify-end mb-3">
+              <button
+                onClick={() => setCreateModalOpen(true)}
+                className="btn-primary flex items-center gap-2"
+              >
+                <Plus className="w-4 h-4" />
+                Create Invoice
+              </button>
+            </div>
+          )}
           <InvoicePreview invoice={{ ...invoice, invoiceNumber: invoiceNumber || undefined }} />
         </div>
       )}
@@ -662,6 +677,21 @@ function Reports() {
             </div>
           )}
         </div>
+      )}
+
+      {/* Create Invoice Modal */}
+      {invoice && (
+        <CreateInvoiceModal
+          isOpen={createModalOpen}
+          invoice={invoice}
+          filteredEntries={filteredEntries}
+          lineItems={lineItems}
+          onClose={() => setCreateModalOpen(false)}
+          onCreated={(id) => {
+            setCreateModalOpen(false);
+            navigate(`/invoices?created=${id}`);
+          }}
+        />
       )}
     </div>
   );

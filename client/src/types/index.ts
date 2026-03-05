@@ -85,6 +85,7 @@ export interface TimeEntry {
   projectId: string | Project;
   taskTypeId: string | TaskType;
   projectTaskId?: string | ProjectTask;
+  invoiceId?: string;
   description?: string;
   startTime: string;
   endTime?: string;
@@ -99,6 +100,7 @@ export interface LineItem {
   _id: string;
   clientId: string | Client;
   projectId?: string | Project;
+  invoiceId?: string;
   description: string;
   amount: number;
   category?: string;
@@ -153,6 +155,47 @@ export interface Invoice {
     start: string;
     end: string;
   };
+}
+
+// Saved Invoice (persisted record)
+export type InvoiceStatus = 'DRAFT' | 'SENT' | 'PAID';
+
+export interface SavedInvoice {
+  _id: string;
+  userId: string;
+  invoiceNumber: string;
+  clientId: string | Client;
+  projectIds: string[];
+  status: InvoiceStatus;
+  dateRange: { start: string; end: string };
+  companyInfo: CompanyInfo;
+  clientInfo: {
+    name: string;
+    company?: string;
+    email?: string;
+    businessEntity?: string;
+    address?: string;
+    paymentPreference?: string;
+  };
+  items: InvoiceLineItem[];
+  subtotal: number;
+  total: number;
+  totalHours: number;
+  totalEarned: number;
+  totalMargin: number;
+  timeEntryIds: string[];
+  lineItemIds: string[];
+  sentAt?: string;
+  paidAt?: string;
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface InvoiceStats {
+  draft: { count: number; total: number };
+  sent: { count: number; total: number };
+  paid: { count: number; total: number };
 }
 
 // API Response types

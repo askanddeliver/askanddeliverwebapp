@@ -4,6 +4,7 @@ export interface ILineItem extends Document {
   userId: string;
   clientId: mongoose.Types.ObjectId;
   projectId?: mongoose.Types.ObjectId;
+  invoiceId?: mongoose.Types.ObjectId;
   description: string;
   amount: number;
   category?: string;
@@ -37,6 +38,11 @@ const LineItemSchema = new Schema<ILineItem>(
       type: Number,
       required: [true, 'Amount is required'],
       min: [0, 'Amount cannot be negative'],
+    },
+    invoiceId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Invoice',
+      default: null,
     },
     category: {
       type: String,

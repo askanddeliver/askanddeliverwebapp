@@ -28,6 +28,7 @@ function TimeEntries() {
   const [startDate, setStartDate] = useState(getDaysAgoString(30));
   const [endDate, setEndDate] = useState(getTodayString());
   const [projectFilter, setProjectFilter] = useState('');
+  const [billingStatus, setBillingStatus] = useState<'unbilled' | 'paid' | 'all'>('unbilled');
 
   useEffect(() => {
     loadData();
@@ -41,6 +42,7 @@ function TimeEntries() {
           startDate,
           endDate,
           projectId: projectFilter || undefined,
+          billingStatus: billingStatus !== 'all' ? billingStatus : undefined,
         }),
         projectsApi.getAll(),
         taskTypesApi.getAll(),
@@ -69,6 +71,7 @@ function TimeEntries() {
         startDate,
         endDate,
         projectId: projectFilter || undefined,
+        billingStatus: billingStatus !== 'all' ? billingStatus : undefined,
       });
       setEntries(
         (res.data || []).filter((e: TimeEntry) => !e.isRunning)
@@ -162,7 +165,7 @@ function TimeEntries() {
       {/* Filters */}
       {showFilters && (
         <div className="card mb-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Start Date
@@ -200,6 +203,20 @@ function TimeEntries() {
                     {p.title}
                   </option>
                 ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Billing Status
+              </label>
+              <select
+                value={billingStatus}
+                onChange={(e) => setBillingStatus(e.target.value as 'unbilled' | 'paid' | 'all')}
+                className="input"
+              >
+                <option value="unbilled">Unbilled</option>
+                <option value="paid">Paid</option>
+                <option value="all">All</option>
               </select>
             </div>
           </div>

@@ -50,14 +50,15 @@ The application supports multi-user workspaces with role-based access control, a
 │  └──────────────────────┬──────────────────────────┘     │
 │                         ▼                                 │
 │  ┌─────────────────────────────────────────────────┐     │
-│  │              14 Route Modules                    │     │
+│  │              15 Route Modules                    │     │
 │  │  health, users, clients, projects, taskTypes,    │     │
-│  │  timeEntries, projectTasks, reports, export,     │     │
-│  │  lineItems, portfolio, uploads, leads, siteConfig│     │
+│  │  timeEntries, projectTasks, reports, invoices,   │     │
+│  │  export, lineItems, portfolio, uploads, leads,   │     │
+│  │  siteConfig                                      │     │
 │  └──────────────────────┬──────────────────────────┘     │
 │                         ▼                                 │
 │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐   │
-│  │  10 Mongoose  │  │  Cloudinary  │  │  Auth0 M2M   │   │
+│  │  11 Mongoose  │  │  Cloudinary  │  │  Auth0 M2M   │   │
 │  │   Models      │  │  (uploads)   │  │  (user lookup)│   │
 │  └──────┬───────┘  └──────────────┘  └──────────────┘   │
 │         │                                                 │
@@ -123,6 +124,7 @@ On `GET /api/users/me` (first login auto-creates user):
 | Clients | Full CRUD | No access | Blocked |
 | Task Types | Full CRUD + seed | Read only | Blocked |
 | Reports/Invoice | Full access | No access | Blocked |
+| Invoices | Full CRUD + status | No access | Blocked |
 | Export (CSV/Backup) | Full access | No access | Blocked |
 | Line Items | Full CRUD | No access | Blocked |
 | Leads | Full access | No access | Blocked |
@@ -200,13 +202,24 @@ User (auth0Id)
  │     │     │
  │     │     ├──> TimeEntry (projectId, taskTypeId, userId)
  │     │     │     ├── startTime, endTime, duration, isRunning
+ │     │     │     ├── invoiceId? → Invoice (set when billed)
  │     │     │     └── Accumulates duration across pause/resume
  │     │     │
  │     │     └──> LineItem (clientId, projectId?, userId)
  │     │           ├── description, amount, category, date
+ │     │           ├── invoiceId? → Invoice (set when billed)
  │     │           └── Fixed-cost (non-hourly) charges
  │     │
  │     └──< LineItem (clientId, no projectId)
+ │
+ ├──> Invoice (userId, clientId)
+ │     ├── invoiceNumber, status: DRAFT | SENT | PAID
+ │     ├── dateRange, companyInfo (snapshot), clientInfo (snapshot)
+ │     ├── items (snapshot of line items at creation)
+ │     ├── total, totalHours, totalEarned, totalMargin
+ │     ├── timeEntryIds[] → TimeEntry, lineItemIds[] → LineItem
+ │     ├── sentAt?, paidAt?, notes?
+ │     └── Status transitions: DRAFT→SENT→PAID (reversible)
  │
  ├──> TaskType (userId)
  │     ├── name, rate, color
@@ -268,11 +281,32 @@ userId: string (indexed — the person who tracked the time)
 projectId: ObjectId → Project
 taskTypeId: ObjectId → TaskType
 projectTaskId?: ObjectId → ProjectTask
+invoiceId?: ObjectId → Invoice (null = unbilled, set when SENT)
 description?: string
 startTime: Date
 endTime?: Date
 duration: number (seconds, accumulates across pause/resume)
 isRunning: boolean (true = active timer)
+```
+
+#### Invoice
+```
+userId: string (workspace owner)
+invoiceNumber: string (auto-generated, e.g. INV-2026-001)
+clientId: ObjectId → Client
+projectIds: ObjectId[] → Project[]
+status: 'DRAFT' | 'SENT' | 'PAID'
+dateRange: { start: Date, end: Date }
+companyInfo: { name, address, phone, email } (snapshot at creation)
+clientInfo: { name, company, email, businessEntity, address, paymentPreference } (snapshot)
+items: InvoiceLineItem[] (task-type rollups — snapshot)
+subtotal: number
+total: number
+totalHours: number, totalEarned: number, totalMargin: number
+timeEntryIds: ObjectId[] → TimeEntry[]
+lineItemIds: ObjectId[] → LineItem[]
+sentAt?: Date, paidAt?: Date
+notes?: string
 ```
 
 ---
@@ -313,6 +347,7 @@ taskTypesApi.getAll(), .seedDefaults(), ...
 timeEntriesApi.getAll(params), .getActive(), .start(data), .stop(), .continue(id), ...
 projectTasksApi.getAll(projectId), .reorder(projectId, taskIds), .updateStatus(id, status), ...
 reportsApi.generateInvoice(params), .getSummary(params)
+invoicesApi.getAll(params), .getOne(id), .getStats(), .getNextNumber(), .create(data), .update(id, data), .updateStatus(id, status), .delete(id)
 exportApi.csv(params), .backup()
 lineItemsApi.getAll(params), .create(data), ...
 portfolioApi.getAll(), .reorder(ids), .togglePublish(id), .toggleFeature(id), .seed(projects), ...
@@ -346,6 +381,7 @@ The `AdminThemeContext` implements dynamic theming:
 | *(Top)* | Dashboard | All users |
 | **Time Tracking** | Entries | All users |
 | | Reports | Admin only |
+| | Invoices | Admin only |
 | **Manage** | Clients | Admin only |
 | | Projects | All users |
 | **Business** | Leads | Admin only |
@@ -390,6 +426,32 @@ The `POST /api/reports/generate-invoice` endpoint:
 6. Includes company info from SiteConfig (companyName, address, phone, email)
 7. Includes client billing details (businessEntity, address, paymentPreference)
 8. Returns the complete invoice data structure with totals, cost breakdown, and per-entry details
+
+### Invoice Lifecycle
+
+Invoices are persistent records created from the Reports page preview. They snapshot financial data at creation time for tax/legal integrity while maintaining references to source entries for traceability.
+
+**Status transitions:**
+```
+DRAFT ──→ SENT ──→ PAID
+  ↑         │        │
+  └─────────┘        │
+  ↑                   │
+  └───── (via SENT) ──┘
+```
+
+- **DRAFT → SENT**: Sets `sentAt`, links entries (`invoiceId` set on TimeEntry/LineItem)
+- **SENT → PAID**: Sets `paidAt`, entries hidden from active views (billing status filter)
+- **SENT → DRAFT** (reversal): Clears `sentAt`, unlinks entries (`invoiceId = null`)
+- **PAID → SENT** (reversal): Clears `paidAt`, entries reappear in active views
+- **Delete**: Only allowed for DRAFT; unlinks all entries
+
+**Entry visibility**: The `billingStatus` query parameter on `GET /api/time-entries` filters entries:
+- `unbilled` (default on Time Entries page): entries not on a PAID invoice
+- `paid`: entries on a PAID invoice only
+- `all`: no filtering
+
+**Auto-numbering**: Invoice numbers follow `INV-{YEAR}-{SEQ}` pattern (e.g., `INV-2026-001`). The next number is auto-generated based on the highest existing number for the workspace.
 
 ### Timer Behavior
 
@@ -489,7 +551,7 @@ Vercel (client/dist)     ──HTTPS──>    Railway/Render (server)
 
 ## File Index
 
-### Server Routes (14)
+### Server Routes (15)
 
 | File | Mount | Auth Pattern |
 |------|-------|-------------|
@@ -501,6 +563,7 @@ Vercel (client/dist)     ──HTTPS──>    Railway/Render (server)
 | `routes/timeEntries.ts` | `/api/time-entries` | checkJwt (internal admin check for scoping) |
 | `routes/projectTasks.ts` | `/api/project-tasks` | checkJwt; requireAdmin on writes |
 | `routes/reports.ts` | `/api/reports` | checkJwt + requireAdmin |
+| `routes/invoices.ts` | `/api/invoices` | checkJwt + requireAdmin |
 | `routes/export.ts` | `/api/export` | checkJwt + requireAdmin |
 | `routes/lineItems.ts` | `/api/line-items` | checkJwt + requireAdmin |
 | `routes/portfolio.ts` | `/api/portfolio` | Mixed (3 public, rest checkJwt + requireAdmin) |
@@ -508,7 +571,7 @@ Vercel (client/dist)     ──HTTPS──>    Railway/Render (server)
 | `routes/leads.ts` | `/api/leads` | Mixed (1 public, rest checkJwt + requireAdmin) |
 | `routes/siteConfig.ts` | `/api/site-config` | Mixed (1 public, rest checkJwt + requireAdmin) |
 
-### Server Models (10)
+### Server Models (11)
 
 | File | Collection | Key Indexes |
 |------|-----------|-------------|
@@ -516,7 +579,8 @@ Vercel (client/dist)     ──HTTPS──>    Railway/Render (server)
 | `models/Client.ts` | clients | `{ userId, createdAt }` |
 | `models/Project.ts` | projects | `userId`, `{ userId, status }`, `{ userId, clientId }` |
 | `models/TaskType.ts` | tasktypes | `userId` |
-| `models/TimeEntry.ts` | timeentries | `userId`, `projectId`, `{ userId, isRunning }` |
+| `models/TimeEntry.ts` | timeentries | `userId`, `projectId`, `{ userId, isRunning }`, `invoiceId` |
+| `models/Invoice.ts` | invoices | `{ userId, status }`, `{ userId, createdAt }`, `{ userId, invoiceNumber }` (unique) |
 | `models/ProjectTask.ts` | projecttasks | `{ projectId, order }`, `userId` |
 | `models/LineItem.ts` | lineitems | `{ userId, clientId }`, `{ userId, date }` |
 | `models/Lead.ts` | leads | `{ status, createdAt }`, `email`, `createdAt` |
@@ -531,7 +595,7 @@ Vercel (client/dist)     ──HTTPS──>    Railway/Render (server)
 | `contexts/UserContext.tsx` | Role management | `isAdmin`, `isMember`, `isPending`, `user`, `refetch()` |
 | `contexts/AdminThemeContext.tsx` | Dynamic theming | `refresh()` (re-fetches and applies colors) |
 
-### Client Pages (16)
+### Client Pages (17)
 
 | Page | Route | Protection | Key Features |
 |------|-------|------------|-------------|
@@ -546,7 +610,8 @@ Vercel (client/dist)     ──HTTPS──>    Railway/Render (server)
 | Profile | `/profile` | Auth | User profile management |
 | Clients | `/clients` | Admin | Client CRUD with discounts |
 | TaskTypes | `/task-types` | Admin | Task type CRUD + seeding |
-| Reports | `/reports` | Admin | Invoice generation, line items, export |
+| Reports | `/reports` | Admin | Billing preview, create invoices, line items, export |
+| Invoices | `/invoices` | Admin | Invoice list, status management (DRAFT/SENT/PAID), detail view |
 | Leads | `/leads` | Admin | Lead pipeline, conversion |
 | PortfolioAdmin | `/portfolio-admin` | Admin | Portfolio CRUD, uploads |
 | SiteConfig | `/site-config` | Admin | Theme colors, palettes, company info |

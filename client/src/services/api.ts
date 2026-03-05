@@ -10,6 +10,9 @@ import type {
   TimeEntry,
   LineItem,
   Invoice,
+  InvoiceStatus,
+  SavedInvoice,
+  InvoiceStats,
   PortfolioProject,
   Lead,
   LeadStats,
@@ -146,6 +149,7 @@ export const timeEntriesApi = {
     endDate?: string;
     projectId?: string;
     projectIds?: string[];
+    billingStatus?: 'unbilled' | 'paid' | 'all';
   }) => api.get<TimeEntry[]>('/time-entries', { params }),
   getActive: () => api.get<TimeEntry | null>('/time-entries/active'),
   start: (data: {
@@ -221,6 +225,40 @@ export const exportApi = {
     api.post('/export/backup', {}, {
       responseType: 'json',
     }),
+};
+
+// Invoices
+export const invoicesApi = {
+  getAll: (params?: {
+    status?: InvoiceStatus | 'ALL';
+    clientId?: string;
+    startDate?: string;
+    endDate?: string;
+    search?: string;
+  }) => api.get<SavedInvoice[]>('/invoices', { params }),
+  getOne: (id: string) => api.get<SavedInvoice>(`/invoices/${id}`),
+  getStats: () => api.get<InvoiceStats>('/invoices/stats'),
+  getNextNumber: () => api.get<{ invoiceNumber: string }>('/invoices/next-number'),
+  create: (data: {
+    invoiceNumber?: string;
+    clientId: string;
+    projectIds?: string[];
+    dateRange: { start: string; end: string };
+    items: Invoice['items'];
+    subtotal?: number;
+    total: number;
+    totalHours?: number;
+    totalEarned?: number;
+    totalMargin?: number;
+    timeEntryIds?: string[];
+    lineItemIds?: string[];
+    notes?: string;
+  }) => api.post<SavedInvoice>('/invoices', data),
+  update: (id: string, data: { invoiceNumber?: string; notes?: string }) =>
+    api.put<SavedInvoice>(`/invoices/${id}`, data),
+  updateStatus: (id: string, status: InvoiceStatus) =>
+    api.patch<SavedInvoice>(`/invoices/${id}/status`, { status }),
+  delete: (id: string) => api.delete<{ message: string }>(`/invoices/${id}`),
 };
 
 // Portfolio (admin - authenticated)
