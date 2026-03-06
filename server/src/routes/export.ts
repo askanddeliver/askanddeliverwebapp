@@ -2,6 +2,7 @@ import { Router, Response } from 'express';
 import { checkJwt, AuthRequest, extractUserId, getWorkspaceOwnerId, requireAdmin } from '../middleware/auth';
 import { asyncHandler, createError } from '../middleware/errorHandler';
 import { TimeEntry, Client, LineItem, ITimeEntry, IProject, ITaskType, IProjectTask, Project, TaskType, ProjectTask } from '../models';
+import { parseDateStart, parseDateEnd } from '../utils/calculations';
 
 const router = Router();
 
@@ -83,10 +84,10 @@ router.post(
     if (startDate || endDate) {
       query.startTime = {};
       if (startDate) {
-        query.startTime.$gte = new Date(startDate + 'T00:00:00');
+        query.startTime.$gte = parseDateStart(startDate);
       }
       if (endDate) {
-        query.startTime.$lte = new Date(endDate + 'T23:59:59.999');
+        query.startTime.$lte = parseDateEnd(endDate);
       }
     }
 
@@ -157,8 +158,8 @@ router.post(
     }
     if (startDate || endDate) {
       lineItemQuery.date = {};
-      if (startDate) lineItemQuery.date.$gte = new Date(startDate + 'T00:00:00');
-      if (endDate) lineItemQuery.date.$lte = new Date(endDate + 'T23:59:59.999');
+      if (startDate) lineItemQuery.date.$gte = parseDateStart(startDate);
+      if (endDate) lineItemQuery.date.$lte = parseDateEnd(endDate);
     }
 
     const fixedItems = await LineItem.find(lineItemQuery)

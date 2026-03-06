@@ -2,6 +2,7 @@ import { Router, Response } from 'express';
 import { checkJwt, AuthRequest, extractUserId, requireAdmin } from '../middleware/auth';
 import { asyncHandler, createError } from '../middleware/errorHandler';
 import { LineItem } from '../models';
+import { parseDateStart, parseDateEnd } from '../utils/calculations';
 
 const router = Router();
 
@@ -36,8 +37,8 @@ router.get(
 
     if (startDate || endDate) {
       query.date = {};
-      if (startDate) query.date.$gte = new Date((startDate as string) + 'T00:00:00');
-      if (endDate) query.date.$lte = new Date((endDate as string) + 'T23:59:59.999');
+      if (startDate) query.date.$gte = parseDateStart(startDate as string);
+      if (endDate) query.date.$lte = parseDateEnd(endDate as string);
     }
 
     const items = await LineItem.find(query)
@@ -69,7 +70,7 @@ router.post(
       description,
       amount,
       category: category || undefined,
-      date: new Date(date + 'T00:00:00'),
+      date: parseDateStart(date),
     });
 
     const populated = await LineItem.findById(item._id)
@@ -97,7 +98,7 @@ router.put(
     if (description !== undefined) item.description = description;
     if (amount !== undefined) item.amount = amount;
     if (category !== undefined) item.category = category || undefined;
-    if (date !== undefined) item.date = new Date(date + 'T00:00:00');
+    if (date !== undefined) item.date = parseDateStart(date);
 
     await item.save();
 

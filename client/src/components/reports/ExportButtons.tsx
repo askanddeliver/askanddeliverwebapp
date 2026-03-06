@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Download, Printer, Database } from 'lucide-react';
 import { exportApi } from '../../services/api';
+import { toUTCStartOfDay, toUTCEndOfDay } from '../../utils/calculations';
 interface ExportButtonsProps {
   clientId?: string;
   projectId?: string;
@@ -49,8 +50,8 @@ export function ExportButtons({
         clientId: clientId || undefined,
         projectId: (projectIds?.length ? undefined : projectId) || undefined,
         projectIds: projectIds?.length ? projectIds : undefined,
-        startDate,
-        endDate,
+        startDate: startDate ? toUTCStartOfDay(startDate) : undefined,
+        endDate: endDate ? toUTCEndOfDay(endDate) : undefined,
       });
 
       // Create download link

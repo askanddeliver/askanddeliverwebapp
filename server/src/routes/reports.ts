@@ -2,6 +2,7 @@ import { Router, Response } from 'express';
 import { checkJwt, AuthRequest, extractUserId, getWorkspaceOwnerId, requireAdmin } from '../middleware/auth';
 import { asyncHandler, createError } from '../middleware/errorHandler';
 import { TimeEntry, Client, IClient, ITimeEntry, IProject, ITaskType, LineItem, Project, User, SiteConfig } from '../models';
+import { parseDateStart, parseDateEnd } from '../utils/calculations';
 
 const router = Router();
 
@@ -64,8 +65,8 @@ router.post(
       projectId: { $in: effectiveProjectIds },
       isRunning: false,
       startTime: {
-        $gte: new Date(startDate + 'T00:00:00'),
-        $lte: new Date(endDate + 'T23:59:59.999'),
+        $gte: parseDateStart(startDate),
+        $lte: parseDateEnd(endDate),
       },
     };
 
@@ -222,8 +223,8 @@ router.post(
     const lineItemQuery: any = {
       userId: workspaceOwnerId,
       date: {
-        $gte: new Date(startDate + 'T00:00:00'),
-        $lte: new Date(endDate + 'T23:59:59.999'),
+        $gte: parseDateStart(startDate),
+        $lte: parseDateEnd(endDate),
       },
     };
     if (clientId) lineItemQuery.clientId = clientId;
@@ -356,10 +357,10 @@ router.get(
     if (startDate || endDate) {
       query.startTime = {};
       if (startDate) {
-        query.startTime.$gte = new Date((startDate as string) + 'T00:00:00');
+        query.startTime.$gte = parseDateStart(startDate as string);
       }
       if (endDate) {
-        query.startTime.$lte = new Date((endDate as string) + 'T23:59:59.999');
+        query.startTime.$lte = parseDateEnd(endDate as string);
       }
     }
 

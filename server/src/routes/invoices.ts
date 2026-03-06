@@ -3,6 +3,7 @@ import { checkJwt, AuthRequest, extractUserId, getWorkspaceOwnerId, requireAdmin
 import { asyncHandler, createError } from '../middleware/errorHandler';
 import { Invoice, TimeEntry, LineItem, Client, Project, SiteConfig } from '../models';
 import type { InvoiceStatus } from '../models';
+import { parseDateStart, parseDateEnd } from '../utils/calculations';
 
 const router = Router();
 
@@ -71,8 +72,8 @@ router.get(
     }
     if (startDate || endDate) {
       query.createdAt = {};
-      if (startDate) query.createdAt.$gte = new Date((startDate as string) + 'T00:00:00');
-      if (endDate) query.createdAt.$lte = new Date((endDate as string) + 'T23:59:59.999');
+      if (startDate) query.createdAt.$gte = parseDateStart(startDate as string);
+      if (endDate) query.createdAt.$lte = parseDateEnd(endDate as string);
     }
     if (search) {
       query.$or = [

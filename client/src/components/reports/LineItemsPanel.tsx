@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Plus, Trash2, Package, X } from 'lucide-react';
 import { lineItemsApi } from '../../services/api';
-import { formatCurrency, formatDate } from '../../utils/calculations';
+import { formatCurrency, formatDate, toUTCStartOfDay } from '../../utils/calculations';
 import type { LineItem, Client, Project } from '../../types';
 
 interface LineItemsPanelProps {
@@ -63,7 +63,7 @@ export function LineItemsPanel({
         description,
         amount: parseFloat(amount),
         category: category || undefined,
-        date,
+        date: toUTCStartOfDay(date),
       });
       resetForm();
       onChanged();

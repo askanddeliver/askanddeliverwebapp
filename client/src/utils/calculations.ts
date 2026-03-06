@@ -80,17 +80,35 @@ export function toDateTimeLocal(dateStr: string): string {
 }
 
 /**
- * Get today's date in YYYY-MM-DD format
+ * Get today's date in YYYY-MM-DD format (local timezone)
  */
 export function getTodayString(): string {
-  return new Date().toISOString().split('T')[0];
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
 /**
- * Get a date N days ago in YYYY-MM-DD format
+ * Get a date N days ago in YYYY-MM-DD format (local timezone)
  */
 export function getDaysAgoString(days: number): string {
-  const date = new Date();
-  date.setDate(date.getDate() - days);
-  return date.toISOString().split('T')[0];
+  const d = new Date();
+  d.setDate(d.getDate() - days);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+/**
+ * Convert a YYYY-MM-DD string to the UTC equivalent of the start of that
+ * local day. Used for date range filters so the server queries match the
+ * user's timezone rather than the server's.
+ */
+export function toUTCStartOfDay(dateStr: string): string {
+  return new Date(dateStr + 'T00:00:00').toISOString();
+}
+
+/**
+ * Convert a YYYY-MM-DD string to the UTC equivalent of the end of that
+ * local day (23:59:59.999).
+ */
+export function toUTCEndOfDay(dateStr: string): string {
+  return new Date(dateStr + 'T23:59:59.999').toISOString();
 }

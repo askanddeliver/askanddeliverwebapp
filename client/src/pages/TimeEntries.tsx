@@ -9,7 +9,7 @@ import {
   taskTypesApi,
   projectTasksApi,
 } from '../services/api';
-import { formatDurationHuman, getDaysAgoString, getTodayString } from '../utils/calculations';
+import { formatDurationHuman, getDaysAgoString, getTodayString, toUTCStartOfDay, toUTCEndOfDay } from '../utils/calculations';
 import type { TimeEntry, Project, TaskType, ProjectTask } from '../types';
 
 function TimeEntries() {
@@ -39,8 +39,8 @@ function TimeEntries() {
       setLoading(true);
       const [entriesRes, projectsRes, taskTypesRes, projectTasksRes] = await Promise.all([
         timeEntriesApi.getAll({
-          startDate,
-          endDate,
+          startDate: toUTCStartOfDay(startDate),
+          endDate: toUTCEndOfDay(endDate),
           projectId: projectFilter || undefined,
           billingStatus: billingStatus !== 'all' ? billingStatus : undefined,
         }),
@@ -68,8 +68,8 @@ function TimeEntries() {
     try {
       setLoading(true);
       const res = await timeEntriesApi.getAll({
-        startDate,
-        endDate,
+        startDate: toUTCStartOfDay(startDate),
+        endDate: toUTCEndOfDay(endDate),
         projectId: projectFilter || undefined,
         billingStatus: billingStatus !== 'all' ? billingStatus : undefined,
       });

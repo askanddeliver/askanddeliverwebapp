@@ -24,6 +24,8 @@ import {
   formatDurationHuman,
   formatCurrency,
   getEffectiveRate,
+  toUTCStartOfDay,
+  toUTCEndOfDay,
 } from '../utils/calculations';
 import type { Client, Project, Invoice, TimeEntry, LineItem, User, TaskType, ProjectTask } from '../types';
 
@@ -194,23 +196,26 @@ function Reports() {
       setGenerating(true);
       setError(null);
 
+      const utcStart = toUTCStartOfDay(startDate);
+      const utcEnd = toUTCEndOfDay(endDate);
+
       const [invoiceRes, entriesRes, lineItemsRes] = await Promise.all([
         reportsApi.generateInvoice({
           clientId: clientId || undefined,
           projectIds: projectIds.length > 0 ? projectIds : undefined,
-          startDate,
-          endDate,
+          startDate: utcStart,
+          endDate: utcEnd,
         }),
         timeEntriesApi.getAll({
-          startDate,
-          endDate,
+          startDate: utcStart,
+          endDate: utcEnd,
           projectIds: projectIds.length > 0 ? projectIds : undefined,
         }),
         lineItemsApi.getAll({
           clientId: clientId || undefined,
           projectIds: projectIds.length > 0 ? projectIds : undefined,
-          startDate,
-          endDate,
+          startDate: utcStart,
+          endDate: utcEnd,
         }),
       ]);
 

@@ -55,3 +55,19 @@ export function formatCurrency(amount: number): string {
 export function secondsToHours(seconds: number): number {
   return Math.round((seconds / 3600) * 100) / 100;
 }
+
+/**
+ * Parse a date-range boundary sent from the frontend.
+ * Accepts either a full ISO string (timezone-adjusted by the client, e.g.
+ * "2026-03-01T06:00:00.000Z") or a bare YYYY-MM-DD string. For bare dates,
+ * falls back to UTC boundaries as a safe default.
+ */
+export function parseDateStart(dateStr: string): Date {
+  if (dateStr.includes('T')) return new Date(dateStr);
+  return new Date(dateStr + 'T00:00:00.000Z');
+}
+
+export function parseDateEnd(dateStr: string): Date {
+  if (dateStr.includes('T')) return new Date(dateStr);
+  return new Date(dateStr + 'T23:59:59.999Z');
+}

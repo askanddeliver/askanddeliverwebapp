@@ -395,6 +395,15 @@ The `AdminThemeContext` implements dynamic theming:
 
 ## Business Logic
 
+### Timezone-Aware Date Handling
+
+The server runs in UTC (Railway). All date range filters are timezone-adjusted by the frontend so they match the user's local day boundaries:
+
+1. **Frontend**: `toUTCStartOfDay(dateStr)` / `toUTCEndOfDay(dateStr)` convert a `YYYY-MM-DD` picker value to a full UTC ISO string representing midnight / end-of-day in the user's local timezone. These are sent to the server as `startDate` / `endDate`.
+2. **Server**: `parseDateStart(dateStr)` / `parseDateEnd(dateStr)` accept both full ISO strings (timezone-adjusted) and bare `YYYY-MM-DD` (falls back to UTC). All date range queries in routes use these utilities.
+3. **Date-only fields** (e.g. `LineItem.date`): Stored via `parseDateStart()` so they align with query boundaries. Displayed on the client with `formatDate()` which uses `toLocaleDateString()`.
+4. **Helper defaults**: `getTodayString()` / `getDaysAgoString()` use local-timezone date components (not `.toISOString().split('T')[0]` which would be UTC).
+
 ### Discount Calculation
 
 The core pricing model allows per-client, per-task-type discount percentages:

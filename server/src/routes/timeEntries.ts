@@ -4,6 +4,7 @@ import { checkJwt, AuthRequest, extractUserId, getWorkspaceOwnerId } from '../mi
 import { asyncHandler, createError } from '../middleware/errorHandler';
 import { TimeEntry, Project, Invoice } from '../models';
 import { User } from '../models';
+import { parseDateStart, parseDateEnd } from '../utils/calculations';
 
 const router = Router();
 
@@ -55,10 +56,10 @@ router.get(
     if (startDate || endDate) {
       query.startTime = {};
       if (startDate) {
-        query.startTime.$gte = new Date((startDate as string) + 'T00:00:00');
+        query.startTime.$gte = parseDateStart(startDate as string);
       }
       if (endDate) {
-        query.startTime.$lte = new Date((endDate as string) + 'T23:59:59.999');
+        query.startTime.$lte = parseDateEnd(endDate as string);
       }
     }
 
