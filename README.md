@@ -550,6 +550,19 @@ npm run build
 - Follow [server/AUTH0_M2M_SETUP.md](server/AUTH0_M2M_SETUP.md) to create a Machine-to-Machine app with `read:users` permission
 - The user must have signed up in Auth0 first (share the invite link; they create an account, then you add them)
 
+### Date Filters Off by One Day
+The server runs in UTC (Railway). If date range results appear shifted by a day, the date boundaries are not being converted to the user's local timezone before querying.
+- **Frontend must send UTC-adjusted bounds**: use `toUTCStartOfDay(dateStr)` / `toUTCEndOfDay(dateStr)` from `client/src/utils/calculations.ts` before passing dates to any API call
+- **Server must parse with**: `parseDateStart()` / `parseDateEnd()` from `server/src/utils/calculations.ts` — never use raw `new Date(dateStr + 'T00:00:00')` in route handlers
+- **Date-only fields** (e.g. `LineItem.date`) should also be stored via `parseDateStart()` so queries and storage use consistent boundaries
+- **Default date helpers** (`getTodayString`, `getDaysAgoString`) must use local date components, not `.toISOString().split('T')[0]` which silently converts to UTC
+
+### GET Request with Large Array Params Returns 500
+Express uses the `qs` library for query string parsing with a default `arrayLimit` of 20. When a GET request sends more than 20 array items (e.g. `projectIds[]=...`), `qs` silently converts the array to a plain object. Code that calls `.split()` or uses `Array.isArray()` will fail.
+- Any route accepting array query params must handle three shapes: array (`Array.isArray()`), string (`typeof === 'string'`), and object (`typeof === 'object'` → use `Object.values()`)
+- See `timeEntries.ts` and `lineItems.ts` for the reference pattern
+- POST routes with JSON bodies are not affected
+
 ---
 
 ## License
