@@ -135,6 +135,7 @@ Role assignment on first login (`GET /api/users/me`):
 - Workspace-scoped data uses `getWorkspaceOwnerId(req)` to resolve the correct userId
 - Return consistent JSON responses: `res.json(data)` or `res.json({ message: '...' })`
 - Use Mongoose models for database operations with proper index definitions
+- **Array query params on GET routes**: Express's `qs` parser converts arrays with >20 items into objects. Any route accepting array query params (e.g. `projectIds[]`) must handle three shapes: `Array.isArray(val)`, `typeof val === 'string'` (comma-separated or single), and `typeof val === 'object'` (use `Object.values()`). See `timeEntries.ts` and `lineItems.ts` for the pattern.
 
 ## Route Patterns
 
