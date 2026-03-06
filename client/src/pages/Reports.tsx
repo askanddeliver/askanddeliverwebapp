@@ -7,6 +7,7 @@ import { LineItemsPanel } from '../components/reports/LineItemsPanel';
 import { MemberContributionsPanel } from '../components/reports/MemberContributionsPanel';
 import { CreateInvoiceModal } from '../components/invoices/CreateInvoiceModal';
 import { EntryRow } from '../components/entries/EntryRow';
+import { EntryModal } from '../components/entries/EntryModal';
 import {
   clientsApi,
   projectsApi,
@@ -14,6 +15,8 @@ import {
   timeEntriesApi,
   lineItemsApi,
   usersApi,
+  taskTypesApi,
+  projectTasksApi,
 } from '../services/api';
 import {
   getDaysAgoString,
@@ -22,7 +25,7 @@ import {
   formatCurrency,
   getEffectiveRate,
 } from '../utils/calculations';
-import type { Client, Project, Invoice, TimeEntry, LineItem, User } from '../types';
+import type { Client, Project, Invoice, TimeEntry, LineItem, User, TaskType, ProjectTask } from '../types';
 
 type TabId = 'invoice' | 'entries' | 'members';
 
@@ -82,7 +85,11 @@ function Reports() {
   const [clients, setClients] = useState<Client[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [users, setUsers] = useState<User[]>([]);
+  const [taskTypes, setTaskTypes] = useState<TaskType[]>([]);
+  const [projectTasks, setProjectTasks] = useState<ProjectTask[]>([]);
   const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [editingEntry, setEditingEntry] = useState<TimeEntry | null>(null);
+  const [editModalOpen, setEditModalOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -114,14 +121,18 @@ function Reports() {
   const loadData = async () => {
     try {
       setLoading(true);
-      const [clientsRes, projectsRes, usersRes] = await Promise.all([
+      const [clientsRes, projectsRes, usersRes, taskTypesRes, projectTasksRes] = await Promise.all([
         clientsApi.getAll(),
         projectsApi.getAll(),
         usersApi.getAll().catch(() => ({ data: [] })),
+        taskTypesApi.getAll().catch(() => ({ data: [] })),
+        projectTasksApi.getAll().catch(() => ({ data: [] })),
       ]);
       setClients(clientsRes.data || []);
       setProjects(projectsRes.data || []);
       setUsers(usersRes.data || []);
+      setTaskTypes(taskTypesRes.data || []);
+      setProjectTasks(projectTasksRes.data || []);
       setError(null);
     } catch (err) {
       console.error('Failed to load data:', err);
@@ -147,6 +158,32 @@ function Reports() {
     } catch (err) {
       console.error('Failed to delete entry:', err);
       setError('Failed to delete entry');
+    }
+  };
+
+  const handleEditEntry = (entry: TimeEntry) => {
+    setEditingEntry(entry);
+    setEditModalOpen(true);
+  };
+
+  const handleSaveEntry = async (data: {
+    projectId: string;
+    taskTypeId: string;
+    projectTaskId?: string;
+    description?: string;
+    startTime: string;
+    endTime: string;
+    duration: number;
+  }) => {
+    if (!editingEntry) return;
+    try {
+      await timeEntriesApi.update(editingEntry._id, data);
+      setEditModalOpen(false);
+      setEditingEntry(null);
+      handleGenerate();
+    } catch (err) {
+      console.error('Failed to save entry:', err);
+      setError('Failed to save entry');
     }
   };
 
@@ -614,7 +651,7 @@ function Reports() {
                   <EntryRow
                     key={entry._id}
                     entry={entry}
-                    onEdit={() => {}}
+                    onEdit={handleEditEntry}
                     onDelete={handleDeleteEntry}
                     showAmount={true}
                   />
@@ -683,6 +720,21 @@ function Reports() {
           }}
         />
       )}
+
+      {/* Edit Entry Modal */}
+      <EntryModal
+        entry={editingEntry}
+        projects={projects}
+        taskTypes={taskTypes}
+        projectTasks={projectTasks}
+        isOpen={editModalOpen}
+        showRate={true}
+        onClose={() => {
+          setEditModalOpen(false);
+          setEditingEntry(null);
+        }}
+        onSave={handleSaveEntry}
+      />
     </div>
   );
 }
