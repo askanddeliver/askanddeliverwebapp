@@ -88,6 +88,7 @@ function Invoices() {
   ];
 
   return (
+    <>
     <div className="max-w-5xl mx-auto print:hidden">
       <div className="mb-6">
         <h1 className="text-3xl font-bold text-gray-900">Invoices</h1>
@@ -233,16 +234,18 @@ function Invoices() {
         </div>
       )}
 
-      {/* Invoice Detail Modal */}
-      {selectedInvoice && (
-        <InvoiceDetail
-          invoice={selectedInvoice}
-          onClose={() => setSelectedInvoice(null)}
-          onUpdated={handleUpdated}
-          onDeleted={handleDeleted}
-        />
-      )}
     </div>
+
+    {/* Invoice Detail Modal (outside print:hidden wrapper so its print view renders) */}
+    {selectedInvoice && (
+      <InvoiceDetail
+        invoice={selectedInvoice}
+        onClose={() => setSelectedInvoice(null)}
+        onUpdated={handleUpdated}
+        onDeleted={handleDeleted}
+      />
+    )}
+    </>
   );
 }
 
