@@ -41,7 +41,8 @@ router.post(
 
     const { ids } = req.body;
     if (!Array.isArray(ids) || ids.length === 0) {
-      return res.json([]);
+      res.json([]);
+      return;
     }
 
     const workspaceProjectIds = await Project.find({ userId: workspaceOwnerId }).distinct('_id');
