@@ -29,6 +29,39 @@ async function ensureProjectInWorkspace(
   if (!project) throw createError('Project not found or access denied', 403);
 }
 
+// POST /api/time-entries/by-ids - Fetch specific entries by ID array (for invoice detail)
+router.post(
+  '/by-ids',
+  asyncHandler(async (req: AuthRequest, res: Response) => {
+    const auth0Id = extractUserId(req);
+    if (!auth0Id) throw createError('User ID not found in token', 401);
+
+    const workspaceOwnerId = await getWorkspaceOwnerId(req);
+    if (!workspaceOwnerId) throw createError('Workspace access required', 403);
+
+    const { ids } = req.body;
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.json([]);
+    }
+
+    const workspaceProjectIds = await Project.find({ userId: workspaceOwnerId }).distinct('_id');
+
+    const entries = await TimeEntry.find({
+      _id: { $in: ids },
+      projectId: { $in: workspaceProjectIds },
+    })
+      .populate({
+        path: 'projectId',
+        populate: { path: 'clientId' },
+      })
+      .populate('taskTypeId')
+      .populate('projectTaskId')
+      .sort({ startTime: -1 });
+
+    res.json(entries);
+  })
+);
+
 // GET /api/time-entries - Admin: all workspace entries. Member: own entries only.
 router.get(
   '/',

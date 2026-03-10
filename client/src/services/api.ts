@@ -151,6 +151,7 @@ export const timeEntriesApi = {
     projectIds?: string[];
     billingStatus?: 'unbilled' | 'paid' | 'all';
   }) => api.get<TimeEntry[]>('/time-entries', { params }),
+  getByIds: (ids: string[]) => api.post<TimeEntry[]>('/time-entries/by-ids', { ids }),
   getActive: () => api.get<TimeEntry | null>('/time-entries/active'),
   start: (data: {
     projectId: string;
