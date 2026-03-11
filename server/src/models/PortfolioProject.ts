@@ -1,8 +1,15 @@
 import mongoose, { Document, Schema } from 'mongoose';
 
+export type PortfolioMediaType = 'image' | 'video';
+export type PortfolioMediaSource = 'cloudinary' | 'vimeo' | 'youtube';
+
 export interface IPortfolioImage {
   url: string;
   caption?: string;
+  /** 'image' by default for backward compatibility */
+  type?: PortfolioMediaType;
+  /** Required for videos: how the URL should be embedded */
+  source?: PortfolioMediaSource;
 }
 
 export interface IPortfolioTestimonial {
@@ -40,6 +47,8 @@ const PortfolioImageSchema = new Schema<IPortfolioImage>(
   {
     url: { type: String, required: true },
     caption: { type: String, trim: true },
+    type: { type: String, enum: ['image', 'video'], default: 'image' },
+    source: { type: String, enum: ['cloudinary', 'vimeo', 'youtube'] },
   },
   { _id: false }
 );

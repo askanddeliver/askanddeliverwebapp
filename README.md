@@ -52,6 +52,7 @@ A full-featured time tracking, client management, and invoicing application buil
 ### Public Portfolio Website
 - **Portfolio project management** — Create portfolio case studies with title, client, excerpt, description, categories, disciplines, year, challenge/solution/results, testimonials, and live URL
 - **Media uploads** — Upload images (JPEG, PNG, GIF, WebP, SVG) and videos (MP4, MOV, WebM up to 100MB) via Cloudinary
+- **Video embeds** — Add videos via Vimeo or YouTube URL, or direct upload to Cloudinary
 - **Image lightbox** — Full-screen image viewer on public portfolio pages
 - **Publish/unpublish** — Control which projects are visible on the public site
 - **Featured projects** — Highlight key work on the homepage
@@ -207,7 +208,8 @@ askanddeliverwebapp/
 │   │   │   └── calculations.ts   # Discount rate, amount, duration, currency utilities
 │   │   └── types/                # TypeScript type definitions
 ├── docs/
-│   └── SHOPIFY_AUTH.md           # Auth adaptation guide for Shopify embedded apps
+│   ├── SHOPIFY_AUTH.md           # Auth adaptation guide for Shopify embedded apps
+│   └── PAYMENT_LINKS_BUILD_PLAN.md  # Build plan for online invoice payment links (Stripe)
 ├── .env.example
 ├── package.json
 ├── SETUP.md

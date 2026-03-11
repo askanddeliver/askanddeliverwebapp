@@ -210,9 +210,14 @@ export interface ApiError {
 }
 
 // Portfolio types
+export type PortfolioMediaType = 'image' | 'video';
+export type PortfolioMediaSource = 'cloudinary' | 'vimeo' | 'youtube';
+
 export interface PortfolioImage {
   url: string;
   caption?: string;
+  type?: PortfolioMediaType;
+  source?: PortfolioMediaSource;
 }
 
 export interface PortfolioTestimonial {

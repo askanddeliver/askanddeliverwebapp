@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef, FormEvent, DragEvent } from 'react';
-import { X, Plus, Trash2, GripVertical, ChevronUp, ChevronDown } from 'lucide-react';
+import { X, Plus, Trash2, GripVertical, ChevronUp, ChevronDown, Video } from 'lucide-react';
 import type { PortfolioProject, PortfolioImage, PortfolioTestimonial } from '../../types';
 import { ImageUpload } from './ImageUpload';
+import { MediaUpload } from './MediaUpload';
 
 interface PortfolioProjectModalProps {
   project: PortfolioProject | null;
@@ -152,9 +153,9 @@ export function PortfolioProjectModal({
     setImages([...images, { url: '', caption: '' }]);
   };
 
-  const updateImage = (index: number, field: keyof PortfolioImage, value: string) => {
+  const updateImage = (index: number, updates: Partial<PortfolioImage>) => {
     const updated = [...images];
-    updated[index] = { ...updated[index], [field]: value };
+    updated[index] = { ...updated[index], ...updates };
     setImages(updated);
   };
 
@@ -561,11 +562,11 @@ export function PortfolioProjectModal({
                   placeholder="Drop a hero image here or click to upload"
                 />
 
-                {/* Image Gallery */}
+                {/* Media Gallery (images + videos) */}
                 <div>
                   <div className="flex items-center justify-between mb-3">
                     <label className="text-sm font-medium text-gray-700">
-                      Image Gallery
+                      Media Gallery
                     </label>
                     <button
                       type="button"
@@ -573,13 +574,13 @@ export function PortfolioProjectModal({
                       className="btn-secondary text-xs flex items-center gap-1"
                     >
                       <Plus className="w-3 h-3" />
-                      Add Image
+                      Add Media
                     </button>
                   </div>
 
                   {images.length === 0 ? (
                     <p className="text-sm text-gray-400 bg-gray-50 rounded-lg p-4 text-center">
-                      No gallery images. Click &ldquo;Add Image&rdquo; to start.
+                      No gallery media. Click &ldquo;Add Media&rdquo; to add images or videos (upload, Vimeo, YouTube).
                     </p>
                   ) : (
                     <div className="space-y-3">
@@ -604,8 +605,15 @@ export function PortfolioProjectModal({
                               >
                                 <GripVertical className="w-4 h-4" />
                               </div>
-                              <span className="text-xs font-medium text-gray-500">
-                                Image {i + 1}
+                              <span className="text-xs font-medium text-gray-500 flex items-center gap-1">
+                                {img.type === 'video' || img.source === 'vimeo' || img.source === 'youtube' ? (
+                                  <>
+                                    <Video className="w-3 h-3" />
+                                    Video {i + 1}
+                                  </>
+                                ) : (
+                                  `Image ${i + 1}`
+                                )}
                               </span>
                             </div>
                             <div className="flex items-center gap-1">
@@ -631,22 +639,32 @@ export function PortfolioProjectModal({
                                 type="button"
                                 onClick={() => removeImage(i)}
                                 className="p-1 text-gray-400 hover:text-red-500"
-                                title="Remove image"
+                                title="Remove"
                               >
                                 <Trash2 className="w-3.5 h-3.5" />
                               </button>
                             </div>
                           </div>
-                          <ImageUpload
-                            value={img.url}
+                          <MediaUpload
+                            value={{
+                              url: img.url,
+                              type: img.type,
+                              source: img.source,
+                            }}
                             projectSlug={slug || 'temp'}
-                            onChange={(url) => updateImage(i, 'url', url)}
-                            placeholder="Drop a gallery image here"
+                            onChange={(media) =>
+                              updateImage(i, {
+                                url: media.url,
+                                type: media.type,
+                                source: media.source,
+                              })
+                            }
+                            placeholder="Upload image/video or paste Vimeo/YouTube URL"
                           />
                           <input
                             type="text"
                             value={img.caption || ''}
-                            onChange={(e) => updateImage(i, 'caption', e.target.value)}
+                            onChange={(e) => updateImage(i, { caption: e.target.value })}
                             className="input text-sm"
                             placeholder="Caption (optional)"
                           />

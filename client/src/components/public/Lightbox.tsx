@@ -1,10 +1,13 @@
 import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, ChevronLeft, ChevronRight, ZoomIn } from 'lucide-react';
+import { getVimeoEmbedUrl, getYouTubeEmbedUrl } from '../../utils/videoEmbed';
 
 export interface LightboxImage {
   url: string;
   caption?: string;
+  type?: 'image' | 'video';
+  source?: 'cloudinary' | 'vimeo' | 'youtube';
 }
 
 interface LightboxProps {
@@ -113,7 +116,7 @@ export function Lightbox({ images, initialIndex = 0, isOpen, onClose }: Lightbox
             </button>
           )}
 
-          {/* Image */}
+          {/* Image or Video */}
           <AnimatePresence mode="wait">
             <motion.div
               key={index}
@@ -124,12 +127,44 @@ export function Lightbox({ images, initialIndex = 0, isOpen, onClose }: Lightbox
               className="relative max-w-[90vw] max-h-[85vh] flex flex-col items-center"
               onClick={(e) => e.stopPropagation()}
             >
-              <img
-                src={current.url}
-                alt={current.caption || ''}
-                className="max-w-full max-h-[80vh] object-contain rounded-lg select-none"
-                draggable={false}
-              />
+              {current.type === 'video' ||
+              current.source === 'vimeo' ||
+              current.source === 'youtube' ? (
+                <div className="w-full max-w-4xl aspect-video rounded-lg overflow-hidden bg-black">
+                  {current.source === 'vimeo' && getVimeoEmbedUrl(current.url) ? (
+                    <iframe
+                      src={getVimeoEmbedUrl(current.url)!}
+                      title={current.caption || 'Video'}
+                      className="w-full h-full"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      allowFullScreen
+                    />
+                  ) : current.source === 'youtube' && getYouTubeEmbedUrl(current.url) ? (
+                    <iframe
+                      src={getYouTubeEmbedUrl(current.url)! + '?autoplay=1'}
+                      title={current.caption || 'Video'}
+                      className="w-full h-full"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      allowFullScreen
+                    />
+                  ) : (
+                    <video
+                      src={current.url}
+                      controls
+                      autoPlay
+                      className="w-full h-full object-contain"
+                      playsInline
+                    />
+                  )}
+                </div>
+              ) : (
+                <img
+                  src={current.url}
+                  alt={current.caption || ''}
+                  className="max-w-full max-h-[80vh] object-contain rounded-lg select-none"
+                  draggable={false}
+                />
+              )}
               {current.caption && (
                 <p className="mt-4 text-sm text-white/60 font-light text-center max-w-lg">
                   {current.caption}

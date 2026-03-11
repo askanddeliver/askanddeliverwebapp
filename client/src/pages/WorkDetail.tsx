@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { ArrowLeft, ArrowRight, ExternalLink } from 'lucide-react';
 import { usePublicPortfolio, usePublicPortfolioProject } from '../hooks/usePublicPortfolio';
 import { PortfolioImage } from '../components/public/PortfolioImage';
+import { PortfolioMedia } from '../components/public/PortfolioMedia';
 import { Lightbox, ZoomHint } from '../components/public/Lightbox';
 import type { LightboxImage } from '../components/public/Lightbox';
 
@@ -15,24 +16,28 @@ function WorkDetail() {
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState(0);
 
-  // Build a combined image list: hero first, then gallery images
-  const allImages: LightboxImage[] = useMemo(() => {
+  // Build combined media list for lightbox (images + videos in carousel)
+  const allMedia: LightboxImage[] = useMemo(() => {
     if (!project) return [];
-    const imgs: LightboxImage[] = [];
+    const items: LightboxImage[] = [];
     if (project.featuredImage) {
-      imgs.push({ url: project.featuredImage, caption: project.title });
+      items.push({ url: project.featuredImage, caption: project.title });
     }
     project.images.forEach((img) => {
       if (img.url) {
-        imgs.push({ url: img.url, caption: img.caption });
+        items.push({
+          url: img.url,
+          caption: img.caption,
+          type: img.type === 'video' || img.source === 'vimeo' || img.source === 'youtube' ? 'video' : undefined,
+          source: img.source,
+        });
       }
     });
-    return imgs;
+    return items;
   }, [project]);
 
-  const openLightbox = (imageUrl: string) => {
-    const idx = allImages.findIndex((img) => img.url === imageUrl);
-    setLightboxIndex(idx >= 0 ? idx : 0);
+  const openLightbox = (index: number) => {
+    setLightboxIndex(Math.max(0, Math.min(index, allMedia.length - 1)));
     setLightboxOpen(true);
   };
 
@@ -57,7 +62,7 @@ function WorkDetail() {
     <div>
       {/* Lightbox */}
       <Lightbox
-        images={allImages}
+        images={allMedia}
         initialIndex={lightboxIndex}
         isOpen={lightboxOpen}
         onClose={() => setLightboxOpen(false)}
@@ -115,7 +120,7 @@ function WorkDetail() {
             transition={{ duration: 0.6, delay: 0.2 }}
             className="aspect-[16/9] rounded-xl overflow-hidden group relative cursor-pointer"
             style={{ backgroundColor: project.color + '10' }}
-            onClick={() => project.featuredImage && openLightbox(project.featuredImage)}
+            onClick={() => project.featuredImage && openLightbox(0)}
           >
             <PortfolioImage
               src={project.featuredImage}
@@ -206,7 +211,7 @@ function WorkDetail() {
                 </motion.div>
               )}
 
-              {/* Image Gallery */}
+              {/* Media Gallery (images + videos, all open in lightbox carousel) */}
               {project.images.length > 0 && (
                 <motion.div
                   initial={{ opacity: 0, y: 20 }}
@@ -216,29 +221,32 @@ function WorkDetail() {
                   className="space-y-6"
                 >
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {project.images.map((img, i) => (
-                      <figure key={i} className="group">
-                        <div
-                          className="aspect-[4/3] rounded-lg overflow-hidden relative cursor-pointer"
-                          style={{ backgroundColor: project.color + '08' }}
-                          onClick={() => img.url && openLightbox(img.url)}
-                        >
-                          <PortfolioImage
-                            src={img.url}
-                            alt={img.caption || `${project.title} — image ${i + 1}`}
-                            fallbackColor={project.color}
-                            fallbackLabel={img.caption}
-                            className="group-hover:scale-105 transition-transform duration-500"
-                          />
-                          {img.url && <ZoomHint />}
-                        </div>
-                        {img.caption && (
-                          <figcaption className="mt-2 text-sm text-neutral-500 italic">
-                            {img.caption}
-                          </figcaption>
-                        )}
-                      </figure>
-                    ))}
+                    {project.images.map((img, i) => {
+                      const lightboxIndex = (project.featuredImage ? 1 : 0) + i;
+                      return (
+                        <figure key={i} className="group">
+                          <div
+                            className="aspect-[4/3] rounded-lg overflow-hidden relative cursor-pointer"
+                            style={{ backgroundColor: project.color + '08' }}
+                            onClick={() => img.url && openLightbox(lightboxIndex)}
+                          >
+                            <PortfolioMedia
+                              media={img}
+                              fallbackColor={project.color}
+                              fallbackLabel={img.caption}
+                              thumbnailOnly
+                              className="group-hover:scale-105 transition-transform duration-500"
+                            />
+                            <ZoomHint />
+                          </div>
+                          {img.caption && (
+                            <figcaption className="mt-2 text-sm text-neutral-500 italic">
+                              {img.caption}
+                            </figcaption>
+                          )}
+                        </figure>
+                      );
+                    })}
                   </div>
                 </motion.div>
               )}
