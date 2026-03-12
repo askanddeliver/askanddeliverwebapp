@@ -5,6 +5,16 @@ export interface IProject extends Document {
   clientId: mongoose.Types.ObjectId;
   title: string;
   description?: string;
+  /** Rich-text brief notes (HTML from WYSIWYG) — projects screen only */
+  brief?: string;
+  /** Portfolio-aligned fields for easier conversion */
+  excerpt?: string;
+  year?: number;
+  categories: string[];
+  disciplines: string[];
+  challenge?: string;
+  solution?: string;
+  results: string[];
   status: 'ACTIVE' | 'PAUSED' | 'COMPLETED' | 'ARCHIVED';
   budget?: number;
   createdAt: Date;
@@ -31,6 +41,39 @@ const ProjectSchema = new Schema<IProject>(
     description: {
       type: String,
       trim: true,
+    },
+    brief: {
+      type: String,
+      trim: true,
+    },
+    excerpt: {
+      type: String,
+      trim: true,
+    },
+    year: {
+      type: Number,
+      min: 1900,
+      max: 2100,
+    },
+    categories: {
+      type: [String],
+      default: [],
+    },
+    disciplines: {
+      type: [String],
+      default: [],
+    },
+    challenge: {
+      type: String,
+      trim: true,
+    },
+    solution: {
+      type: String,
+      trim: true,
+    },
+    results: {
+      type: [String],
+      default: [],
     },
     status: {
       type: String,

@@ -39,6 +39,16 @@ export interface Project {
   clientId: string | Client;
   title: string;
   description?: string;
+  /** Rich-text brief notes (HTML) — projects screen only */
+  brief?: string;
+  /** Portfolio-aligned fields for easier conversion */
+  excerpt?: string;
+  year?: number;
+  categories?: string[];
+  disciplines?: string[];
+  challenge?: string;
+  solution?: string;
+  results?: string[];
   status: 'ACTIVE' | 'PAUSED' | 'COMPLETED' | 'ARCHIVED';
   budget?: number;
   createdAt: string;

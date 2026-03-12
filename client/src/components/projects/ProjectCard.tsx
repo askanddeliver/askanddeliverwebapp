@@ -49,6 +49,17 @@ export function ProjectCard({
 
   const isArchived = project.status === 'ARCHIVED';
 
+  const preview =
+    project.excerpt ||
+    (project.brief
+      ? (() => {
+          const plain = project.brief.replace(/<[^>]*>/g, '').trim();
+          return plain.length > 120 ? plain.slice(0, 120) + '…' : plain;
+        })()
+      : '') ||
+    project.description ||
+    '';
+
   return (
     <div className={`card hover:shadow-md transition-shadow ${isArchived ? 'opacity-60' : ''}`}>
       <div className="flex items-start justify-between">
@@ -59,10 +70,8 @@ export function ProjectCard({
           {client && (
             <p className="text-sm text-gray-500 mt-0.5">{client.name}</p>
           )}
-          {project.description && (
-            <p className="text-sm text-gray-400 mt-1 line-clamp-2">
-              {project.description}
-            </p>
+          {preview && (
+            <p className="text-sm text-gray-400 mt-1 line-clamp-2">{preview}</p>
           )}
         </div>
 

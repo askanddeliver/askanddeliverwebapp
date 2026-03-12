@@ -57,7 +57,12 @@ router.get(
 
     if (search && typeof search === 'string' && search.trim()) {
       const searchRegex = new RegExp(search.trim(), 'i');
-      filter.$or = [{ title: searchRegex }, { description: searchRegex }];
+      filter.$or = [
+        { title: searchRegex },
+        { description: searchRegex },
+        { brief: searchRegex },
+        { excerpt: searchRegex },
+      ];
     }
 
     let sortOption: Record<string, 1 | -1> = { createdAt: -1 };
@@ -108,7 +113,21 @@ router.post(
     const userId = extractUserId(req);
     if (!userId) throw createError('User ID not found in token', 401);
 
-    const { clientId, title, description, status, budget } = req.body;
+    const {
+      clientId,
+      title,
+      description,
+      brief,
+      excerpt,
+      year,
+      categories,
+      disciplines,
+      challenge,
+      solution,
+      results,
+      status,
+      budget,
+    } = req.body;
 
     if (!title || !title.trim()) {
       throw createError('Project title is required', 400);
@@ -122,6 +141,14 @@ router.post(
       clientId,
       title: title.trim(),
       description: description?.trim(),
+      brief: brief?.trim(),
+      excerpt: excerpt?.trim(),
+      year,
+      categories: Array.isArray(categories) ? categories : [],
+      disciplines: Array.isArray(disciplines) ? disciplines : [],
+      challenge: challenge?.trim(),
+      solution: solution?.trim(),
+      results: Array.isArray(results) ? results : [],
       status: status || 'ACTIVE',
       budget,
     });
@@ -139,11 +166,33 @@ router.put(
     const userId = extractUserId(req);
     if (!userId) throw createError('User ID not found in token', 401);
 
-    const { title, description, status, budget, clientId } = req.body;
+    const {
+      title,
+      description,
+      brief,
+      excerpt,
+      year,
+      categories,
+      disciplines,
+      challenge,
+      solution,
+      results,
+      status,
+      budget,
+      clientId,
+    } = req.body;
 
     const update: Record<string, unknown> = {};
     if (title !== undefined) update.title = title.trim();
     if (description !== undefined) update.description = description?.trim();
+    if (brief !== undefined) update.brief = brief?.trim();
+    if (excerpt !== undefined) update.excerpt = excerpt?.trim();
+    if (year !== undefined) update.year = year;
+    if (categories !== undefined) update.categories = Array.isArray(categories) ? categories : [];
+    if (disciplines !== undefined) update.disciplines = Array.isArray(disciplines) ? disciplines : [];
+    if (challenge !== undefined) update.challenge = challenge?.trim();
+    if (solution !== undefined) update.solution = solution?.trim();
+    if (results !== undefined) update.results = Array.isArray(results) ? results : [];
     if (status !== undefined) update.status = status;
     if (budget !== undefined) update.budget = budget;
     if (clientId !== undefined) update.clientId = clientId;

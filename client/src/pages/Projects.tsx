@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Plus, Search, X, ChevronDown } from 'lucide-react';
 import { useUserRole } from '../contexts/UserContext';
 import { ProjectList } from '../components/projects/ProjectList';
-import { ProjectModal } from '../components/projects/ProjectModal';
+import { ProjectModal, type ProjectModalSaveData } from '../components/projects/ProjectModal';
 import { projectsApi, clientsApi, projectTasksApi } from '../services/api';
 import type { Project, Client, ProjectTask, ProjectStatus, ProjectCounts } from '../types';
 
@@ -92,13 +92,7 @@ function Projects() {
     loadProjects();
   }, [loadProjects]);
 
-  const handleSave = async (data: {
-    clientId: string;
-    title: string;
-    description?: string;
-    status: ProjectStatus;
-    budget?: number;
-  }) => {
+  const handleSave = async (data: ProjectModalSaveData) => {
     try {
       if (editingProject) {
         await projectsApi.update(editingProject._id, data);

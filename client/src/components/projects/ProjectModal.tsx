@@ -1,20 +1,38 @@
-import { useState, useEffect } from 'react';
-import { X } from 'lucide-react';
+import { useState, useEffect, FormEvent } from 'react';
+import { X, Plus, Trash2 } from 'lucide-react';
 import type { Client, Project, ProjectStatus } from '../../types';
+import { BriefEditor } from './BriefEditor';
 
 interface ProjectModalProps {
   project?: Project | null;
   clients: Client[];
   isOpen: boolean;
   onClose: () => void;
-  onSave: (data: {
-    clientId: string;
-    title: string;
-    description?: string;
-    status: ProjectStatus;
-    budget?: number;
-  }) => void;
+  onSave: (data: ProjectModalSaveData) => void;
 }
+
+export interface ProjectModalSaveData {
+  clientId: string;
+  title: string;
+  description?: string;
+  brief?: string;
+  excerpt?: string;
+  year?: number;
+  categories?: string[];
+  disciplines?: string[];
+  challenge?: string;
+  solution?: string;
+  results?: string[];
+  status: ProjectStatus;
+  budget?: number;
+}
+
+const defaultCategories = [
+  'Branding', 'Digital', 'Hospitality', 'Music', 'Event',
+  'Environmental', 'Nonprofit', 'Retail', 'Research', 'Education',
+  'Product Design', 'UX/UI', 'Experiential', 'Packaging',
+  'Public', 'Transportation', 'Strategy',
+];
 
 export function ProjectModal({
   project,
@@ -26,8 +44,20 @@ export function ProjectModal({
   const [clientId, setClientId] = useState('');
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
+  const [brief, setBrief] = useState('');
+  const [excerpt, setExcerpt] = useState('');
+  const [year, setYear] = useState(new Date().getFullYear());
+  const [categories, setCategories] = useState<string[]>([]);
+  const [customCategory, setCustomCategory] = useState('');
+  const [disciplines, setDisciplines] = useState<string[]>([]);
+  const [disciplineInput, setDisciplineInput] = useState('');
+  const [challenge, setChallenge] = useState('');
+  const [solution, setSolution] = useState('');
+  const [results, setResults] = useState<string[]>([]);
+  const [resultInput, setResultInput] = useState('');
   const [status, setStatus] = useState<ProjectStatus>('ACTIVE');
   const [budget, setBudget] = useState('');
+  const [activeTab, setActiveTab] = useState<'basic' | 'brief'>('basic');
 
   useEffect(() => {
     if (project) {
@@ -38,18 +68,70 @@ export function ProjectModal({
       );
       setTitle(project.title);
       setDescription(project.description || '');
+      setBrief(project.brief || '');
+      setExcerpt(project.excerpt || '');
+      setYear(project.year ?? new Date().getFullYear());
+      setCategories(project.categories || []);
+      setDisciplines(project.disciplines || []);
+      setChallenge(project.challenge || '');
+      setSolution(project.solution || '');
+      setResults(project.results || []);
       setStatus(project.status);
       setBudget(project.budget?.toString() || '');
     } else {
       setClientId('');
       setTitle('');
       setDescription('');
+      setBrief('');
+      setExcerpt('');
+      setYear(new Date().getFullYear());
+      setCategories([]);
+      setDisciplines([]);
+      setChallenge('');
+      setSolution('');
+      setResults([]);
       setStatus('ACTIVE');
       setBudget('');
     }
+    setActiveTab('basic');
   }, [project, isOpen]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const toggleCategory = (cat: string) => {
+    setCategories((prev) =>
+      prev.includes(cat) ? prev.filter((c) => c !== cat) : [...prev, cat]
+    );
+  };
+
+  const addCustomCategory = () => {
+    if (customCategory.trim() && !categories.includes(customCategory.trim())) {
+      setCategories([...categories, customCategory.trim()]);
+      setCustomCategory('');
+    }
+  };
+
+  const addDiscipline = () => {
+    if (disciplineInput.trim() && !disciplines.includes(disciplineInput.trim())) {
+      setDisciplines([...disciplines, disciplineInput.trim()]);
+      setDisciplineInput('');
+    }
+  };
+
+  const removeDiscipline = (d: string) => {
+    setDisciplines(disciplines.filter((item) => item !== d));
+  };
+
+  const addResult = () => {
+    if (resultInput.trim()) {
+      setResults([...results, resultInput.trim()]);
+      setResultInput('');
+    }
+  };
+
+  const removeResult = (index: number) => {
+    setResults(results.filter((_, i) => i !== index));
+  };
+
+  const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
     if (!title.trim() || !clientId) return;
 
@@ -57,6 +139,14 @@ export function ProjectModal({
       clientId,
       title: title.trim(),
       description: description.trim() || undefined,
+      brief: brief.trim() || undefined,
+      excerpt: excerpt.trim() || undefined,
+      year,
+      categories: categories.length > 0 ? categories : undefined,
+      disciplines: disciplines.length > 0 ? disciplines : undefined,
+      challenge: challenge.trim() || undefined,
+      solution: solution.trim() || undefined,
+      results: results.length > 0 ? results : undefined,
       status,
       budget: budget ? parseFloat(budget) : undefined,
     });
@@ -64,105 +154,332 @@ export function ProjectModal({
 
   if (!isOpen) return null;
 
+  const tabs = [
+    { id: 'basic' as const, label: 'Basic Info' },
+    { id: 'brief' as const, label: 'Brief & Details' },
+  ];
+
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between p-6 border-b border-gray-200">
-          <h2 className="text-xl font-bold text-gray-900">
+    <div className="fixed inset-0 bg-black/50 flex items-start justify-center z-50 p-4 overflow-y-auto">
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl my-8">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+          <h2 className="text-lg font-bold text-gray-900">
             {project ? 'Edit Project' : 'New Project'}
           </h2>
           <button
             onClick={onClose}
-            className="p-1 hover:bg-gray-100 rounded-lg transition-colors"
+            className="p-2 text-gray-400 hover:text-gray-600 rounded-lg"
           >
-            <X className="w-5 h-5 text-gray-500" />
+            <X className="w-5 h-5" />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-5">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Client *
-            </label>
-            <select
-              value={clientId}
-              onChange={(e) => setClientId(e.target.value)}
-              className="input"
-              required
+        {/* Tabs */}
+        <div className="flex border-b border-gray-200 px-6">
+          {tabs.map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => setActiveTab(tab.id)}
+              className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+                activeTab === tab.id
+                  ? 'border-primary-600 text-primary-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700'
+              }`}
             >
-              <option value="">Select client...</option>
-              {clients.map((c) => (
-                <option key={c._id} value={c._id}>
-                  {c.name}
-                  {c.company ? ` (${c.company})` : ''}
-                </option>
-              ))}
-            </select>
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        <form onSubmit={handleSubmit}>
+          <div className="px-6 py-6 max-h-[60vh] overflow-y-auto">
+            {/* Basic Info Tab */}
+            {activeTab === 'basic' && (
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Client *
+                  </label>
+                  <select
+                    value={clientId}
+                    onChange={(e) => setClientId(e.target.value)}
+                    className="input"
+                    required
+                  >
+                    <option value="">Select client...</option>
+                    {clients.map((c) => (
+                      <option key={c._id} value={c._id}>
+                        {c.name}
+                        {c.company ? ` (${c.company})` : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Project Title *
+                  </label>
+                  <input
+                    type="text"
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    className="input"
+                    placeholder="e.g., Website Redesign"
+                    required
+                    autoFocus
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Description
+                  </label>
+                  <textarea
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    className="input min-h-[80px]"
+                    placeholder="Brief project description (optional)"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Status
+                    </label>
+                    <select
+                      value={status}
+                      onChange={(e) =>
+                        setStatus(e.target.value as ProjectStatus)
+                      }
+                      className="input"
+                    >
+                      <option value="ACTIVE">Active</option>
+                      <option value="PAUSED">Paused</option>
+                      <option value="COMPLETED">Completed</option>
+                      <option value="ARCHIVED">Archived</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Budget ($)
+                    </label>
+                    <input
+                      type="number"
+                      value={budget}
+                      onChange={(e) => setBudget(e.target.value)}
+                      className="input"
+                      placeholder="Optional"
+                      min="0"
+                      step="0.01"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Brief & Details Tab — portfolio-aligned for easier conversion */}
+            {activeTab === 'brief' && (
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Brief
+                  </label>
+                  <p className="text-xs text-gray-500 mb-2">
+                    Rich notes for this project. Aligns with portfolio content for easier conversion.
+                  </p>
+                  <BriefEditor
+                    value={brief}
+                    onChange={setBrief}
+                    placeholder="Add project brief, goals, context..."
+                    minHeight="140px"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Excerpt
+                  </label>
+                  <textarea
+                    value={excerpt}
+                    onChange={(e) => setExcerpt(e.target.value)}
+                    className="input resize-none"
+                    rows={2}
+                    placeholder="Short summary (maps to portfolio excerpt)"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Year
+                  </label>
+                  <input
+                    type="number"
+                    value={year}
+                    onChange={(e) => setYear(parseInt(e.target.value) || new Date().getFullYear())}
+                    className="input w-24"
+                    min={1900}
+                    max={2100}
+                  />
+                </div>
+
+                {/* Categories */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Categories
+                  </label>
+                  <div className="flex flex-wrap gap-2 mb-2">
+                    {defaultCategories.map((cat) => (
+                      <button
+                        key={cat}
+                        type="button"
+                        onClick={() => toggleCategory(cat)}
+                        className={`px-3 py-1 text-xs rounded-full border transition-colors ${
+                          categories.includes(cat)
+                            ? 'bg-primary-100 border-primary-300 text-primary-700'
+                            : 'bg-gray-50 border-gray-200 text-gray-600 hover:border-gray-300'
+                        }`}
+                      >
+                        {cat}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={customCategory}
+                      onChange={(e) => setCustomCategory(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addCustomCategory())}
+                      className="input text-sm flex-1"
+                      placeholder="Add custom category..."
+                    />
+                    <button
+                      type="button"
+                      onClick={addCustomCategory}
+                      className="btn-secondary text-sm"
+                    >
+                      Add
+                    </button>
+                  </div>
+                </div>
+
+                {/* Disciplines */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Disciplines
+                  </label>
+                  <div className="flex flex-wrap gap-2 mb-2">
+                    {disciplines.map((d) => (
+                      <span
+                        key={d}
+                        className="inline-flex items-center gap-1 px-3 py-1 bg-gray-100 text-gray-700 text-xs rounded-full"
+                      >
+                        {d}
+                        <button
+                          type="button"
+                          onClick={() => removeDiscipline(d)}
+                          className="text-gray-400 hover:text-red-500"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={disciplineInput}
+                      onChange={(e) => setDisciplineInput(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addDiscipline())}
+                      className="input text-sm flex-1"
+                      placeholder="e.g. Brand Identity, Web Development..."
+                    />
+                    <button
+                      type="button"
+                      onClick={addDiscipline}
+                      className="btn-secondary text-sm"
+                    >
+                      Add
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    The Challenge
+                  </label>
+                  <textarea
+                    value={challenge}
+                    onChange={(e) => setChallenge(e.target.value)}
+                    className="input resize-none"
+                    rows={2}
+                    placeholder="What problem did the client need solved?"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    The Solution
+                  </label>
+                  <textarea
+                    value={solution}
+                    onChange={(e) => setSolution(e.target.value)}
+                    className="input resize-none"
+                    rows={2}
+                    placeholder="How did you approach and solve the challenge?"
+                  />
+                </div>
+
+                {/* Results */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Results
+                  </label>
+                  {results.length > 0 && (
+                    <ul className="space-y-2 mb-2">
+                      {results.map((result, i) => (
+                        <li
+                          key={i}
+                          className="flex items-center gap-2 text-sm text-gray-700 bg-gray-50 px-3 py-2 rounded-lg"
+                        >
+                          <span className="flex-1">{result}</span>
+                          <button
+                            type="button"
+                            onClick={() => removeResult(i)}
+                            className="text-gray-400 hover:text-red-500"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={resultInput}
+                      onChange={(e) => setResultInput(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addResult())}
+                      className="input text-sm flex-1"
+                      placeholder="e.g. Increased foot traffic by 40%"
+                    />
+                    <button
+                      type="button"
+                      onClick={addResult}
+                      className="btn-secondary text-sm"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Project Title *
-            </label>
-            <input
-              type="text"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              className="input"
-              placeholder="e.g., Website Redesign"
-              required
-              autoFocus
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Description
-            </label>
-            <textarea
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              className="input min-h-[80px]"
-              placeholder="Brief project description (optional)"
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Status
-              </label>
-              <select
-                value={status}
-                onChange={(e) =>
-                  setStatus(e.target.value as ProjectStatus)
-                }
-                className="input"
-              >
-                <option value="ACTIVE">Active</option>
-                <option value="PAUSED">Paused</option>
-                <option value="COMPLETED">Completed</option>
-                <option value="ARCHIVED">Archived</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Budget ($)
-              </label>
-              <input
-                type="number"
-                value={budget}
-                onChange={(e) => setBudget(e.target.value)}
-                className="input"
-                placeholder="Optional"
-                min="0"
-                step="0.01"
-              />
-            </div>
-          </div>
-
-          <div className="flex gap-3 pt-2">
+          <div className="flex gap-3 px-6 py-4 border-t border-gray-200">
             <button type="submit" className="btn-primary flex-1">
               {project ? 'Update Project' : 'Create Project'}
             </button>
