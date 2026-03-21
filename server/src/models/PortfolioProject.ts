@@ -29,6 +29,7 @@ export interface IPortfolioProject extends Document {
   disciplines: string[];
   year: number;
   featuredImage: string;
+  clientLogo: string;
   images: IPortfolioImage[];
   challenge?: string;
   solution?: string;
@@ -108,6 +109,10 @@ const PortfolioProjectSchema = new Schema<IPortfolioProject>(
       required: [true, 'Project year is required'],
     },
     featuredImage: {
+      type: String,
+      default: '',
+    },
+    clientLogo: {
       type: String,
       default: '',
     },

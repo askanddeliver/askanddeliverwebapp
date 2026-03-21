@@ -247,6 +247,7 @@ export interface PortfolioProject {
   disciplines: string[];
   year: number;
   featuredImage: string;
+  clientLogo: string;
   images: PortfolioImage[];
   challenge?: string;
   solution?: string;

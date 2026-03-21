@@ -20,6 +20,7 @@ function adaptStaticProject(p: StaticPortfolioProject, index: number): Portfolio
     disciplines: p.disciplines,
     year: p.year,
     featuredImage: p.featuredImage,
+    clientLogo: '',
     images: p.images,
     challenge: p.challenge,
     solution: p.solution,

@@ -134,6 +134,45 @@
 }
 
 /* ============================================
+   PORTFOLIO PROSE (markdown-rendered content)
+   ============================================ */
+@layer components {
+  .prose-portfolio {
+    @apply text-neutral-600 leading-relaxed;
+  }
+  .prose-portfolio p {
+    @apply mb-4 last:mb-0;
+  }
+  .prose-portfolio strong {
+    @apply text-brand-charcoal font-semibold;
+  }
+  .prose-portfolio em {
+    @apply italic;
+  }
+  .prose-portfolio ul {
+    @apply list-disc pl-5 mb-4 space-y-1;
+  }
+  .prose-portfolio ol {
+    @apply list-decimal pl-5 mb-4 space-y-1;
+  }
+  .prose-portfolio a {
+    @apply text-brand-sage underline;
+  }
+  .prose-portfolio a:hover {
+    color: var(--brand-sage-dark);
+  }
+  .prose-portfolio h3 {
+    @apply text-lg font-semibold text-brand-charcoal mt-6 mb-2;
+  }
+  .prose-portfolio h4 {
+    @apply text-base font-semibold text-brand-charcoal mt-4 mb-2;
+  }
+  .prose-portfolio blockquote {
+    @apply border-l-4 border-brand-sage/30 pl-4 italic text-neutral-500 my-4;
+  }
+}
+
+/* ============================================
    UTILITY CLASSES
    ============================================ */
 @layer utilities {

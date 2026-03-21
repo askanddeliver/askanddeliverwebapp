@@ -35,6 +35,7 @@ export function PortfolioProjectModal({
   const [disciplineInput, setDisciplineInput] = useState('');
   const [year, setYear] = useState(new Date().getFullYear());
   const [featuredImage, setFeaturedImage] = useState('');
+  const [clientLogo, setClientLogo] = useState('');
   const [images, setImages] = useState<PortfolioImage[]>([]);
   const [challenge, setChallenge] = useState('');
   const [solution, setSolution] = useState('');
@@ -60,6 +61,7 @@ export function PortfolioProjectModal({
       setDisciplines(project.disciplines);
       setYear(project.year);
       setFeaturedImage(project.featuredImage);
+      setClientLogo(project.clientLogo || '');
       setImages(project.images || []);
       setChallenge(project.challenge || '');
       setSolution(project.solution || '');
@@ -87,6 +89,7 @@ export function PortfolioProjectModal({
     setDisciplines([]);
     setYear(new Date().getFullYear());
     setFeaturedImage('');
+    setClientLogo('');
     setImages([]);
     setChallenge('');
     setSolution('');
@@ -219,6 +222,7 @@ export function PortfolioProjectModal({
       disciplines,
       year,
       featuredImage,
+      clientLogo: clientLogo || undefined,
       images: images.filter((img) => img.url.trim()),
       challenge: challenge || undefined,
       solution: solution || undefined,
@@ -458,9 +462,12 @@ export function PortfolioProjectModal({
                     value={challenge}
                     onChange={(e) => setChallenge(e.target.value)}
                     className="input resize-none"
-                    rows={3}
+                    rows={5}
                     placeholder="What problem did the client need solved?"
                   />
+                  <p className="mt-1 text-xs text-gray-400">
+                    Supports markdown: **bold**, *italic*, - lists, [links](url)
+                  </p>
                 </div>
 
                 <div>
@@ -471,9 +478,12 @@ export function PortfolioProjectModal({
                     value={solution}
                     onChange={(e) => setSolution(e.target.value)}
                     className="input resize-none"
-                    rows={3}
+                    rows={5}
                     placeholder="How did you approach and solve the challenge?"
                   />
+                  <p className="mt-1 text-xs text-gray-400">
+                    Supports markdown: **bold**, *italic*, - lists, [links](url)
+                  </p>
                 </div>
 
                 {/* Results */}
@@ -560,6 +570,14 @@ export function PortfolioProjectModal({
                   projectSlug={slug || 'temp'}
                   onChange={(url) => setFeaturedImage(url)}
                   placeholder="Drop a hero image here or click to upload"
+                />
+
+                <ImageUpload
+                  label="Client Logo"
+                  value={clientLogo}
+                  projectSlug={slug || 'temp'}
+                  onChange={(url) => setClientLogo(url)}
+                  placeholder="Upload client logo (displayed separately from hero)"
                 />
 
                 {/* Media Gallery (images + videos) */}
