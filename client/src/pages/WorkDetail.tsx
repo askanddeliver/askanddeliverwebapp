@@ -118,10 +118,7 @@ function WorkDetail() {
               {/* Client logo */}
               {project.clientLogo && (
                 <div className="flex-shrink-0 flex items-center justify-center md:justify-start">
-                  <div
-                    className="w-28 h-28 md:w-36 md:h-36 rounded-2xl flex items-center justify-center p-4"
-                    style={{ backgroundColor: project.color + '08' }}
-                  >
+                  <div className="w-28 h-28 md:w-36 md:h-36 flex items-center justify-center">
                     <img
                       src={project.clientLogo}
                       alt={`${project.client} logo`}
