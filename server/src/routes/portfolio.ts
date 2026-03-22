@@ -115,6 +115,7 @@ router.post(
       disciplines,
       year,
       featuredImage,
+      clientLogo,
       images,
       challenge,
       solution,
@@ -169,6 +170,7 @@ router.post(
       disciplines: disciplines || [],
       year: year || new Date().getFullYear(),
       featuredImage: featuredImage || '',
+      clientLogo: clientLogo || '',
       images: images || [],
       challenge: challenge?.trim(),
       solution: solution?.trim(),
@@ -232,6 +234,7 @@ router.put(
       disciplines,
       year,
       featuredImage,
+      clientLogo,
       images,
       challenge,
       solution,
@@ -254,6 +257,7 @@ router.put(
     if (disciplines !== undefined) update.disciplines = disciplines;
     if (year !== undefined) update.year = year;
     if (featuredImage !== undefined) update.featuredImage = featuredImage;
+    if (clientLogo !== undefined) update.clientLogo = clientLogo;
     if (images !== undefined) update.images = images;
     if (challenge !== undefined) update.challenge = challenge?.trim();
     if (solution !== undefined) update.solution = solution?.trim();
