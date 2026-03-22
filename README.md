@@ -23,6 +23,8 @@ A full-featured time tracking, client management, and invoicing application buil
 - **Status tracking** — ACTIVE, PAUSED, COMPLETED, ARCHIVED workflow with status tabs and counts
 - **Filtering & search** — Filter by status, client, or search term; sort by date, title, or budget
 - **Budget tracking** — Optional budget field per project
+- **Rich-text briefs** — WYSIWYG project brief editor powered by Tiptap (bold, italic, lists, undo/redo)
+- **Portfolio-aligned fields** — Projects include excerpt, year, categories, disciplines, challenge, solution, and results fields for seamless conversion to portfolio case studies
 - **Archive vs. delete** — Soft-archive projects to hide them, or permanently delete
 - **Project tasks** — Break projects into individual tasks with status (TODO, IN_PROGRESS, COMPLETED), drag-and-drop ordering, and estimated hours
 
@@ -51,9 +53,12 @@ A full-featured time tracking, client management, and invoicing application buil
 
 ### Public Portfolio Website
 - **Portfolio project management** — Create portfolio case studies with title, client, excerpt, description, categories, disciplines, year, challenge/solution/results, testimonials, and live URL
+- **Client logos** — Upload a client logo per portfolio project, displayed on the public detail page
+- **Mixed media galleries** — Portfolio images support both images and videos; each media item has a `type` (image/video) and optional `source` (cloudinary/vimeo/youtube)
 - **Media uploads** — Upload images (JPEG, PNG, GIF, WebP, SVG) and videos (MP4, MOV, WebM up to 100MB) via Cloudinary
-- **Video embeds** — Add videos via Vimeo or YouTube URL, or direct upload to Cloudinary
+- **Video embeds** — Add videos via Vimeo or YouTube URL (auto-parsed for embed), or direct upload to Cloudinary
 - **Image lightbox** — Full-screen image viewer on public portfolio pages
+- **Markdown rendering** — Challenge and solution content rendered as Markdown on public detail pages via react-markdown
 - **Publish/unpublish** — Control which projects are visible on the public site
 - **Featured projects** — Highlight key work on the homepage
 - **Drag-and-drop ordering** — Reorder portfolio projects visually
@@ -99,6 +104,8 @@ A full-featured time tracking, client management, and invoicing application buil
 | Animations | Framer Motion |
 | Icons | Lucide React |
 | Drag & Drop | dnd-kit |
+| Rich Text | Tiptap |
+| Markdown | react-markdown |
 | Routing | React Router v6 |
 | Backend | Express.js + TypeScript |
 | Database | MongoDB + Mongoose |
@@ -119,10 +126,11 @@ askanddeliverwebapp/
 │   │   │   ├── clients/          # Client cards, list, modal, task discounts
 │   │   │   ├── entries/          # Time entry list, row, modal
 │   │   │   ├── leads/            # Lead detail modal, convert modal
-│   │   │   ├── portfolio/        # Portfolio project list, modal, image upload
-│   │   │   ├── projects/         # Project cards, list, modal
+│   │   │   ├── portfolio/        # Portfolio project list, modal, media upload (images + video embeds)
+│   │   │   ├── projects/         # Project cards, list, modal, brief editor (Tiptap)
 │   │   │   ├── projectTasks/     # Project task list, modal
-│   │   │   ├── public/           # Public layout, navbar, footer, lightbox
+│   │   │   ├── invoices/         # Invoice detail, create modal, status badge
+│   │   │   ├── public/           # Public layout, navbar, footer, lightbox, portfolio media
 │   │   │   ├── reports/          # Invoice preview, filters, export, line items, member contributions
 │   │   │   ├── taskTypes/        # Task type list, modal
 │   │   │   ├── timer/            # Timer display, controls, quick entry
@@ -146,6 +154,7 @@ askanddeliverwebapp/
 │   │   │   ├── TaskTypes.tsx     # Task type configuration
 │   │   │   ├── TimeEntries.tsx   # Time entry list and management
 │   │   │   ├── Reports.tsx       # Invoice generation and reports
+│   │   │   ├── Invoices.tsx      # Invoice list, detail, status management
 │   │   │   ├── Leads.tsx         # Lead pipeline management
 │   │   │   ├── PortfolioAdmin.tsx # Portfolio project management
 │   │   │   ├── SiteConfig.tsx    # Theme colors + company info
@@ -162,7 +171,8 @@ askanddeliverwebapp/
 │   │   │   └── usePublicPortfolio.ts
 │   │   ├── types/                # TypeScript type definitions
 │   │   ├── utils/
-│   │   │   └── calculations.ts   # Duration formatting, discount math, date helpers
+│   │   │   ├── calculations.ts   # Duration formatting, discount math, date helpers
+│   │   │   └── videoEmbed.ts     # Vimeo/YouTube URL parsing, embed URLs, thumbnails
 │   │   ├── data/
 │   │   │   └── portfolioProjects.ts
 │   │   └── styles/               # Global styles + Tailwind config
@@ -368,7 +378,8 @@ See [SETUP.md](SETUP.md) for detailed MongoDB Atlas, Auth0, and Cloudinary confi
 #### Time Entries
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| `GET` | `/api/time-entries` | List entries (filters: startDate, endDate, projectId, projectIds) |
+| `GET` | `/api/time-entries` | List entries (filters: startDate, endDate, projectId, projectIds, billingStatus) |
+| `POST` | `/api/time-entries/by-ids` | Get entries by ID array (for invoice detail) |
 | `GET` | `/api/time-entries/active` | Get active timer |
 | `POST` | `/api/time-entries/start` | Start timer (auto-stops any running timer) |
 | `POST` | `/api/time-entries/stop` | Stop timer |
@@ -458,7 +469,7 @@ Auth0-linked user profile with `auth0Id`, `email`, `name`, `picture`, and `nickn
 Client record with `name`, `company`, `email`, `businessEntity` (official entity name for invoices), `address` (for invoices), `paymentPreference` (ACH | MAILED, defaults to MAILED), and a `taskDiscounts` map — a `Map<string, number>` where each key is a TaskType ID and the value is a discount percentage (0–100).
 
 ### Project
-Linked to a Client. Tracks `title`, `description`, `status` (ACTIVE / PAUSED / COMPLETED / ARCHIVED), and optional `budget`.
+Linked to a Client. Tracks `title`, `description`, `brief` (rich-text HTML from Tiptap editor), `status` (ACTIVE / PAUSED / COMPLETED / ARCHIVED), and optional `budget`. Includes portfolio-aligned fields for easier conversion to case studies: `excerpt`, `year`, `categories`, `disciplines`, `challenge`, `solution`, and `results` (string array).
 
 ### TaskType
 Billable categories (e.g., "Design", "Development") with `name`, `rate` (hourly), and `color`.
@@ -476,7 +487,7 @@ Fixed-cost billing entries for non-hourly charges. Linked to a Client and option
 Intake form submissions with pipeline management. Captures `confidence` (YES / MAYBE / UNSURE), `projectType`, `budget`, `timeline`, contact info (`name`, `email`, `company`, `message`), `description`, pipeline `status` (NEW through WON/LOST), `priority`, timestamped `notes` (with `createdBy`), and conversion references (`convertedClientId`, `convertedProjectId`).
 
 ### PortfolioProject
-Case study entries for the public website with `slug`, `title`, `client`, `excerpt`, `description`, `categories`, `disciplines`, `year`, `featuredImage`, `images` (url + caption), `challenge`, `solution`, `results`, `testimonial` (quote, author, role), `liveUrl`, `color`, `order`, and `published`/`featured` controls.
+Case study entries for the public website with `slug`, `title`, `client`, `excerpt`, `description`, `categories`, `disciplines`, `year`, `featuredImage`, `clientLogo`, `images` (url, caption, type: image/video, source: cloudinary/vimeo/youtube), `challenge`, `solution`, `results` (string array), `testimonial` (quote, author, role), `liveUrl`, `color`, `order`, and `published`/`featured` controls.
 
 ### SiteConfig
 Per-user configuration. Stores `colors` (8 brand color values: brandSage, brandSageLight, brandSageDark, brandCharcoal, brandCream, brandCreamDark, accentWarm, accentCool), `palettes` (array of named color presets), and company info (`companyName`, `companyAddress`, `companyPhone`, `companyEmail`) used in invoice headers.
@@ -499,26 +510,52 @@ Per-user configuration. Stores `colors` (8 brand color values: brandSage, brandS
 
 ## Deployment
 
-### Frontend (Vercel / Netlify)
-```bash
-cd client
-npm run build
-# Deploy the dist/ folder
-```
+The application is deployed as two separate services:
 
-### Backend (Railway / Render / Fly.io)
-```bash
-cd server
-npm run build
-# Deploy with start command: npm start
-```
+### Frontend — Vercel
+- **Live at**: [https://www.askanddeliver.com](https://www.askanddeliver.com)
+- **Source**: `client/` directory (set as Vercel root directory)
+- **Framework**: Vite (auto-detected)
+- **Build command**: `npm run build` → outputs to `dist/`
+- **SPA routing**: `client/vercel.json` rewrites all paths to `index.html`
+- **Security headers**: X-Content-Type-Options, X-Frame-Options, Referrer-Policy
+- **Asset caching**: Vite-hashed assets served with `Cache-Control: public, max-age=31536000, immutable`
+
+### Backend — Railway
+- **Source**: `server/` directory
+- **Runtime**: Node.js with `npm start` (`node dist/index.js`)
+- **CORS**: `CLIENT_URL` env var supports comma-separated origins (e.g., `https://askanddeliver.com,https://www.askanddeliver.com`)
 
 ### Production Environment Variables
-- Update all URLs from `localhost` to production domains
-- Set `NODE_ENV=production`
-- Use production MongoDB connection string
-- Configure Auth0 callback/logout/web origin URLs for your production domain
-- Cloudinary credentials remain the same across environments
+
+**Vercel (client)**:
+```env
+VITE_API_URL=https://<your-railway-url>/api
+VITE_AUTH0_DOMAIN=your-tenant.auth0.com
+VITE_AUTH0_CLIENT_ID=your-production-client-id
+VITE_AUTH0_AUDIENCE=https://<your-railway-url>/api
+```
+
+**Railway (server)**:
+```env
+NODE_ENV=production
+CLIENT_URL=https://askanddeliver.com,https://www.askanddeliver.com
+MONGODB_URI=<production connection string>
+AUTH0_DOMAIN=your-tenant.auth0.com
+AUTH0_AUDIENCE=https://<your-railway-url>/api
+CLOUDINARY_CLOUD_NAME=your-cloud-name
+CLOUDINARY_API_KEY=your-api-key
+CLOUDINARY_API_SECRET=your-api-secret
+PRIMARY_ADMIN_EMAIL=your-email@example.com
+```
+
+**Auth0** — Add production URLs to Allowed Callback URLs, Allowed Logout URLs, and Allowed Web Origins (keep `http://localhost:5173` for local dev).
+
+### DNS (Network Solutions → Vercel)
+| Type | Host | Value |
+|------|------|-------|
+| A | `@` | Vercel IP (shown in Vercel Domains settings) |
+| CNAME | `www` | Vercel DNS target (shown in Vercel Domains settings) |
 
 ---
 

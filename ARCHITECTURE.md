@@ -192,7 +192,9 @@ User (auth0Id)
  │     │
  │     ├──> Project (clientId, userId)
  │     │     ├── status: ACTIVE | PAUSED | COMPLETED | ARCHIVED
- │     │     ├── budget
+ │     │     ├── budget, brief (rich-text HTML)
+ │     │     ├── excerpt, year, categories, disciplines
+ │     │     ├── challenge, solution, results (portfolio-aligned)
  │     │     │
  │     │     ├──> ProjectTask (projectId, userId)
  │     │     │     ├── status: TODO | IN_PROGRESS | COMPLETED
@@ -227,10 +229,11 @@ User (auth0Id)
  │
  ├──> PortfolioProject (userId)
  │     ├── slug, title, client, categories, disciplines
- │     ├── images (url + caption), featuredImage
- │     ├── challenge, solution, results, testimonial
+ │     ├── images (url, caption, type: image|video, source: cloudinary|vimeo|youtube)
+ │     ├── featuredImage, clientLogo
+ │     ├── challenge, solution, results (string[]), testimonial
  │     ├── published, featured, order
- │     └── Cloudinary media via Uploads routes
+ │     └── Cloudinary media + Vimeo/YouTube embeds via Uploads routes
  │
  ├──> SiteConfig (userId)
  │     ├── colors (8 brand colors)
@@ -292,7 +295,7 @@ isRunning: boolean (true = active timer)
 #### Invoice
 ```
 userId: string (workspace owner)
-invoiceNumber: string (auto-generated, e.g. INV-2026-001)
+invoiceNumber: string (auto-generated, e.g. 260322-1)
 clientId: ObjectId → Client
 projectIds: ObjectId[] → Project[]
 status: 'DRAFT' | 'SENT' | 'PAID'
@@ -359,6 +362,12 @@ siteConfigApi.get(), .updateColors(colors), .resetColors(), .updateCompany(data)
 siteConfigPublicApi.getColors()
 usersApi.getMe(), .updateMe(data), .deleteMe(), .getAll(), .addByEmail(email), .updateUser(id, data), .deleteUser(id)
 ```
+
+### Rich Text & Markdown
+
+- **Tiptap**: Used in `BriefEditor.tsx` for WYSIWYG project brief editing (bold, italic, lists, undo/redo). Stores HTML in the Project `brief` field.
+- **react-markdown**: Used in `WorkDetail.tsx` to render portfolio `challenge` and `solution` content as Markdown on public pages.
+- **Video embeds**: `videoEmbed.ts` utility parses Vimeo/YouTube URLs into embed-ready URLs and thumbnail URLs. Used by `PortfolioMedia.tsx` and `MediaUpload.tsx`.
 
 ### Theme System
 
@@ -460,7 +469,7 @@ DRAFT ──→ SENT ──→ PAID
 - `paid`: entries on a PAID invoice only
 - `all`: no filtering
 
-**Auto-numbering**: Invoice numbers follow `INV-{YEAR}-{SEQ}` pattern (e.g., `INV-2026-001`). The next number is auto-generated based on the highest existing number for the workspace.
+**Auto-numbering**: Invoice numbers follow `{YY}{MM}{DD}-{SEQ}` pattern (e.g., `260322-1`). The next number is auto-generated based on the highest existing sequence for that date within the workspace.
 
 ### Timer Behavior
 
@@ -522,9 +531,9 @@ localhost:5173 (Vite dev server) ──proxy──> localhost:3001 (Express)
                                            Auth0 Tenant
 ```
 
-### Production (Recommended)
+### Production
 ```
-Vercel (client/dist)     ──HTTPS──>    Railway/Render (server)
+askanddeliver.com (Vercel)  ──HTTPS──>  Railway (server)
      │                                       │
      │                                       ▼
      │                                 MongoDB Atlas
@@ -532,16 +541,17 @@ Vercel (client/dist)     ──HTTPS──>    Railway/Render (server)
      └── Auth0 Universal Login ────── Auth0 Tenant
 ```
 
-**Frontend**: Static build deployed to Vercel/Netlify. SPA with `vercel.json` rewrite rules for client-side routing.
+**Frontend**: Static build deployed to Vercel at `askanddeliver.com`. Domain managed via Network Solutions DNS (A record + CNAME). SPA routing via `client/vercel.json` rewrite rules. Security headers (X-Content-Type-Options, X-Frame-Options, Referrer-Policy) and long-term asset caching configured in `vercel.json`.
 
-**Backend**: Node.js server deployed to Railway, Render, or Fly.io. Requires environment variables for MongoDB, Auth0, and Cloudinary.
+**Backend**: Node.js server deployed to Railway. CORS `CLIENT_URL` env var supports comma-separated origins (e.g., `https://askanddeliver.com,https://www.askanddeliver.com`).
 
 **Production checklist**:
-- Update all `localhost` URLs to production domains
-- Set `NODE_ENV=production`
-- Configure Auth0 callback/logout/web origin URLs for production
+- Set `NODE_ENV=production` on Railway
+- Set `CLIENT_URL` to comma-separated production frontend origins on Railway
+- Update all `localhost` URLs to production domains in Vercel env vars
+- Configure Auth0 callback/logout/web origin URLs for production domains
 - Use production MongoDB connection string
-- CORS origin allowlist must include production frontend URL
+- Cloudinary credentials remain the same across environments
 
 ---
 
@@ -593,7 +603,7 @@ Vercel (client/dist)     ──HTTPS──>    Railway/Render (server)
 | `models/ProjectTask.ts` | projecttasks | `{ projectId, order }`, `userId` |
 | `models/LineItem.ts` | lineitems | `{ userId, clientId }`, `{ userId, date }` |
 | `models/Lead.ts` | leads | `{ status, createdAt }`, `email`, `createdAt` |
-| `models/PortfolioProject.ts` | portfolioprojects | `{ userId, slug }` (unique), `{ userId, published, order }` |
+| `models/PortfolioProject.ts` | portfolioprojects | `{ userId, slug }` (unique), `{ userId, published, order }`, `{ userId, published, featured }` |
 | `models/SiteConfig.ts` | siteconfigs | `userId` (unique) |
 
 ### Client Contexts (3)
@@ -615,14 +625,14 @@ Vercel (client/dist)     ──HTTPS──>    Railway/Render (server)
 | Contact | `/contact` | Public | Lead intake form |
 | Dashboard | `/dashboard` | Auth | Timer, quick entry, recent entries |
 | TimeEntries | `/entries` | Auth | Entry list with filters, CRUD |
-| Projects | `/projects` | Auth | Project list with status tabs, tasks |
+| Projects | `/projects` | Auth | Project list with status tabs, tasks, rich-text briefs |
 | Profile | `/profile` | Auth | User profile management |
 | Clients | `/clients` | Admin | Client CRUD with discounts |
 | TaskTypes | `/task-types` | Admin | Task type CRUD + seeding |
 | Reports | `/reports` | Admin | Billing preview, create invoices, line items, export |
 | Invoices | `/invoices` | Admin | Invoice list, status management (DRAFT/SENT/PAID), detail view |
 | Leads | `/leads` | Admin | Lead pipeline, conversion |
-| PortfolioAdmin | `/portfolio-admin` | Admin | Portfolio CRUD, uploads |
+| PortfolioAdmin | `/portfolio-admin` | Admin | Portfolio CRUD, media uploads, video embeds |
 | SiteConfig | `/site-config` | Admin | Theme colors, palettes, company info |
 | Users | `/users` | Admin | Team management, add-by-email |
 
@@ -654,6 +664,14 @@ Vercel (client/dist)     ──HTTPS──>    Railway/Render (server)
 | `toDateTimeLocal(dateStr)` | Convert to `datetime-local` input value |
 | `getTodayString()` | Today as `YYYY-MM-DD` |
 | `getDaysAgoString(days)` | N days ago as `YYYY-MM-DD` |
+
+### Client (`client/src/utils/videoEmbed.ts`)
+
+| Function | Purpose |
+|----------|---------|
+| `parseVideoUrl(url)` | Detects Vimeo/YouTube URLs and extracts video IDs |
+| `getEmbedUrl(source, videoId)` | Returns platform-specific embed URL |
+| `getThumbnailUrl(source, videoId)` | Returns thumbnail URL for video previews |
 
 ---
 

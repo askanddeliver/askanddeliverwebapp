@@ -103,6 +103,7 @@ git push -u origin main
    - **Allowed Logout URLs:** `http://localhost:5173`
    - **Allowed Web Origins:** `http://localhost:5173`
    - Save Changes
+   - *(For production, add `https://askanddeliver.com, https://www.askanddeliver.com` to each field — see the Production Deployment section below)*
 4. Note down these values from the Settings tab:
    - **Domain** (e.g., `your-tenant.auth0.com`)
    - **Client ID**
@@ -236,6 +237,63 @@ The project includes a `.cursorrules` file that provides context to Cursor's AI 
 - ESLint
 - Prettier
 - Tailwind CSS IntelliSense
+
+---
+
+## Production Deployment
+
+The application is deployed as two separate services with a custom domain.
+
+### Frontend — Vercel (askanddeliver.com)
+
+1. Import the GitHub repo at [vercel.com/new](https://vercel.com/new)
+2. Set **Root Directory** to `client`
+3. Framework preset: **Vite** (auto-detected)
+4. Build command: `npm run build`, output directory: `dist`
+5. Add **Environment Variables**:
+   ```env
+   VITE_API_URL=https://<your-railway-url>/api
+   VITE_AUTH0_DOMAIN=your-tenant.auth0.com
+   VITE_AUTH0_CLIENT_ID=your-production-client-id
+   VITE_AUTH0_AUDIENCE=https://<your-railway-url>/api
+   ```
+6. Go to **Settings → Domains**, add `askanddeliver.com` and `www.askanddeliver.com`
+
+### Backend — Railway
+
+1. Connect GitHub repo at [railway.app](https://railway.app)
+2. Set root directory to `server`
+3. Add **Environment Variables**:
+   ```env
+   NODE_ENV=production
+   PORT=3001
+   CLIENT_URL=https://askanddeliver.com,https://www.askanddeliver.com
+   MONGODB_URI=<production connection string>
+   AUTH0_DOMAIN=your-tenant.auth0.com
+   AUTH0_AUDIENCE=https://<your-railway-url>/api
+   CLOUDINARY_CLOUD_NAME=your-cloud-name
+   CLOUDINARY_API_KEY=your-api-key
+   CLOUDINARY_API_SECRET=your-api-secret
+   PRIMARY_ADMIN_EMAIL=your-email@example.com
+   ```
+4. Railway auto-detects Node.js and runs `npm start`
+
+### DNS — Network Solutions
+
+Configure DNS records for `askanddeliver.com` (exact values shown in Vercel **Settings → Domains**):
+
+| Type | Host | Value |
+|------|------|-------|
+| A | `@` | Vercel IP (from Vercel Domains page) |
+| CNAME | `www` | Vercel DNS target (from Vercel Domains page) |
+
+### Auth0 — Production URLs
+
+Update your Auth0 application settings to include production domains alongside localhost:
+
+- **Allowed Callback URLs**: `https://askanddeliver.com, https://www.askanddeliver.com, http://localhost:5173`
+- **Allowed Logout URLs**: same
+- **Allowed Web Origins**: same
 
 ---
 
