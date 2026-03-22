@@ -203,7 +203,24 @@ function WorkDetail() {
               </motion.div>
             )}
 
-            {/* Results — promoted to appear right after challenge */}
+            {/* The Solution */}
+            {project.solution && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.5 }}
+              >
+                <h2 className="font-display text-2xl font-semibold text-brand-charcoal mb-4">
+                  The Solution
+                </h2>
+                <div className="prose-portfolio">
+                  <ReactMarkdown>{project.solution}</ReactMarkdown>
+                </div>
+              </motion.div>
+            )}
+
+            {/* Results */}
             {project.results && project.results.length > 0 && (
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
@@ -235,6 +252,27 @@ function WorkDetail() {
               </motion.div>
             )}
 
+            {/* Testimonial */}
+            {project.testimonial && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.5 }}
+                className="bg-brand-cream rounded-xl p-8 md:p-10"
+              >
+                <blockquote className="font-display text-xl text-brand-charcoal italic leading-relaxed mb-4">
+                  &ldquo;{project.testimonial.quote}&rdquo;
+                </blockquote>
+                <div>
+                  <p className="font-medium text-brand-charcoal">
+                    {project.testimonial.author}
+                  </p>
+                  <p className="text-sm text-neutral-500">{project.testimonial.role}</p>
+                </div>
+              </motion.div>
+            )}
+
             {/* Media Gallery */}
             {project.images.length > 0 && (
               <motion.div
@@ -244,6 +282,9 @@ function WorkDetail() {
                 transition={{ duration: 0.5 }}
                 className="space-y-6"
               >
+                <h2 className="font-display text-2xl font-semibold text-brand-charcoal mb-6">
+                  The Work
+                </h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {project.images.map((img, i) => {
                     const lbIndex = (project.featuredImage ? 1 : 0) + i;
@@ -271,44 +312,6 @@ function WorkDetail() {
                       </figure>
                     );
                   })}
-                </div>
-              </motion.div>
-            )}
-
-            {/* The Solution */}
-            {project.solution && (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.5 }}
-              >
-                <h2 className="font-display text-2xl font-semibold text-brand-charcoal mb-4">
-                  The Solution
-                </h2>
-                <div className="prose-portfolio">
-                  <ReactMarkdown>{project.solution}</ReactMarkdown>
-                </div>
-              </motion.div>
-            )}
-
-            {/* Testimonial */}
-            {project.testimonial && (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.5 }}
-                className="bg-brand-cream rounded-xl p-8 md:p-10"
-              >
-                <blockquote className="font-display text-xl text-brand-charcoal italic leading-relaxed mb-4">
-                  &ldquo;{project.testimonial.quote}&rdquo;
-                </blockquote>
-                <div>
-                  <p className="font-medium text-brand-charcoal">
-                    {project.testimonial.author}
-                  </p>
-                  <p className="text-sm text-neutral-500">{project.testimonial.role}</p>
                 </div>
               </motion.div>
             )}

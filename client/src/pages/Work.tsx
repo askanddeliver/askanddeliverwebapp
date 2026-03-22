@@ -39,11 +39,14 @@ function PortfolioCard({ project, index }: { project: PortfolioProject; index: n
 
         {/* Project info */}
         <div className="flex items-center gap-2 mb-2">
-          {project.categories.map((cat) => (
-            <span key={cat} className="meta-label">
-              {cat}
+          {project.categories[0] && (
+            <span className="meta-label">{project.categories[0]}</span>
+          )}
+          {project.categories.length > 1 && (
+            <span className="meta-label text-neutral-400">
+              +{project.categories.length - 1}
             </span>
-          ))}
+          )}
           <span className="meta-label text-neutral-300">&middot;</span>
           <span className="meta-label">{project.year}</span>
         </div>

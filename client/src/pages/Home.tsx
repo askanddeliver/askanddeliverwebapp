@@ -183,11 +183,14 @@ function Home() {
 
                   {/* Project info */}
                   <div className="flex items-center gap-2 mb-2">
-                    {project.categories.map((cat) => (
-                      <span key={cat} className="meta-label">
-                        {cat}
+                    {project.categories[0] && (
+                      <span className="meta-label">{project.categories[0]}</span>
+                    )}
+                    {project.categories.length > 1 && (
+                      <span className="meta-label text-neutral-400">
+                        +{project.categories.length - 1}
                       </span>
-                    ))}
+                    )}
                   </div>
                   <h3 className="font-display text-xl font-bold text-brand-charcoal mb-2 group-hover:text-brand-sage transition-colors">
                     {project.title}
