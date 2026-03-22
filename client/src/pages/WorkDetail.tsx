@@ -113,42 +113,53 @@ function WorkDetail() {
             transition={{ duration: 0.6, delay: 0.2 }}
             className="bg-white rounded-xl shadow-lg p-8 md:p-12 max-w-4xl"
           >
-            {/* Client logo */}
-            {project.clientLogo && (
-              <div className="mb-6">
-                <img
-                  src={project.clientLogo}
-                  alt={`${project.client} logo`}
-                  className="h-10 md:h-12 w-auto object-contain"
-                />
-              </div>
-            )}
-
-            {/* Meta labels */}
-            <div className="flex items-center gap-3 mb-4">
-              {project.categories.map((cat) => (
-                <span key={cat} className="meta-label">
-                  {cat}
-                </span>
-              ))}
-              {project.categories.length > 0 && (
-                <span className="meta-label text-neutral-300">&middot;</span>
+            {/* Project header: logo + identity */}
+            <div className={`flex ${project.clientLogo ? 'flex-col md:flex-row md:items-start gap-6 md:gap-10' : 'flex-col'}`}>
+              {/* Client logo */}
+              {project.clientLogo && (
+                <div className="flex-shrink-0 flex items-center justify-center md:justify-start">
+                  <div
+                    className="w-28 h-28 md:w-36 md:h-36 rounded-2xl flex items-center justify-center p-4"
+                    style={{ backgroundColor: project.color + '08' }}
+                  >
+                    <img
+                      src={project.clientLogo}
+                      alt={`${project.client} logo`}
+                      className="w-full h-full object-contain"
+                    />
+                  </div>
+                </div>
               )}
-              <span className="meta-label">{project.year}</span>
+
+              {/* Project identity */}
+              <div className="flex-1 min-w-0">
+                {/* Meta labels */}
+                <div className="flex flex-wrap items-center gap-3 mb-3">
+                  {project.categories.map((cat) => (
+                    <span key={cat} className="meta-label">
+                      {cat}
+                    </span>
+                  ))}
+                  {project.categories.length > 0 && (
+                    <span className="meta-label text-neutral-300">&middot;</span>
+                  )}
+                  <span className="meta-label">{project.year}</span>
+                </div>
+
+                {/* Client name as primary heading */}
+                <h1 className="font-display text-display-lg text-brand-charcoal mb-1">
+                  {project.client}
+                </h1>
+
+                {/* Project title as subtitle */}
+                <h2 className="text-xl md:text-2xl text-neutral-500 font-light leading-relaxed">
+                  {project.title}
+                </h2>
+              </div>
             </div>
 
-            {/* Client name as primary heading */}
-            <h1 className="font-display text-display-lg text-brand-charcoal mb-2">
-              {project.client}
-            </h1>
-
-            {/* Project title as subtitle */}
-            <h2 className="text-xl md:text-2xl text-neutral-500 font-light leading-relaxed mb-6">
-              {project.title}
-            </h2>
-
             {/* Description */}
-            <p className="text-lg text-neutral-600 leading-relaxed max-w-3xl">
+            <p className="text-lg text-neutral-600 leading-relaxed max-w-3xl mt-6">
               {project.description}
             </p>
 
