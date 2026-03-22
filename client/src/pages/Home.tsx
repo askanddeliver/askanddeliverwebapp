@@ -87,7 +87,7 @@ function Home() {
                 className="text-xl md:text-2xl text-neutral-600 max-w-2xl leading-relaxed"
               >
                 We&rsquo;re a creative collective built around a simple idea: the
-                right questions are where the right work begins. Brand strategy,
+                work is only as good as the questions behind it. Brand strategy,
                 identity, campaigns, digital, experiential &mdash; done by people
                 who chose your project.
               </motion.p>
@@ -109,12 +109,12 @@ function Home() {
           </div>
         </div>
 
-        {/* Scroll indicator */}
+        {/* Scroll indicator — hidden on mobile where it obstructs hero content */}
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 1.5, duration: 0.8 }}
-          className="absolute bottom-10 left-1/2 -translate-x-1/2"
+          className="hidden md:block absolute bottom-10 left-1/2 -translate-x-1/2"
         >
           <div className="flex flex-col items-center gap-2">
             <span className="text-xs font-mono text-neutral-400 tracking-wider uppercase">Scroll</span>

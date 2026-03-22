@@ -63,7 +63,7 @@ function About() {
             </h1>
             <p className="text-xl text-neutral-600 leading-relaxed max-w-3xl">
               There&rsquo;s a difference. Ask+Deliver brings together proven
-              specialists who choose the projects they take on and commit fully.
+              specialists who choose their projects and own them completely.
               No overhead you&rsquo;re paying for. No generalists doing a
               specialist&rsquo;s job.
             </p>
@@ -91,9 +91,10 @@ function About() {
                 hasn&rsquo;t changed. What has is our model.
               </p>
               <p>
-                Ask+Deliver brings together proven specialists who choose the
-                projects they take on and commit fully. No overhead you&rsquo;re
-                paying for. No generalists doing a specialist&rsquo;s job.
+                Instead of a fixed roster, we assemble the right team for each
+                project &mdash; people who choose the work because it aligns with
+                what they do best. You&rsquo;re not paying for layers of overhead.
+                You&rsquo;re working directly with the people doing the work.
               </p>
             </div>
           </motion.div>
