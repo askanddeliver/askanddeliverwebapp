@@ -10,3 +10,11 @@ export { Lead, ILead, ILeadNote } from './Lead';
 export { SiteConfig, ISiteConfig, IThemeColors, IColorPalette } from './SiteConfig';
 export { Invoice, IInvoice, IInvoiceItem, IInvoiceCompanyInfo, IInvoiceClientInfo } from './Invoice';
 export type { InvoiceStatus } from './Invoice';
+export {
+  Proposal,
+  IProposal,
+  IProposalPhase,
+  IProposalInvestment,
+  IProposalAccentSnapshot,
+} from './Proposal';
+export type { ProposalStatus } from './Proposal';

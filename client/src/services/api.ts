@@ -13,6 +13,12 @@ import type {
   InvoiceStatus,
   SavedInvoice,
   InvoiceStats,
+  SavedProposal,
+  ProposalStats,
+  ProposalStatus,
+  ProposalPhase,
+  ProposalInvestment,
+  ThemeColors,
   PortfolioProject,
   Lead,
   LeadStats,
@@ -20,7 +26,6 @@ import type {
   LeadPriority,
   ConvertLeadPayload,
   SiteConfig,
-  ThemeColors,
 } from '../types';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
@@ -260,6 +265,60 @@ export const invoicesApi = {
   updateStatus: (id: string, status: InvoiceStatus) =>
     api.patch<SavedInvoice>(`/invoices/${id}/status`, { status }),
   delete: (id: string) => api.delete<{ message: string }>(`/invoices/${id}`),
+};
+
+// Proposals (admin)
+export const proposalsApi = {
+  getAll: (params?: {
+    status?: ProposalStatus | 'ALL';
+    clientId?: string;
+    startDate?: string;
+    endDate?: string;
+    search?: string;
+  }) => api.get<SavedProposal[]>('/proposals', { params }),
+  getOne: (id: string) => api.get<SavedProposal>(`/proposals/${id}`),
+  getStats: () => api.get<ProposalStats>('/proposals/stats'),
+  getNextNumber: () => api.get<{ proposalNumber: string }>('/proposals/next-number'),
+  create: (data: {
+    title?: string;
+    clientId: string;
+    projectId?: string;
+    proposalDate?: string;
+    accentSnapshot?: Partial<ThemeColors>;
+    introduction?: string;
+    challenge?: string;
+    solution?: string;
+    assumptions?: string;
+    phases?: ProposalPhase[];
+    investment?: Partial<ProposalInvestment>;
+    investmentSyncPhases?: boolean;
+    terms?: string;
+    sourceMarkdown?: string;
+  }) => api.post<SavedProposal>('/proposals', data),
+  update: (
+    id: string,
+    data: Partial<{
+      title: string;
+      clientId: string;
+      projectId: string | null;
+      proposalDate: string;
+      proposalNumber: string;
+      introduction: string;
+      challenge: string;
+      solution: string;
+      assumptions: string;
+      phases: ProposalPhase[];
+      investment: Partial<ProposalInvestment>;
+      investmentSyncPhases: boolean;
+      terms: string;
+      accentSnapshot: Partial<ThemeColors>;
+      sourceMarkdown: string;
+      refreshCompanyInfo: boolean;
+    }>
+  ) => api.patch<SavedProposal>(`/proposals/${id}`, data),
+  updateStatus: (id: string, status: ProposalStatus) =>
+    api.patch<SavedProposal>(`/proposals/${id}/status`, { status }),
+  delete: (id: string) => api.delete<{ message: string }>(`/proposals/${id}`),
 };
 
 // Portfolio (admin - authenticated)

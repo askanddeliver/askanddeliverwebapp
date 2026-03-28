@@ -208,6 +208,76 @@ export interface InvoiceStats {
   paid: { count: number; total: number };
 }
 
+// Proposals (admin proposal generator)
+export type ProposalStatus = 'DRAFT' | 'FINALIZED';
+
+export interface ProposalPhase {
+  name: string;
+  summary?: string;
+  bullets: string[];
+  estimatedHours?: number;
+  estimatedCost?: number;
+  /** Human-readable timeline (e.g. "2–3 weeks") */
+  duration?: string;
+  startDate?: string;
+  endDate?: string;
+}
+
+export interface ProposalInvestmentLine {
+  label: string;
+  amount: number;
+  hours?: number;
+  duration?: string;
+}
+
+export interface ProposalInvestment {
+  lineItems: ProposalInvestmentLine[];
+  fees: number;
+  notes?: string;
+  subtotal: number;
+  total: number;
+}
+
+export interface SavedProposal {
+  _id: string;
+  userId: string;
+  proposalNumber: string;
+  title: string;
+  clientId: string | Client;
+  projectId?: string | Project;
+  projectTitle?: string;
+  status: ProposalStatus;
+  finalizedAt?: string;
+  proposalDate: string;
+  accentSnapshot: ThemeColors;
+  companyInfo: CompanyInfo;
+  clientInfo: {
+    name: string;
+    company?: string;
+    email?: string;
+    businessEntity?: string;
+    address?: string;
+  };
+  introduction: string;
+  challenge: string;
+  solution: string;
+  /** Assumptions, exclusions, open questions (markdown) */
+  assumptions?: string;
+  phases: ProposalPhase[];
+  investment: ProposalInvestment;
+  /** When true, server derives investment rows from phases on save */
+  investmentSyncPhases?: boolean;
+  terms: string;
+  sourceMarkdown?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ProposalStats {
+  draft: { count: number };
+  finalized: { count: number };
+}
+
 // API Response types
 export interface ApiResponse<T> {
   data: T;

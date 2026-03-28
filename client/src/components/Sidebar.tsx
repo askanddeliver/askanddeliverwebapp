@@ -4,6 +4,7 @@ import {
   FileText,
   BarChart3,
   Receipt,
+  FileStack,
   Users,
   FolderOpen,
   Inbox,
@@ -43,6 +44,7 @@ const navSections: NavSection[] = [
       { to: '/entries', label: 'Entries', icon: FileText },
       { to: '/reports', label: 'Reports', icon: BarChart3, adminOnly: true },
       { to: '/invoices', label: 'Invoices', icon: Receipt, adminOnly: true },
+      { to: '/proposals', label: 'Proposals', icon: FileStack, adminOnly: true },
     ],
   },
   {

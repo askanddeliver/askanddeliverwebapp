@@ -24,6 +24,7 @@ import uploadRoutes from './routes/uploads';
 import leadRoutes from './routes/leads';
 import siteConfigRoutes from './routes/siteConfig';
 import invoiceRoutes from './routes/invoices';
+import proposalRoutes from './routes/proposals';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -67,6 +68,7 @@ app.use('/api/uploads', uploadRoutes);
 app.use('/api/leads', leadRoutes);
 app.use('/api/site-config', siteConfigRoutes);
 app.use('/api/invoices', invoiceRoutes);
+app.use('/api/proposals', proposalRoutes);
 
 // Legacy: local uploads no longer used — files are stored in Cloudinary
 

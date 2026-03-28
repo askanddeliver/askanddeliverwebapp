@@ -28,6 +28,7 @@ import TaskTypes from './pages/TaskTypes';
 import TimeEntries from './pages/TimeEntries';
 import Reports from './pages/Reports';
 import Invoices from './pages/Invoices';
+import Proposals from './pages/Proposals';
 import PortfolioAdmin from './pages/PortfolioAdmin';
 import SiteConfig from './pages/SiteConfig';
 
@@ -199,6 +200,18 @@ function App() {
             <ProtectedRoute>
               <AdminRoute>
                 <Invoices />
+              </AdminRoute>
+            </ProtectedRoute>
+          </Layout>
+        }
+      />
+      <Route
+        path="/proposals"
+        element={
+          <Layout>
+            <ProtectedRoute>
+              <AdminRoute>
+                <Proposals />
               </AdminRoute>
             </ProtectedRoute>
           </Layout>
