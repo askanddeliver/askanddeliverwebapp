@@ -143,6 +143,49 @@ Role assignment on first login (`GET /api/users/me`):
 - Use Mongoose models for database operations with proper index definitions
 - **Array query params on GET routes**: Express's `qs` parser converts arrays with >20 items into objects. Any route accepting array query params (e.g. `projectIds[]`) must handle three shapes: `Array.isArray(val)`, `typeof val === 'string'` (comma-separated or single), and `typeof val === 'object'` (use `Object.values()`). See `timeEntries.ts` and `lineItems.ts` for the pattern.
 
+## Auth token and axios (do not regress)
+
+Today there must be **one** persistence story for access tokens, not two. Do **not** store access tokens in `localStorage` (e.g. `auth0_token`); that duplicates Auth0’s cache and widens XSS impact.
+
+**`tokenReady` is load-bearing.** It gates `ProtectedRoute` so authenticated API calls do not run until a token exists. After removing localStorage bootstrap, there is a short window on cold load where `tokenReady` is false and no token is attached yet — that is correct. The refactor must **not** widen that window (e.g. by firing axios calls without awaiting `getAccessTokenSilently`) or send unauthenticated requests. The request interceptor should **await** `getToken()` so each request waits for a token; keep `ProtectedRoute` + `ApiAuthContext` ordering so children do not mount API-heavy work until `tokenReady`. **Verify:** hard refresh while logged in — no spurious 401s and no burst of failed calls.
+
+**Target pattern:**
+
+1. Remove manual `localStorage` read/write for the API bearer token in `client/src/services/api.ts`.
+2. Add an axios **request** interceptor that sets `Authorization` using `getAccessTokenSilently()` from `@auth0/auth0-react`. The interceptor needs access to that function — implement via a **module-level setter** called once from `ApiAuthContext` after `useAuth0()`, or refactor `api.ts` into a `createApi(getToken)` factory mounted from the provider.
+3. Keep `tokenReady` in `ApiAuthContext`: await the first successful `getAccessTokenSilently()` after login before setting ready (unchanged idea; implementation may drop `setAuthToken` calls).
+4. **401 on response**: optionally retry **once** after a fresh `getAccessTokenSilently()`. Use the standard axios guard: set a custom flag on the request config (e.g. `_retry: true` after the first attempt) so a **genuine** 401 (revoked user, invalid auth) does **not** loop forever.
+5. Optional: `Auth0Provider` with `useRefreshTokens={true}` and `cacheLocation="memory"` aligns the SDK with in-memory caching; enable only if the Auth0 Application is configured for refresh tokens (rotation recommended).
+
+## Server pricing — discount helpers (single source of truth)
+
+`taskDiscounts` may be a Mongoose `Map` **or** a plain object after `.lean()` / JSON. The existing `getDiscount` logic in `reports.ts` handles both; the older `getEffectiveRate()` in `utils/calculations.ts` only uses `.get()` and is unsafe for plain objects.
+
+**`getDiscountPercent(client, taskTypeId)` must preserve both lookup paths:** use `client.taskDiscounts?.get?.(taskTypeId)` when `get` exists (Map), **and** plain-key access for serialized shapes (e.g. `client.taskDiscounts?.[taskTypeId]` or the same fallbacks as the current `getDiscount` in `reports.ts`). **Lift that function verbatim into `calculations.ts`**, then implement `getEffectiveRate(taskType, client)` on top of clamp + formula. Use **only** these helpers from `reports.ts`, `export.ts`, and future billing code.
+
+## Auth vs discount — implementation and verification order
+
+Ship and verify **auth first** (merge, manual test: login, hard refresh, core flows). Then ship **discount consolidation** and verify billing (invoice preview vs CSV export for the same filters, discount edge cases). Do not mix verification of both in one step — if something breaks, two variables make root-cause harder. Prefer separate commits or PRs.
+
+**Scope discipline:** One PR / one Cursor session per concern. Do not bundle unrelated cleanups — that reintroduces the two-variable problem.
+
+### PR1 (auth) — manual smoke-test before merge
+
+Hard refresh after localStorage removal is the most likely regression surface. Run in order:
+
+1. Log in.
+2. **Hard refresh** the browser (cold-load gap: `tokenReady` false briefly — expected).
+3. Confirm you stay **authenticated** and the Network tab does **not** show a burst of **401**s on API calls.
+4. Open a **data-heavy** page (**Reports** or **Invoices**) and confirm **data loads** normally.
+
+If `tokenReady` gates correctly and the axios interceptor **awaits** `getAccessTokenSilently()`, this should pass cleanly.
+
+### PR2 (discount helpers) — billing verification
+
+Compare **invoice preview** (or generated invoice) vs **CSV export** for the **same** date range and filters.
+
+**Edge case that stresses Map vs plain-object discount lookup:** a **client with a discount on one task type but not others**, with time billed across **multiple task types** in the **same** range. If the wrong code path treats `taskDiscounts` as only a Map, discount can **silently** become 0% for lean/plain shapes — **wrong totals, no thrown error**. This scenario is the bar for confirming `getDiscountPercent` was lifted correctly.
+
 ## Route Patterns
 
 ### Creating a new API route
