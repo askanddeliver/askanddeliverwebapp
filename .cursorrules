@@ -153,7 +153,7 @@ Today there must be **one** persistence story for access tokens, not two. Do **n
 
 1. Remove manual `localStorage` read/write for the API bearer token in `client/src/services/api.ts`.
 2. Add an axios **request** interceptor that sets `Authorization` using `getAccessTokenSilently()` from `@auth0/auth0-react`. The interceptor needs access to that function — implement via a **module-level setter** called once from `ApiAuthContext` after `useAuth0()`, or refactor `api.ts` into a `createApi(getToken)` factory mounted from the provider.
-3. Keep `tokenReady` in `ApiAuthContext`: await the first successful `getAccessTokenSilently()` after login before setting ready (unchanged idea; implementation may drop `setAuthToken` calls).
+3. Keep `tokenReady` in `ApiAuthContext`: await the first successful `getAccessTokenSilently()` after login before setting ready. Use `registerAccessTokenGetter` from `api.ts` (not `localStorage`).
 4. **401 on response**: optionally retry **once** after a fresh `getAccessTokenSilently()`. Use the standard axios guard: set a custom flag on the request config (e.g. `_retry: true` after the first attempt) so a **genuine** 401 (revoked user, invalid auth) does **not** loop forever.
 5. Optional: `Auth0Provider` with `useRefreshTokens={true}` and `cacheLocation="memory"` aligns the SDK with in-memory caching; enable only if the Auth0 Application is configured for refresh tokens (rotation recommended).
 
