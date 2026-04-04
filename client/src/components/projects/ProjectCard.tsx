@@ -20,6 +20,8 @@ interface ProjectCardProps {
   onUpdateTask: (id: string, data: Partial<ProjectTask>) => void;
   onToggleTaskStatus: (id: string, status: string) => void;
   onDeleteTask: (id: string) => void;
+  canReorder?: boolean;
+  onReorderTasks?: (projectId: string, taskIds: string[]) => void | Promise<void>;
 }
 
 const statusStyles: Record<string, string> = {
@@ -39,6 +41,8 @@ export function ProjectCard({
   onUpdateTask,
   onToggleTaskStatus,
   onDeleteTask,
+  canReorder = false,
+  onReorderTasks,
   showBudget = true,
   canEdit = true,
 }: ProjectCardProps) {
@@ -146,6 +150,8 @@ export function ProjectCard({
           onToggleStatus={onToggleTaskStatus}
           onDeleteTask={onDeleteTask}
           canEdit={canEdit}
+          canReorder={canReorder}
+          onReorderTasks={onReorderTasks}
         />
       </div>
     </div>

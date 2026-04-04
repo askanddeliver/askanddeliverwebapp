@@ -5,6 +5,7 @@ import { ProjectList } from '../components/projects/ProjectList';
 import { ProjectModal, type ProjectModalSaveData } from '../components/projects/ProjectModal';
 import { projectsApi, clientsApi, projectTasksApi } from '../services/api';
 import type { Project, Client, ProjectTask, ProjectStatus, ProjectCounts } from '../types';
+import { sortProjectTasksByOrder } from '../utils/projectTasks';
 
 type StatusTab = ProjectStatus | 'ALL';
 
@@ -77,6 +78,9 @@ function Projects() {
         const pid = typeof task.projectId === 'object' ? task.projectId._id : task.projectId;
         if (!grouped[pid]) grouped[pid] = [];
         grouped[pid].push(task);
+      }
+      for (const pid of Object.keys(grouped)) {
+        grouped[pid] = sortProjectTasksByOrder(grouped[pid]);
       }
       setTasksByProject(grouped);
     } catch (err) {
@@ -189,6 +193,25 @@ function Projects() {
       }));
     } catch (err) {
       console.error('Failed to toggle task status:', err);
+    }
+  };
+
+  const handleReorderTasks = async (projectId: string, taskIds: string[]) => {
+    try {
+      const res = await projectTasksApi.reorder(projectId, taskIds);
+      const proj = projects.find((p) => p._id === projectId);
+      const merged = (res.data || []).map((t: ProjectTask) => ({
+        ...t,
+        projectId: proj ?? t.projectId,
+      }));
+      setTasksByProject((prev) => ({
+        ...prev,
+        [projectId]: merged,
+      }));
+      setError(null);
+    } catch (err) {
+      console.error('Failed to reorder tasks:', err);
+      setError('Failed to reorder tasks');
     }
   };
 
@@ -390,6 +413,8 @@ function Projects() {
           tasksByProject={tasksByProject}
           showBudget={isAdmin}
           canEdit={isAdmin}
+          canReorder={isAdmin}
+          onReorderTasks={handleReorderTasks}
           onEdit={handleEdit}
           onDelete={handleDelete}
           onArchive={handleArchive}

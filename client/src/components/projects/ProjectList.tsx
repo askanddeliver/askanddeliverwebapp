@@ -20,6 +20,8 @@ interface ProjectListProps {
   onUpdateTask: (id: string, data: Partial<ProjectTask>) => void;
   onToggleTaskStatus: (id: string, status: string) => void;
   onDeleteTask: (id: string) => void;
+  canReorder?: boolean;
+  onReorderTasks?: (projectId: string, taskIds: string[]) => void | Promise<void>;
 }
 
 export function ProjectList({
@@ -34,6 +36,8 @@ export function ProjectList({
   onUpdateTask,
   onToggleTaskStatus,
   onDeleteTask,
+  canReorder = false,
+  onReorderTasks,
 }: ProjectListProps) {
   if (projects.length === 0) {
     return (
@@ -65,6 +69,8 @@ export function ProjectList({
           onDeleteTask={onDeleteTask}
           showBudget={showBudget}
           canEdit={canEdit}
+          canReorder={canReorder}
+          onReorderTasks={onReorderTasks}
         />
       ))}
     </div>

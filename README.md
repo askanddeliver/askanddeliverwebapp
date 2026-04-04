@@ -10,6 +10,7 @@ A full-featured time tracking, client management, and invoicing application buil
 - **Manual time entry** — Log time after the fact with custom start/end times
 - **Quick entry** — Streamlined form for fast time logging
 - **Per-project & per-task tracking** — Associate entries with projects, task types, and project tasks
+- **Dashboard To-Do** — Lists open project tasks (TODO / in progress) for active projects, grouped by client; **Play** opens a modal to pick task type and optional description, then starts the timer (same rules as the main timer)
 - **Workspace-scoped entries** — Admins see all workspace entries; members see only their own
 
 ### Client Management & Discount Pricing

@@ -6,6 +6,8 @@ import { useUserRole } from '../contexts/UserContext';
 import { TimerDisplay } from '../components/timer/TimerDisplay';
 import { TimerControls } from '../components/timer/TimerControls';
 import { QuickEntry } from '../components/timer/QuickEntry';
+import { StartTaskTimerModal } from '../components/timer/StartTaskTimerModal';
+import { DashboardTaskList } from '../components/dashboard/DashboardTaskList';
 import { EntryList } from '../components/entries/EntryList';
 import { EntryModal } from '../components/entries/EntryModal';
 import { timeEntriesApi, projectsApi, taskTypesApi, projectTasksApi, leadsApi } from '../services/api';
@@ -25,6 +27,10 @@ function Dashboard() {
   const [error, setError] = useState<string | null>(null);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [editingEntry, setEditingEntry] = useState<TimeEntry | null>(null);
+  const [startTaskContext, setStartTaskContext] = useState<{
+    project: Project;
+    task: ProjectTask;
+  } | null>(null);
 
   useEffect(() => {
     loadData();
@@ -64,7 +70,7 @@ function Dashboard() {
     taskTypeId: string,
     projectTaskId?: string,
     description?: string
-  ) => {
+  ): Promise<boolean> => {
     try {
       const res = await timeEntriesApi.start({
         projectId,
@@ -74,9 +80,11 @@ function Dashboard() {
       });
       setActiveTimer(res.data);
       setError(null);
+      return true;
     } catch (err) {
       console.error('Failed to start timer:', err);
       setError('Failed to start timer');
+      return false;
     }
   };
 
@@ -135,6 +143,29 @@ function Dashboard() {
   const handleEditEntry = (entry: TimeEntry) => {
     setEditingEntry(entry);
     setEditModalOpen(true);
+  };
+
+  const handleStartFromTaskModal = async (
+    projectId: string,
+    taskTypeId: string,
+    projectTaskId: string,
+    description?: string
+  ) => {
+    const ctx = startTaskContext;
+    const ok = await handleStart(projectId, taskTypeId, projectTaskId, description);
+    if (!ok || !ctx) return;
+
+    if (isAdmin && ctx.task.status === 'TODO') {
+      try {
+        const res = await projectTasksApi.updateStatus(ctx.task._id, 'IN_PROGRESS');
+        setProjectTasks((prev) =>
+          prev.map((t) => (t._id === res.data._id ? res.data : t))
+        );
+      } catch (e) {
+        console.error('Could not mark task in progress:', e);
+      }
+    }
+    setStartTaskContext(null);
   };
 
   const handleSaveEdit = async (data: {
@@ -353,6 +384,28 @@ function Dashboard() {
           />
         </div>
       )}
+
+      {/* Open tasks across active projects */}
+      {projects.length > 0 && (
+        <DashboardTaskList
+          projects={projects}
+          projectTasks={projectTasks}
+          isTimerRunning={Boolean(activeTimer?.isRunning)}
+          hasTaskTypes={taskTypes.length > 0}
+          onPlay={(project, task) => setStartTaskContext({ project, task })}
+        />
+      )}
+
+      <StartTaskTimerModal
+        isOpen={startTaskContext !== null}
+        project={startTaskContext?.project ?? null}
+        projectTask={startTaskContext?.task ?? null}
+        taskTypes={taskTypes}
+        showRate={isAdmin}
+        isTimerRunning={Boolean(activeTimer?.isRunning)}
+        onClose={() => setStartTaskContext(null)}
+        onStart={handleStartFromTaskModal}
+      />
 
       {/* Recent Entries */}
       {recentEntries.length > 0 && (
