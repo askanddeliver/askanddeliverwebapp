@@ -1,6 +1,6 @@
 # Ask And Deliver — Time Tracking & Invoicing System
 
-A full-featured time tracking, client management, and invoicing application built for freelancers and consultants. Includes a live timer with resume, per-client discount pricing, profit margin tracking, invoice generation with company branding, lead pipeline management, a public-facing portfolio website, theme customization, data backup/export, and multi-user workspace support with role-based access (admin, member, pending).
+A full-featured time tracking, client management, and invoicing application built for freelancers and consultants. Includes a live timer with resume, per-client discount pricing, profit margin tracking, persistent invoices with optional Stripe payment links, client proposals (phases and investment), lead pipeline management, a public-facing portfolio website, theme customization, data backup/export, and multi-user workspace support with role-based access (admin, member, pending).
 
 ## Features
 
@@ -34,7 +34,9 @@ A full-featured time tracking, client management, and invoicing application buil
 - **Default seeding** — Pre-populate common task types on first use (Design $75, Development $100, Strategy $125, Meeting $50, Admin $0)
 
 ### Invoicing & Reports
-- **Invoice generation** — Generate invoices with full discount calculations, showing base vs. effective rates; supports single-client or all-clients mode
+- **Persistent invoices** — Create invoices from Reports preview; list, filter, and manage status (DRAFT → SENT → PAID) on the Invoices page; auto-numbering and draft editing
+- **Online payment links (optional)** — When Stripe is configured, create a shareable Payment Link for a SENT invoice; successful checkout marks the invoice PAID via webhook; customers land on `/invoices/paid` after paying
+- **Invoice generation** — Generate invoice data with full discount calculations, showing base vs. effective rates; supports single-client or all-clients mode from Reports
 - **Company branding** — Company name, address, phone, and email appear in invoice headers (configured in Site Config)
 - **Client billing details** — Business entity, address, and payment preference (ACH/mailed check) on invoices
 - **Fixed-cost line items** — Add third-party costs (plugins, hosting, subcontractors, etc.) as flat-fee charges on invoices, separate from hourly time entries
@@ -43,6 +45,11 @@ A full-featured time tracking, client management, and invoicing application buil
 - **Summary statistics** — Overview of total hours, total billed, and effective rates
 - **CSV export** — Export time entries and fixed-cost line items for external accounting
 - **Full data backup** — Export entire workspace as JSON (clients, projects, task types, project tasks, time entries, line items)
+
+### Proposals (Admin)
+- **Client-linked proposals** — Create proposals tied to a client and optional project, with auto-numbering and DRAFT / FINALIZED status
+- **Structured content** — Introduction, challenge, solution, assumptions (markdown), phases (with optional cost/hours/duration), and investment section (line items, fees, totals); optional sync of investment lines from phases
+- **Branding snapshot** — Stores accent colors and company/client snapshots for a consistent PDF-style preview
 
 ### Lead Management
 - **Public intake form** — Prospective clients submit project inquiries from the public website with confidence level (YES, MAYBE, UNSURE), project type, budget, timeline, and message
@@ -111,6 +118,7 @@ A full-featured time tracking, client management, and invoicing application buil
 | Backend | Express.js + TypeScript |
 | Database | MongoDB + Mongoose |
 | Authentication | Auth0 (SPA + M2M) |
+| Payments (optional) | Stripe Payment Links + webhooks |
 | File Uploads | Multer + Cloudinary |
 | Security | Helmet, CORS |
 | Dev Tools | ESLint, Prettier, Nodemon, Concurrently |
@@ -130,7 +138,8 @@ askanddeliverwebapp/
 │   │   │   ├── portfolio/        # Portfolio project list, modal, media upload (images + video embeds)
 │   │   │   ├── projects/         # Project cards, list, modal, brief editor (Tiptap)
 │   │   │   ├── projectTasks/     # Project task list, modal
-│   │   │   ├── invoices/         # Invoice detail, create modal, status badge
+│   │   │   ├── invoices/         # Invoice detail, create modal, status badge, payment link
+│   │   │   ├── proposals/        # Proposal detail, preview, create modal, markdown
 │   │   │   ├── public/           # Public layout, navbar, footer, lightbox, portfolio media
 │   │   │   ├── reports/          # Invoice preview, filters, export, line items, member contributions
 │   │   │   ├── taskTypes/        # Task type list, modal
@@ -155,7 +164,9 @@ askanddeliverwebapp/
 │   │   │   ├── TaskTypes.tsx     # Task type configuration
 │   │   │   ├── TimeEntries.tsx   # Time entry list and management
 │   │   │   ├── Reports.tsx       # Invoice generation and reports
-│   │   │   ├── Invoices.tsx      # Invoice list, detail, status management
+│   │   │   ├── Invoices.tsx      # Invoice list, detail, status, payment links
+│   │   │   ├── Proposals.tsx     # Proposal list and editor (admin)
+│   │   │   ├── InvoicePaid.tsx   # Public post–Stripe-checkout thank-you
 │   │   │   ├── Leads.tsx         # Lead pipeline management
 │   │   │   ├── PortfolioAdmin.tsx # Portfolio project management
 │   │   │   ├── SiteConfig.tsx    # Theme colors + company info
@@ -189,6 +200,9 @@ askanddeliverwebapp/
 │   │   │   ├── timeEntries.ts    # Timer start/stop/continue, manual entry, CRUD
 │   │   │   ├── projectTasks.ts   # Project task CRUD + reorder
 │   │   │   ├── reports.ts        # Invoice generation + summary + margin tracking
+│   │   │   ├── invoices.ts       # Invoice CRUD, status, Stripe payment links
+│   │   │   ├── proposals.ts      # Proposal CRUD + status (DRAFT/FINALIZED)
+│   │   │   ├── webhooks.ts       # Stripe webhook (checkout.session.completed)
 │   │   │   ├── export.ts         # CSV export + full JSON backup
 │   │   │   ├── lineItems.ts      # Fixed-cost line item CRUD
 │   │   │   ├── portfolio.ts      # Portfolio CRUD + publish/feature/reorder/seed
@@ -204,6 +218,8 @@ askanddeliverwebapp/
 │   │   │   ├── TimeEntry.ts      # Time records with timer support
 │   │   │   ├── ProjectTask.ts    # Project sub-tasks with ordering
 │   │   │   ├── LineItem.ts       # Fixed-cost billing items
+│   │   │   ├── Invoice.ts        # Persistent invoices + Stripe link fields
+│   │   │   ├── Proposal.ts       # Client proposals (phases, investment, snapshots)
 │   │   │   ├── Lead.ts           # Lead pipeline with notes + conversion tracking
 │   │   │   ├── PortfolioProject.ts # Portfolio case studies with media
 │   │   │   └── SiteConfig.ts     # Theme colors + palettes + company info
@@ -214,13 +230,18 @@ askanddeliverwebapp/
 │   │   │   ├── database.ts       # MongoDB connection
 │   │   │   └── cloudinary.ts     # Cloudinary media upload config
 │   │   ├── lib/
-│   │   │   └── auth0Management.ts # Auth0 Management API (add-by-email lookup)
+│   │   │   ├── auth0Management.ts # Auth0 Management API (add-by-email lookup)
+│   │   │   └── stripeClient.ts   # Stripe Payment Link creation (optional)
 │   │   ├── utils/
 │   │   │   └── calculations.ts   # Discount rate, amount, duration, currency utilities
 │   │   └── types/                # TypeScript type definitions
-├── docs/
-│   ├── SHOPIFY_AUTH.md           # Auth adaptation guide for Shopify embedded apps
-│   └── PAYMENT_LINKS_BUILD_PLAN.md  # Build plan for online invoice payment links (Stripe)
+├── docs/                         # Planning & reference (not required to run the app)
+│   ├── SHOPIFY_AUTH.md
+│   ├── PAYMENT_LINKS_BUILD_PLAN.md
+│   ├── PROPOSAL_GENERATOR_BUILD_PLAN.md
+│   ├── DASHBOARD_TODO_BUILD_PLAN.md
+│   ├── ask-deliver-proposal-template.md
+│   └── fpb-tracker-proposal.md
 ├── .env.example
 ├── package.json
 ├── SETUP.md
@@ -298,9 +319,14 @@ CLOUDINARY_API_SECRET=your-api-secret
 # Optional: For "Add by Email" — create M2M app in Auth0, authorize read:users
 # AUTH0_M2M_CLIENT_ID=
 # AUTH0_M2M_CLIENT_SECRET=
+
+# Optional: Stripe — online invoice payment links (omit to disable)
+# STRIPE_SECRET_KEY=sk_test_...
+# STRIPE_WEBHOOK_SECRET=whsec_...
+# FRONTEND_URL=http://localhost:5173
 ```
 
-See [SETUP.md](SETUP.md) for detailed MongoDB Atlas, Auth0, and Cloudinary configuration. For "Add by Email," see [server/AUTH0_M2M_SETUP.md](server/AUTH0_M2M_SETUP.md).
+See [SETUP.md](SETUP.md) for detailed MongoDB Atlas, Auth0, Cloudinary, and Stripe configuration. For "Add by Email," see [server/AUTH0_M2M_SETUP.md](server/AUTH0_M2M_SETUP.md).
 
 ---
 
@@ -333,6 +359,12 @@ See [SETUP.md](SETUP.md) for detailed MongoDB Atlas, Auth0, and Cloudinary confi
 | `GET` | `/api/portfolio/public/:slug` | Portfolio project by slug |
 | `GET` | `/api/site-config/public` | Active theme colors |
 | `POST` | `/api/leads/public` | Submit intake form |
+
+### Webhooks (not JWT — Stripe-signed)
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/api/webhooks/stripe` | Stripe `checkout.session.completed` — marks invoice PAID (requires `STRIPE_SECRET_KEY` + `STRIPE_WEBHOOK_SECRET`; uses raw body) |
 
 ### Protected Routes (require Auth0 JWT)
 
@@ -416,6 +448,32 @@ See [SETUP.md](SETUP.md) for detailed MongoDB Atlas, Auth0, and Cloudinary confi
 | `PUT` | `/api/line-items/:id` | Update line item |
 | `DELETE` | `/api/line-items/:id` | Delete line item |
 
+#### Invoices (Admin)
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/api/invoices` | List invoices (filters: status, clientId, startDate, endDate, search) |
+| `GET` | `/api/invoices/next-number` | Next auto-generated invoice number |
+| `GET` | `/api/invoices/stats` | Counts/totals by status |
+| `GET` | `/api/invoices/payment-link-config` | `{ enabled }` — whether Stripe payment links are configured |
+| `POST` | `/api/invoices/:id/create-payment-link` | Create Stripe Payment Link for a SENT invoice (503 if Stripe unset) |
+| `GET` | `/api/invoices/:id` | Single invoice with populated client/projects |
+| `POST` | `/api/invoices` | Create invoice from preview payload |
+| `PATCH` | `/api/invoices/:id/status` | Transition DRAFT/SENT/PAID (links/unlinks time entries and line items) |
+| `PUT` | `/api/invoices/:id` | Update DRAFT invoice (number, notes) |
+| `DELETE` | `/api/invoices/:id` | Delete DRAFT invoice |
+
+#### Proposals (Admin)
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/api/proposals` | List proposals (filters: status, clientId, startDate, endDate, search) |
+| `GET` | `/api/proposals/next-number` | Next proposal number |
+| `GET` | `/api/proposals/stats` | Draft vs. finalized counts |
+| `POST` | `/api/proposals` | Create proposal |
+| `GET` | `/api/proposals/:id` | Single proposal |
+| `PATCH` | `/api/proposals/:id` | Update DRAFT proposal (content, client, project, phases, investment) |
+| `PATCH` | `/api/proposals/:id/status` | Set DRAFT or FINALIZED |
+| `DELETE` | `/api/proposals/:id` | Delete DRAFT proposal |
+
 #### Portfolio (Admin)
 | Method | Endpoint | Description |
 |--------|----------|-------------|
@@ -482,7 +540,13 @@ Time records with `startTime`, `endTime`, `duration` (seconds), and `isRunning` 
 Sub-tasks within a Project. Tracks `title`, `description`, `status` (TODO / IN_PROGRESS / COMPLETED), `order` (for drag-and-drop), and `estimatedHours`.
 
 ### LineItem
-Fixed-cost billing entries for non-hourly charges. Linked to a Client and optionally a Project. Tracks `description`, `amount`, `category` (e.g., Software/Plugin, Hosting, Subcontractor), and `date`. Included alongside time entries in invoices and CSV exports.
+Fixed-cost billing entries for non-hourly charges. Linked to a Client and optionally a Project. Tracks `description`, `amount`, `category` (e.g., Software/Plugin, Hosting, Subcontractor), and `date`. Included alongside time entries in invoices and CSV exports. Optional `invoiceId` when included on a SENT invoice.
+
+### Invoice
+Workspace-scoped billing document created from Reports or API. Tracks `invoiceNumber`, `status` (DRAFT | SENT | PAID), `clientId`, `projectIds`, `dateRange`, snapshotted `companyInfo` and `clientInfo`, rolled-up `items`, totals (`totalHours`, `totalEarned`, `totalMargin`), `timeEntryIds`, `lineItemIds`, `sentAt`, `paidAt`, optional `paymentLinkUrl` and `stripePaymentLinkId` when using Stripe Payment Links.
+
+### Proposal
+Admin-scoped client proposal with `proposalNumber`, `title`, `clientId`, optional `projectId`, `status` (DRAFT | FINALIZED), `proposalDate`, `accentSnapshot`, `companyInfo`, `clientInfo`, narrative fields (`introduction`, `challenge`, `solution`, `assumptions`, `terms`), `phases`, `investment` (line items, fees, subtotal/total), `investmentSyncPhases`, and optional `sourceMarkdown`.
 
 ### Lead
 Intake form submissions with pipeline management. Captures `confidence` (YES / MAYBE / UNSURE), `projectType`, `budget`, `timeline`, contact info (`name`, `email`, `company`, `message`), `description`, pipeline `status` (NEW through WON/LOST), `priority`, timestamped `notes` (with `createdBy`), and conversion references (`convertedClientId`, `convertedProjectId`).
@@ -548,9 +612,12 @@ CLOUDINARY_CLOUD_NAME=your-cloud-name
 CLOUDINARY_API_KEY=your-api-key
 CLOUDINARY_API_SECRET=your-api-secret
 PRIMARY_ADMIN_EMAIL=your-email@example.com
+STRIPE_SECRET_KEY=sk_live_...
+STRIPE_WEBHOOK_SECRET=whsec_...
+FRONTEND_URL=https://www.askanddeliver.com
 ```
 
-**Auth0** — Add production URLs to Allowed Callback URLs, Allowed Logout URLs, and Allowed Web Origins (keep `http://localhost:5173` for local dev).
+Configure the Stripe webhook endpoint URL to `https://<your-railway-url>/api/webhooks/stripe` and subscribe to `checkout.session.completed`. **Auth0** — Add production URLs to Allowed Callback URLs, Allowed Logout URLs, and Allowed Web Origins (keep `http://localhost:5173` for local dev).
 
 ### DNS (Network Solutions → Vercel)
 | Type | Host | Value |

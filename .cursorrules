@@ -23,7 +23,9 @@ client/                        # React frontend (Vite)
       clients/                 # Client cards, list, modal, task discounts
       entries/                 # Time entry list, row, modal
       leads/                   # Lead detail modal, convert modal
-      portfolio/               # Portfolio project list, modal, image upload
+      portfolio/               # Portfolio project list, modal, media upload
+      invoices/                # Invoice detail, modals, status, payment link
+      proposals/               # Proposal editor, preview, markdown
       projects/                # Project cards, list, modal
       projectTasks/            # Project task list, modal
       public/                  # Public layout, navbar, footer, lightbox
@@ -37,7 +39,7 @@ client/                        # React frontend (Vite)
       AdminRoute.tsx           # Admin-only route guard
       ProtectedRoute.tsx       # Auth guard (waits for token readiness)
       Loading.tsx
-    pages/                     # Route-level components (16 pages)
+    pages/                     # Route-level components (public + protected admin)
     contexts/
       ApiAuthContext.tsx        # Token lifecycle, readiness flag, public vs auth API instances
       UserContext.tsx           # User role (admin/member/pending), workspace context
@@ -50,14 +52,15 @@ client/                        # React frontend (Vite)
     types/
       index.ts                 # All TypeScript interfaces and type unions
     utils/
-      calculations.ts          # Duration formatting, discount math, date helpers
+      calculations.ts          # Duration formatting, discount math, date helpers (incl. UTC day bounds)
+      videoEmbed.ts            # Vimeo/YouTube embed URLs and thumbnails
     data/                      # Static data helpers
     styles/
       index.css                # Tailwind base + theme CSS variables
 server/                        # Express backend
   src/
-    routes/                    # 14 route modules (see below)
-    models/                    # 10 Mongoose models (see below)
+    routes/                    # 17 route modules + Stripe webhook (see below)
+    models/                    # 12 Mongoose models + legacy Item (see below)
     middleware/
       auth.ts                  # checkJwt, extractUserId, requireAdmin, getWorkspaceOwnerId, optionalAuth, loadUser
       errorHandler.ts          # asyncHandler, createError, notFoundHandler, errorHandler
@@ -66,6 +69,7 @@ server/                        # Express backend
       cloudinary.ts            # Cloudinary upload config
     lib/
       auth0Management.ts       # Auth0 Management API client (M2M for add-by-email)
+      stripeClient.ts          # Stripe Payment Links (optional)
     utils/
       calculations.ts          # getEffectiveRate, calculateAmount, formatDuration, formatCurrency, secondsToHours
     types/
@@ -105,8 +109,10 @@ Two data scoping patterns coexist:
 
 Role assignment on first login (`GET /api/users/me`):
 1. `PRIMARY_ADMIN_EMAIL` env match → admin
-2. First user in the database → admin
-3. All other new signups → pending
+2. Existing user with non-pending role → unchanged
+3. Legacy user with no role → admin
+4. First user in the database → admin
+5. All other new signups → pending
 
 ## Code Conventions
 
@@ -232,7 +238,7 @@ NewModelSchema.index({ userId: 1, createdAt: -1 });
 export const NewModel = mongoose.model<INewModel>('NewModel', NewModelSchema);
 ```
 
-## Models (10 total)
+## Models (12 production + legacy Item)
 
 | Model | Key Fields | Scoping |
 |-------|-----------|---------|
@@ -240,14 +246,17 @@ export const NewModel = mongoose.model<INewModel>('NewModel', NewModelSchema);
 | Client | name, company, email, businessEntity, address, paymentPreference, taskDiscounts | userId (Pattern A) |
 | Project | clientId, title, description, status, budget | userId (Pattern B) |
 | TaskType | name, rate, color | userId (Pattern B) |
-| TimeEntry | projectId, taskTypeId, projectTaskId, startTime, endTime, duration, isRunning | userId (Pattern B, dual) |
+| TimeEntry | projectId, taskTypeId, projectTaskId, startTime, endTime, duration, isRunning, invoiceId | userId (Pattern B, dual) |
 | ProjectTask | projectId, title, status, order, estimatedHours | userId (Pattern B) |
-| LineItem | clientId, projectId, description, amount, category, date | userId (Pattern A) |
+| LineItem | clientId, projectId, description, amount, category, date, invoiceId | userId (Pattern A) |
+| Invoice | invoiceNumber, status, clientId, projectIds, items, totals, timeEntryIds, lineItemIds, paymentLinkUrl | userId (workspace owner; Pattern A) |
+| Proposal | proposalNumber, title, clientId, projectId, status, phases, investment, snapshots | userId (Pattern A) |
 | Lead | confidence, projectType, budget, timeline, name, email, status, priority, notes | No userId (global) |
 | PortfolioProject | slug, title, client, categories, disciplines, images, published, featured, order | userId (Pattern A) |
 | SiteConfig | colors, palettes, companyName, companyAddress, companyPhone, companyEmail | userId (Pattern A) |
+| Item | — | Legacy MERN starter — unused |
 
-## Routes (14 modules)
+## Routes (17 modules + webhook)
 
 | Mount Path | Module | Auth | Key Features |
 |-----------|--------|------|-------------|
@@ -258,13 +267,16 @@ export const NewModel = mongoose.model<INewModel>('NewModel', NewModelSchema);
 | `/api/task-types` | taskTypes.ts | checkJwt; requireAdmin on writes | CRUD + seed defaults |
 | `/api/time-entries` | timeEntries.ts | checkJwt | Timer start/stop/continue, manual entry, workspace-scoped reads |
 | `/api/project-tasks` | projectTasks.ts | checkJwt; requireAdmin on writes | CRUD + drag-and-drop reorder + status toggle |
-| `/api/reports` | reports.ts | checkJwt + requireAdmin | Invoice generation (discount + margin), summary stats |
+| `/api/reports` | reports.ts | checkJwt + requireAdmin | Invoice preview data (discount + margin), summary stats |
+| `/api/invoices` | invoices.ts | checkJwt + requireAdmin | Invoice CRUD, status transitions, Stripe Payment Links |
+| `/api/proposals` | proposals.ts | checkJwt + requireAdmin | Proposal CRUD, DRAFT/FINALIZED |
 | `/api/export` | export.ts | checkJwt + requireAdmin | CSV export + full JSON workspace backup |
 | `/api/line-items` | lineItems.ts | checkJwt + requireAdmin | Fixed-cost item CRUD with date/project filtering |
 | `/api/portfolio` | portfolio.ts | Mixed (3 public, rest admin) | CRUD, publish/feature toggle, reorder, seed, slug routing |
 | `/api/uploads` | uploads.ts | checkJwt + requireAdmin | Cloudinary image + video upload/list/delete |
 | `/api/leads` | leads.ts | Mixed (1 public, rest admin) | Pipeline management, notes, conversion to client+project |
 | `/api/site-config` | siteConfig.ts | Mixed (1 public, rest admin) | Theme colors, palettes, company info |
+| `/api/webhooks/stripe` | webhooks.ts | Stripe signature (raw body) | `checkout.session.completed` → mark invoice PAID |
 
 ## Common Tasks
 
@@ -305,6 +317,8 @@ export const NewModel = mongoose.model<INewModel>('NewModel', NewModelSchema);
 - `CLOUDINARY_CLOUD_NAME` / `CLOUDINARY_API_KEY` / `CLOUDINARY_API_SECRET` — Media uploads
 - `PRIMARY_ADMIN_EMAIL` — (Optional) Email that always gets admin role
 - `AUTH0_M2M_CLIENT_ID` / `AUTH0_M2M_CLIENT_SECRET` — (Optional) For add-by-email user lookup
+- `STRIPE_SECRET_KEY` / `STRIPE_WEBHOOK_SECRET` — (Optional) Invoice Payment Links + webhook
+- `FRONTEND_URL` — (Optional) Post-payment redirect origin; else first `CLIENT_URL` or localhost
 
 ## Key Implementation Rules
 

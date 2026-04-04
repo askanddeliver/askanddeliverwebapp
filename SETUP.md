@@ -297,7 +297,11 @@ The application is deployed as two separate services with a custom domain.
    CLOUDINARY_API_KEY=your-api-key
    CLOUDINARY_API_SECRET=your-api-secret
    PRIMARY_ADMIN_EMAIL=your-email@example.com
+   STRIPE_SECRET_KEY=sk_live_...
+   STRIPE_WEBHOOK_SECRET=whsec_...
+   FRONTEND_URL=https://www.askanddeliver.com
    ```
+   Add the Stripe webhook URL `https://<your-railway-host>/api/webhooks/stripe` in the Stripe Dashboard (event: `checkout.session.completed`).
 4. Railway auto-detects Node.js and runs `npm start`
 
 ### DNS — Network Solutions

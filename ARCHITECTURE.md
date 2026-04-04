@@ -2,6 +2,18 @@
 
 This document provides a comprehensive technical reference for the Ask And Deliver application. It is intended for future development context, onboarding, and AI-assisted coding sessions.
 
+## Current capabilities snapshot *(April 2026)*
+
+**Baseline:** Production MERN app with Auth0 multi-tenant workspaces (admin / member / pending), MongoDB persistence, and Vercel + Railway split deployment.
+
+- **Time & projects** — Live/resume timer, manual entries, project tasks, dashboard to-dos; workspace-scoped data with role-based visibility (members hide financials).
+- **Billing** — Reports-driven invoice preview; persistent `Invoice` records with DRAFT → SENT → PAID lifecycle; optional **Stripe Payment Links** + webhook to mark paid; CSV export and full JSON backup.
+- **Commercial** — Client proposals (`Proposal` model) with phases, investment totals, and DRAFT / FINALIZED status; lead pipeline with public intake → conversion.
+- **Public site** — Portfolio (case studies, media, themes), marketing pages, post-checkout `/invoices/paid` for Stripe returns.
+- **Ops** — Site config (company + theme), Cloudinary uploads, optional Auth0 M2M for add-by-email.
+
+When this doc or the product diverges, bump the **snapshot** date or add a short changelog note under this subsection.
+
 ---
 
 ## System Overview
@@ -50,16 +62,16 @@ The application supports multi-user workspaces with role-based access control, a
 │  └──────────────────────┬──────────────────────────┘     │
 │                         ▼                                 │
 │  ┌─────────────────────────────────────────────────┐     │
-│  │              15 Route Modules                    │     │
+│  │         17 Route Modules (+ Stripe webhook)     │     │
 │  │  health, users, clients, projects, taskTypes,    │     │
 │  │  timeEntries, projectTasks, reports, invoices,   │     │
-│  │  export, lineItems, portfolio, uploads, leads,   │     │
-│  │  siteConfig                                      │     │
+│  │  proposals, export, lineItems, portfolio,      │     │
+│  │  uploads, leads, siteConfig; webhooks (Stripe) │     │
 │  └──────────────────────┬──────────────────────────┘     │
 │                         ▼                                 │
 │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐   │
-│  │  11 Mongoose  │  │  Cloudinary  │  │  Auth0 M2M   │   │
-│  │   Models      │  │  (uploads)   │  │  (user lookup)│   │
+│  │ 12 Mongoose  │  │  Cloudinary  │  │ Auth0 / Stripe│   │
+│  │  Models      │  │  (uploads)   │  │ (M2M + links) │   │
 │  └──────┬───────┘  └──────────────┘  └──────────────┘   │
 │         │                                                 │
 └─────────┼─────────────────────────────────────────────────┘
@@ -124,7 +136,8 @@ On `GET /api/users/me` (first login auto-creates user):
 | Clients | Full CRUD | No access | Blocked |
 | Task Types | Full CRUD + seed | Read only | Blocked |
 | Reports/Invoice | Full access | No access | Blocked |
-| Invoices | Full CRUD + status | No access | Blocked |
+| Invoices | Full CRUD + status + payment links | No access | Blocked |
+| Proposals | Full CRUD + finalize | No access | Blocked |
 | Export (CSV/Backup) | Full access | No access | Blocked |
 | Line Items | Full CRUD | No access | Blocked |
 | Leads | Full access | No access | Blocked |
@@ -220,8 +233,15 @@ User (auth0Id)
  │     ├── items (snapshot of line items at creation)
  │     ├── total, totalHours, totalEarned, totalMargin
  │     ├── timeEntryIds[] → TimeEntry, lineItemIds[] → LineItem
+ │     ├── paymentLinkUrl?, stripePaymentLinkId? (Stripe Payment Links)
  │     ├── sentAt?, paidAt?, notes?
  │     └── Status transitions: DRAFT→SENT→PAID (reversible)
+ │
+ ├──> Proposal (userId, clientId)
+ │     ├── proposalNumber, title, status: DRAFT | FINALIZED
+ │     ├── proposalDate, phases[], investment (line items + fees)
+ │     ├── accentSnapshot, companyInfo, clientInfo (snapshots)
+ │     └── Optional projectId → Project
  │
  ├──> TaskType (userId)
  │     ├── name, rate, color
@@ -308,6 +328,7 @@ total: number
 totalHours: number, totalEarned: number, totalMargin: number
 timeEntryIds: ObjectId[] → TimeEntry[]
 lineItemIds: ObjectId[] → LineItem[]
+paymentLinkUrl?: string, stripePaymentLinkId?: string (Stripe Payment Links)
 sentAt?: Date, paidAt?: Date
 notes?: string
 ```
@@ -332,7 +353,8 @@ Auth0Provider
                                 ├── Dashboard, Entries, Projects, Profile
                                 └── AdminRoute (requires isAdmin)
                                      └── Clients, TaskTypes, Reports,
-                                         Leads, PortfolioAdmin, SiteConfig, Users
+                                         Invoices, Proposals, Leads,
+                                         PortfolioAdmin, SiteConfig, Users
 ```
 
 ### API Service Layer
@@ -350,7 +372,10 @@ taskTypesApi.getAll(), .seedDefaults(), ...
 timeEntriesApi.getAll(params), .getActive(), .start(data), .stop(), .continue(id), ...
 projectTasksApi.getAll(projectId), .reorder(projectId, taskIds), .updateStatus(id, status), ...
 reportsApi.generateInvoice(params), .getSummary(params)
-invoicesApi.getAll(params), .getOne(id), .getStats(), .getNextNumber(), .create(data), .update(id, data), .updateStatus(id, status), .delete(id)
+invoicesApi.getAll(params), .getOne(id), .getStats(), .getNextNumber(), .getPaymentLinkConfig(),
+  .createPaymentLink(id), .create(data), .update(id, data), .updateStatus(id, status), .delete(id)
+proposalsApi.getAll(params), .getStats(), .getNextNumber(), .getOne(id), .create(data),
+  .update(id, data), .updateStatus(id, status), .delete(id)
 exportApi.csv(params), .backup()
 lineItemsApi.getAll(params), .create(data), ...
 portfolioApi.getAll(), .reorder(ids), .togglePublish(id), .toggleFeature(id), .seed(projects), ...
@@ -391,6 +416,7 @@ The `AdminThemeContext` implements dynamic theming:
 | **Time Tracking** | Entries | All users |
 | | Reports | Admin only |
 | | Invoices | Admin only |
+| | Proposals | Admin only |
 | **Manage** | Clients | Admin only |
 | | Projects | All users |
 | **Business** | Leads | Admin only |
@@ -502,6 +528,10 @@ DRAFT ──→ SENT ──→ PAID
 
 The M2M application requires the `read:users` scope on the Auth0 Management API. See `server/AUTH0_M2M_SETUP.md`.
 
+### Stripe (optional)
+
+When `STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SECRET` are set, admins can create Stripe Payment Links for SENT invoices (`POST /api/invoices/:id/create-payment-link`). The server mounts `POST /api/webhooks/stripe` with **raw** JSON body (before `express.json()`) for signature verification. Successful `checkout.session.completed` events set the invoice to PAID. `FRONTEND_URL` controls the customer success redirect (defaults to first `CLIENT_URL` origin or localhost).
+
 ### Cloudinary
 
 Used for portfolio media storage. Supports:
@@ -570,7 +600,7 @@ askanddeliver.com (Vercel)  ──HTTPS──>  Railway (server)
 
 ## File Index
 
-### Server Routes (15)
+### Server Routes (17 + webhook)
 
 | File | Mount | Auth Pattern |
 |------|-------|-------------|
@@ -583,14 +613,16 @@ askanddeliver.com (Vercel)  ──HTTPS──>  Railway (server)
 | `routes/projectTasks.ts` | `/api/project-tasks` | checkJwt; requireAdmin on writes |
 | `routes/reports.ts` | `/api/reports` | checkJwt + requireAdmin |
 | `routes/invoices.ts` | `/api/invoices` | checkJwt + requireAdmin |
+| `routes/proposals.ts` | `/api/proposals` | checkJwt + requireAdmin |
 | `routes/export.ts` | `/api/export` | checkJwt + requireAdmin |
 | `routes/lineItems.ts` | `/api/line-items` | checkJwt + requireAdmin |
 | `routes/portfolio.ts` | `/api/portfolio` | Mixed (3 public, rest checkJwt + requireAdmin) |
 | `routes/uploads.ts` | `/api/uploads` | checkJwt + requireAdmin |
 | `routes/leads.ts` | `/api/leads` | Mixed (1 public, rest checkJwt + requireAdmin) |
 | `routes/siteConfig.ts` | `/api/site-config` | Mixed (1 public, rest checkJwt + requireAdmin) |
+| `routes/webhooks.ts` | `/api/webhooks/stripe` | Stripe signature (no JWT; raw body) |
 
-### Server Models (11)
+### Server Models (12 production + legacy)
 
 | File | Collection | Key Indexes |
 |------|-----------|-------------|
@@ -600,11 +632,13 @@ askanddeliver.com (Vercel)  ──HTTPS──>  Railway (server)
 | `models/TaskType.ts` | tasktypes | `userId` |
 | `models/TimeEntry.ts` | timeentries | `userId`, `projectId`, `{ userId, isRunning }`, `invoiceId` |
 | `models/Invoice.ts` | invoices | `{ userId, status }`, `{ userId, createdAt }`, `{ userId, invoiceNumber }` (unique) |
+| `models/Proposal.ts` | proposals | `{ userId, status }`, `{ userId, proposalNumber }` |
 | `models/ProjectTask.ts` | projecttasks | `{ projectId, order }`, `userId` |
 | `models/LineItem.ts` | lineitems | `{ userId, clientId }`, `{ userId, date }` |
 | `models/Lead.ts` | leads | `{ status, createdAt }`, `email`, `createdAt` |
 | `models/PortfolioProject.ts` | portfolioprojects | `{ userId, slug }` (unique), `{ userId, published, order }`, `{ userId, published, featured }` |
 | `models/SiteConfig.ts` | siteconfigs | `userId` (unique) |
+| `models/Item.ts` | *(legacy)* | MERN starter artifact — unused |
 
 ### Client Contexts (3)
 
@@ -614,7 +648,7 @@ askanddeliver.com (Vercel)  ──HTTPS──>  Railway (server)
 | `contexts/UserContext.tsx` | Role management | `isAdmin`, `isMember`, `isPending`, `user`, `refetch()` |
 | `contexts/AdminThemeContext.tsx` | Dynamic theming | `refresh()` (re-fetches and applies colors) |
 
-### Client Pages (17)
+### Client Pages (19)
 
 | Page | Route | Protection | Key Features |
 |------|-------|------------|-------------|
@@ -623,14 +657,16 @@ askanddeliver.com (Vercel)  ──HTTPS──>  Railway (server)
 | WorkDetail | `/work/:slug` | Public | Portfolio detail with lightbox |
 | About | `/about` | Public | About page |
 | Contact | `/contact` | Public | Lead intake form |
-| Dashboard | `/dashboard` | Auth | Timer, quick entry, recent entries |
+| InvoicePaid | `/invoices/paid` | Public | Post–Stripe-checkout confirmation |
+| Dashboard | `/dashboard` | Auth | Timer, quick entry, recent entries, dashboard to-dos |
 | TimeEntries | `/entries` | Auth | Entry list with filters, CRUD |
 | Projects | `/projects` | Auth | Project list with status tabs, tasks, rich-text briefs |
 | Profile | `/profile` | Auth | User profile management |
 | Clients | `/clients` | Admin | Client CRUD with discounts |
 | TaskTypes | `/task-types` | Admin | Task type CRUD + seeding |
 | Reports | `/reports` | Admin | Billing preview, create invoices, line items, export |
-| Invoices | `/invoices` | Admin | Invoice list, status management (DRAFT/SENT/PAID), detail view |
+| Invoices | `/invoices` | Admin | Invoice list, status, payment links, detail |
+| Proposals | `/proposals` | Admin | Proposal list, editor, preview, finalize |
 | Leads | `/leads` | Admin | Lead pipeline, conversion |
 | PortfolioAdmin | `/portfolio-admin` | Admin | Portfolio CRUD, media uploads, video embeds |
 | SiteConfig | `/site-config` | Admin | Theme colors, palettes, company info |
