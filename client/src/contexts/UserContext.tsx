@@ -7,7 +7,7 @@ import {
   type ReactNode,
 } from 'react';
 import { useAuth0 } from '@auth0/auth0-react';
-import { setAuthToken, usersApi } from '../services/api';
+import { usersApi } from '../services/api';
 import type { User, UserRole } from '../types';
 
 interface UserContextValue {
@@ -24,7 +24,7 @@ interface UserContextValue {
 const UserContext = createContext<UserContextValue | null>(null);
 
 export function UserProvider({ children }: { children: ReactNode }) {
-  const { isAuthenticated, getAccessTokenSilently } = useAuth0();
+  const { isAuthenticated } = useAuth0();
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -38,9 +38,6 @@ export function UserProvider({ children }: { children: ReactNode }) {
     try {
       setIsLoading(true);
       setError(null);
-      // Ensure token is set before any API call (avoids 400 from auth middleware)
-      const token = await getAccessTokenSilently();
-      setAuthToken(token);
       const res = await usersApi.getMe();
       setUser(res.data);
     } catch (err) {
@@ -50,7 +47,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
     } finally {
       setIsLoading(false);
     }
-  }, [isAuthenticated, getAccessTokenSilently]);
+  }, [isAuthenticated]);
 
   useEffect(() => {
     fetchUser();

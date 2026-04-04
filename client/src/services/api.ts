@@ -1,4 +1,4 @@
-import axios from 'axios';
+import axios, { type AxiosError, type InternalAxiosRequestConfig } from 'axios';
 import type {
   User,
   Client,
@@ -30,6 +30,28 @@ import type {
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
 
+/** Legacy key from older builds — remove once so tokens are not left in localStorage */
+const LEGACY_AUTH_TOKEN_KEY = 'auth0_token';
+try {
+  localStorage.removeItem(LEGACY_AUTH_TOKEN_KEY);
+} catch {
+  /* ignore */
+}
+
+type RetryableConfig = InternalAxiosRequestConfig & { _retry?: boolean };
+
+type AccessTokenGetter = () => Promise<string | null>;
+
+let getAccessTokenFromAuth: AccessTokenGetter | null = null;
+
+/**
+ * Registered from ApiAuthContext so axios can attach a fresh bearer token per request
+ * without persisting tokens in localStorage.
+ */
+export function registerAccessTokenGetter(fn: AccessTokenGetter | null): void {
+  getAccessTokenFromAuth = fn;
+}
+
 const api = axios.create({
   baseURL: API_URL,
   headers: {
@@ -39,33 +61,47 @@ const api = axios.create({
   },
 });
 
-// Token storage key
-const TOKEN_KEY = 'auth0_token';
+api.interceptors.request.use(
+  async (config) => {
+    if (!getAccessTokenFromAuth) {
+      delete config.headers.Authorization;
+      return config;
+    }
+    try {
+      const token = await getAccessTokenFromAuth();
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+      } else {
+        delete config.headers.Authorization;
+      }
+    } catch {
+      delete config.headers.Authorization;
+    }
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
 
-// Set the auth token for API requests
-export const setAuthToken = (token: string | null) => {
-  if (token) {
-    localStorage.setItem(TOKEN_KEY, token);
-    api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-  } else {
-    localStorage.removeItem(TOKEN_KEY);
-    delete api.defaults.headers.common['Authorization'];
-  }
-};
-
-// Initialize token from storage on load
-const storedToken = localStorage.getItem(TOKEN_KEY);
-if (storedToken) {
-  api.defaults.headers.common['Authorization'] = `Bearer ${storedToken}`;
-}
-
-// Response interceptor for error handling
 api.interceptors.response.use(
   (response) => response,
-  (error) => {
-    if (error.response?.status === 401) {
-      // Token expired or invalid, clear it
-      setAuthToken(null);
+  async (error: AxiosError) => {
+    const original = error.config as RetryableConfig | undefined;
+    if (
+      error.response?.status === 401 &&
+      original &&
+      !original._retry &&
+      getAccessTokenFromAuth
+    ) {
+      original._retry = true;
+      try {
+        const token = await getAccessTokenFromAuth();
+        if (token) {
+          original.headers.Authorization = `Bearer ${token}`;
+          return api(original);
+        }
+      } catch {
+        /* fall through */
+      }
     }
     return Promise.reject(error);
   }
