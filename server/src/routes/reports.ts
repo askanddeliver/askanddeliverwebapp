@@ -2,31 +2,18 @@ import { Router, Response } from 'express';
 import { checkJwt, AuthRequest, extractUserId, getWorkspaceOwnerId, requireAdmin } from '../middleware/auth';
 import { asyncHandler, createError } from '../middleware/errorHandler';
 import { TimeEntry, Client, IClient, ITimeEntry, IProject, ITaskType, LineItem, Project, User, SiteConfig } from '../models';
-import { parseDateStart, parseDateEnd } from '../utils/calculations';
+import {
+  parseDateStart,
+  parseDateEnd,
+  getDiscountPercent,
+  getEffectiveRate,
+} from '../utils/calculations';
 
 const router = Router();
 
 // All routes require authentication + admin
 router.use(checkJwt);
 router.use(requireAdmin);
-
-/**
- * Safely read a discount value from a client's taskDiscounts field.
- * Handles both Mongoose Map objects and plain objects.
- */
-function getDiscount(client: IClient | null, taskTypeId: string): number {
-  if (!client || !client.taskDiscounts) return 0;
-
-  // Try Mongoose Map .get() first
-  if (typeof client.taskDiscounts.get === 'function') {
-    return client.taskDiscounts.get(taskTypeId) || 0;
-  }
-
-  // Fallback: plain object access (e.g. from .lean() or JSON)
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const discounts = client.taskDiscounts as any;
-  return discounts[taskTypeId] || 0;
-}
 
 // POST /api/reports/generate-invoice - Generate invoice data (all workspace entries)
 router.post(
@@ -159,9 +146,9 @@ router.post(
       const entryClient = entryClientId ? clientCache.get(entryClientId) || null : null;
 
       const taskTypeKey = taskType._id.toString();
-      const discount = getDiscount(entryClient, taskTypeKey);
+      const discount = getDiscountPercent(entryClient, taskTypeKey);
       const clampedDiscount = Math.min(100, Math.max(0, discount));
-      const effectiveRate = taskType.rate * (1 - clampedDiscount / 100);
+      const effectiveRate = getEffectiveRate(taskType, entryClient);
       const hours = (entry as ITimeEntry).duration / 3600;
       const amount = hours * effectiveRate;
 

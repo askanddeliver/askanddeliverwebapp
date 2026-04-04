@@ -713,9 +713,9 @@ askanddeliver.com (Vercel)  ──HTTPS──>  Railway (server)
 
 ## Known Technical Debt
 
-1. **Discount calculation duplication** — The effective rate formula is implemented in three places: `server/src/utils/calculations.ts`, `server/src/routes/reports.ts`, and `server/src/routes/export.ts`. Should be consolidated to use the shared utility.
+1. ~~**Discount calculation duplication**~~ — Addressed: `getDiscountPercent` and `getEffectiveRate` in `server/src/utils/calculations.ts` are used by `reports.ts` and `export.ts`.
 2. **Unused middleware exports** — `optionalAuth` and `loadUser` are exported from `auth.ts` but not used in any route.
 3. **Legacy model** — `models/Item.ts` is a leftover from the MERN starter template.
 4. **Lead scoping** — Leads have no `userId` field, making them visible to all admins across workspaces. This works for single-workspace deployments but would need scoping for multi-workspace.
-5. **Token in localStorage** — Auth tokens are stored in localStorage (`auth0_token` key) which is vulnerable to XSS. Consider migrating to Auth0's built-in token caching with `useRefreshTokens` and `cacheLocation: 'memory'`.
+5. ~~**Token in localStorage**~~ — Addressed: axios uses `registerAccessTokenGetter` + `getAccessTokenSilently()` per request; `Auth0Provider` uses `useRefreshTokens` and `cacheLocation="memory"`. Legacy `auth0_token` key is removed on load.
 6. **`qs` array limit on GET query params** — Express uses the `qs` library for query string parsing, which has a default `arrayLimit` of 20. When a GET request sends more than 20 array items (e.g. `projectIds[]=...`), `qs` silently converts the parsed result from an array to a plain object (`{ '0': 'val', '1': 'val', ... }`). All GET routes that accept array query parameters must normalize the value by checking `Array.isArray()`, `typeof === 'string'`, and `typeof === 'object'` (using `Object.values()`). This pattern is implemented in `timeEntries.ts` and `lineItems.ts`. POST routes sending JSON bodies are not affected.

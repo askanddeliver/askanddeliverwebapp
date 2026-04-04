@@ -2,17 +2,34 @@ import { ITaskType } from '../models/TaskType';
 import { IClient } from '../models/Client';
 
 /**
- * Get the effective hourly rate after applying client-specific discount
- * Discount is stored as a percentage (0-100)
- * Example: rate=100, discount=50 => effective rate = $50/hr
+ * Read discount percentage for a task type from client.taskDiscounts.
+ * Handles both Mongoose Map and plain objects (e.g. .lean() / JSON).
+ */
+export function getDiscountPercent(
+  client: IClient | null | undefined,
+  taskTypeId: string
+): number {
+  if (!client || !client.taskDiscounts) return 0;
+
+  if (typeof client.taskDiscounts.get === 'function') {
+    return client.taskDiscounts.get(taskTypeId) || 0;
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const discounts = client.taskDiscounts as any;
+  return discounts[taskTypeId] || 0;
+}
+
+/**
+ * Effective hourly rate after applying client-specific discount.
+ * Discount is stored as a percentage (0-100).
  */
 export function getEffectiveRate(
   taskType: ITaskType,
-  client: IClient
+  client: IClient | null | undefined
 ): number {
   const taskTypeId = taskType._id.toString();
-  const discount = client.taskDiscounts?.get(taskTypeId) || 0;
-  // Clamp discount between 0 and 100
+  const discount = getDiscountPercent(client, taskTypeId);
   const clampedDiscount = Math.min(100, Math.max(0, discount));
   return taskType.rate * (1 - clampedDiscount / 100);
 }

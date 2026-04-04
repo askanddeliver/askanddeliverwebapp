@@ -1,8 +1,20 @@
 import { Router, Response } from 'express';
 import { checkJwt, AuthRequest, extractUserId, getWorkspaceOwnerId, requireAdmin } from '../middleware/auth';
 import { asyncHandler, createError } from '../middleware/errorHandler';
-import { TimeEntry, Client, LineItem, ITimeEntry, IProject, ITaskType, IProjectTask, Project, TaskType, ProjectTask } from '../models';
-import { parseDateStart, parseDateEnd } from '../utils/calculations';
+import {
+  TimeEntry,
+  Client,
+  LineItem,
+  ITimeEntry,
+  IProject,
+  ITaskType,
+  IProjectTask,
+  IClient,
+  Project,
+  TaskType,
+  ProjectTask,
+} from '../models';
+import { parseDateStart, parseDateEnd, getEffectiveRate } from '../utils/calculations';
 
 const router = Router();
 
@@ -109,25 +121,43 @@ router.post(
       });
     }
 
-    // Get client for discount info
-    let client = null;
+    // Client cache for per-entry discounts (single-client filter or all-clients)
+    const clientCache = new Map<string, IClient>();
     if (clientId) {
-      client = await Client.findOne({ _id: clientId, userId: workspaceOwnerId });
+      const c = await Client.findOne({ _id: clientId, userId: workspaceOwnerId });
+      if (c) clientCache.set(clientId, c);
+    } else {
+      const clientIds = new Set<string>();
+      for (const entry of filteredEntries) {
+        const proj = entry.projectId as unknown as IProject & { clientId: { _id: string } };
+        const cid = proj?.clientId?._id?.toString();
+        if (cid) clientIds.add(cid);
+      }
+      if (clientIds.size > 0) {
+        const clients = await Client.find({
+          _id: { $in: Array.from(clientIds) },
+          userId: workspaceOwnerId,
+        });
+        for (const c of clients) {
+          clientCache.set(c._id.toString(), c);
+        }
+      }
     }
 
     const rows = filteredEntries.map((entry) => {
-      const project = entry.projectId as unknown as IProject & { clientId: { name: string } };
+      const project = entry.projectId as unknown as IProject & {
+        clientId: { _id: string; name: string };
+      };
       const taskType = entry.taskTypeId as unknown as ITaskType;
       const projectTask = entry.projectTaskId as unknown as IProjectTask | null;
       const hours = ((entry as ITimeEntry).duration / 3600).toFixed(2);
       const clientName = project?.clientId?.name || 'Unknown';
 
-      // Calculate effective rate with discount
-      let effectiveRate = taskType?.rate || 0;
-      if (client && taskType) {
-        const discount = client.taskDiscounts?.get(taskType._id.toString()) || 0;
-        effectiveRate = taskType.rate * (1 - Math.min(100, Math.max(0, discount)) / 100);
-      }
+      const entryClientId = project?.clientId?._id?.toString();
+      const entryClient = entryClientId ? clientCache.get(entryClientId) || null : null;
+      const effectiveRate = taskType
+        ? getEffectiveRate(taskType, entryClient)
+        : 0;
 
       const amount = (parseFloat(hours) * effectiveRate).toFixed(2);
 
