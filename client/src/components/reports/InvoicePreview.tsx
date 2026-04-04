@@ -198,15 +198,30 @@ export function InvoicePreview({ invoice }: InvoicePreviewProps) {
         )}
 
         {/* Payment info footer on page 1 */}
-        {(companyInfo?.email || companyInfo?.phone) && (
+        {(companyInfo?.email || companyInfo?.phone || invoice.paymentLinkUrl) && (
           <div className="mt-4 pt-3 border-t border-gray-100 text-sm text-gray-500">
             <p className="font-medium text-gray-700">Payment</p>
-            <p>
-              {invoice.client?.paymentPreference === 'ACH'
-                ? 'Please remit payment via ACH transfer. For transfer details, contact '
-                : 'Please send payment to the address above. For questions, contact '}
-              {companyInfo.email || companyInfo.phone}.
-            </p>
+            {invoice.paymentLinkUrl && (
+              <p className="mt-1 text-gray-700">
+                <span className="font-medium">Pay online: </span>
+                <a
+                  href={invoice.paymentLinkUrl}
+                  className="text-primary-600 underline break-all"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  {invoice.paymentLinkUrl}
+                </a>
+              </p>
+            )}
+            {(companyInfo?.email || companyInfo?.phone) && (
+              <p className={invoice.paymentLinkUrl ? 'mt-2' : ''}>
+                {invoice.client?.paymentPreference === 'ACH'
+                  ? 'Please remit payment via ACH transfer. For transfer details, contact '
+                  : 'Please send payment to the address above. For questions, contact '}
+                {companyInfo.email || companyInfo.phone}.
+              </p>
+            )}
           </div>
         )}
       </div>

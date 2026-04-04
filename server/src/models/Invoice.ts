@@ -50,6 +50,10 @@ export interface IInvoice extends Document {
   lineItemIds: mongoose.Types.ObjectId[];
   sentAt?: Date;
   paidAt?: Date;
+  /** Stripe Payment Link URL (shareable checkout) */
+  paymentLinkUrl?: string;
+  /** Stripe Payment Link id (plink_…) for webhook lookup */
+  stripePaymentLinkId?: string;
   notes?: string;
   createdAt: Date;
   updatedAt: Date;
@@ -137,6 +141,8 @@ const InvoiceSchema = new Schema<IInvoice>(
     ],
     sentAt: { type: Date },
     paidAt: { type: Date },
+    paymentLinkUrl: { type: String, trim: true },
+    stripePaymentLinkId: { type: String, trim: true },
     notes: { type: String, trim: true },
   },
   {

@@ -35,10 +35,10 @@ function PublicNavbar() {
     <nav
       className={`fixed top-0 w-full z-50 transition-all duration-300 ${
         scrolled
-          ? 'bg-white/95 backdrop-blur-md shadow-sm'
+          ? 'bg-white shadow-sm border-b border-neutral-100/90'
           : isHome
           ? 'bg-transparent'
-          : 'bg-brand-cream/95 backdrop-blur-md'
+          : 'bg-brand-cream border-b border-neutral-200/35'
       }`}
     >
       {/* Logo - flush top-left corner, uses mask-image so color follows CSS variable */}
@@ -138,7 +138,7 @@ function PublicNavbar() {
 
         {/* Mobile Navigation */}
         {mobileOpen && (
-          <div className="md:hidden border-t border-neutral-200/50 py-6 bg-white/95 backdrop-blur-md -mx-6 px-6">
+          <div className="md:hidden border-t border-neutral-200/50 py-6 bg-white -mx-6 px-6">
             <div className="space-y-1">
               {publicNavLinks.map(({ to, label }) => (
                 <Link

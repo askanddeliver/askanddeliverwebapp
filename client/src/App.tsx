@@ -16,6 +16,7 @@ import Work from './pages/Work';
 import WorkDetail from './pages/WorkDetail';
 import About from './pages/About';
 import Contact from './pages/Contact';
+import InvoicePaid from './pages/InvoicePaid';
 
 // Admin Pages (Protected)
 import Dashboard from './pages/Dashboard';
@@ -98,6 +99,14 @@ function App() {
         element={
           <PublicLayout>
             <Contact />
+          </PublicLayout>
+        }
+      />
+      <Route
+        path="/invoices/paid"
+        element={
+          <PublicLayout>
+            <InvoicePaid />
           </PublicLayout>
         }
       />

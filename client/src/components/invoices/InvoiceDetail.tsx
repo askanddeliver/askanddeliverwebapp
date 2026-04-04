@@ -1,5 +1,18 @@
 import { useState, useEffect } from 'react';
-import { X, Printer, Send, CheckCircle, RotateCcw, Trash2, Edit3, ChevronDown, ChevronUp } from 'lucide-react';
+import {
+  X,
+  Printer,
+  Send,
+  CheckCircle,
+  RotateCcw,
+  Trash2,
+  Edit3,
+  ChevronDown,
+  ChevronUp,
+  Link2,
+  Copy,
+  ExternalLink,
+} from 'lucide-react';
 import { InvoiceStatusBadge } from './InvoiceStatusBadge';
 import { InvoicePreview } from '../reports/InvoicePreview';
 import { EntryRow } from '../entries/EntryRow';
@@ -24,12 +37,33 @@ export function InvoiceDetail({ invoice, onClose, onUpdated, onDeleted }: Invoic
   const [showEntryIds, setShowEntryIds] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [confirmRevert, setConfirmRevert] = useState<InvoiceStatus | null>(null);
+  const [stripePaymentLinksEnabled, setStripePaymentLinksEnabled] = useState<boolean | null>(null);
+  const [paymentLinkCopied, setPaymentLinkCopied] = useState(false);
 
   // Time entries for PDF
   const [entries, setEntries] = useState<TimeEntry[]>([]);
   const [loadingEntries, setLoadingEntries] = useState(false);
   const [includeTimeEntries, setIncludeTimeEntries] = useState(true);
   const [includeDescriptions, setIncludeDescriptions] = useState(false);
+
+  useEffect(() => {
+    if (invoice.status !== 'SENT') {
+      setStripePaymentLinksEnabled(null);
+      return;
+    }
+    let cancelled = false;
+    invoicesApi
+      .getPaymentLinkConfig()
+      .then((res) => {
+        if (!cancelled) setStripePaymentLinksEnabled(res.data.enabled);
+      })
+      .catch(() => {
+        if (!cancelled) setStripePaymentLinksEnabled(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [invoice.status, invoice._id]);
 
   useEffect(() => {
     if (invoice.timeEntryIds.length > 0) {
@@ -98,6 +132,42 @@ export function InvoiceDetail({ invoice, onClose, onUpdated, onDeleted }: Invoic
 
   const handlePrint = () => window.print();
 
+  const handleCreatePaymentLink = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const res = await invoicesApi.createPaymentLink(invoice._id);
+      onUpdated(res.data);
+    } catch (err: unknown) {
+      const msg =
+        err && typeof err === 'object' && 'response' in err
+          ? (err as { response?: { data?: { message?: string }; status?: number } }).response?.data
+              ?.message
+          : undefined;
+      const status = err && typeof err === 'object' && 'response' in err
+        ? (err as { response?: { status?: number } }).response?.status
+        : undefined;
+      if (status === 503) {
+        setError('Online payment is not configured on the server.');
+      } else {
+        setError(msg || 'Failed to create payment link');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCopyPaymentLink = async () => {
+    if (!invoice.paymentLinkUrl) return;
+    try {
+      await navigator.clipboard.writeText(invoice.paymentLinkUrl);
+      setPaymentLinkCopied(true);
+      window.setTimeout(() => setPaymentLinkCopied(false), 2000);
+    } catch {
+      setError('Could not copy to clipboard');
+    }
+  };
+
   const previewInvoice: Invoice = {
     invoiceNumber: invoice.invoiceNumber,
     client: {
@@ -121,6 +191,7 @@ export function InvoiceDetail({ invoice, onClose, onUpdated, onDeleted }: Invoic
     entryCount: invoice.timeEntryIds.length,
     lineItemCount: invoice.lineItemIds.length,
     dateRange: invoice.dateRange,
+    paymentLinkUrl: invoice.paymentLinkUrl,
   };
 
   return (
@@ -271,6 +342,48 @@ export function InvoiceDetail({ invoice, onClose, onUpdated, onDeleted }: Invoic
                     >
                       Cancel
                     </button>
+                  </div>
+                )}
+                {stripePaymentLinksEnabled === true && (
+                  <div className="w-full flex flex-wrap items-center gap-2 mt-2 pt-3 border-t border-gray-100">
+                    <span className="text-sm font-medium text-gray-700 flex items-center gap-1.5">
+                      <Link2 className="w-4 h-4 text-gray-500" />
+                      Online payment
+                    </span>
+                    {invoice.paymentLinkUrl ? (
+                      <>
+                        <a
+                          href={invoice.paymentLinkUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="btn-secondary inline-flex items-center gap-1.5 text-sm"
+                        >
+                          <ExternalLink className="w-4 h-4" />
+                          Open link
+                        </a>
+                        <button
+                          type="button"
+                          onClick={handleCopyPaymentLink}
+                          className="btn-secondary inline-flex items-center gap-1.5 text-sm"
+                        >
+                          <Copy className="w-4 h-4" />
+                          {paymentLinkCopied ? 'Copied' : 'Copy link'}
+                        </button>
+                        <span className="text-xs text-gray-400 break-all max-w-full">
+                          {invoice.paymentLinkUrl}
+                        </span>
+                      </>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={handleCreatePaymentLink}
+                        disabled={loading}
+                        className="btn-secondary inline-flex items-center gap-1.5 text-sm"
+                      >
+                        <Link2 className="w-4 h-4" />
+                        Create payment link
+                      </button>
+                    )}
                   </div>
                 )}
               </>

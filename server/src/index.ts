@@ -25,6 +25,7 @@ import leadRoutes from './routes/leads';
 import siteConfigRoutes from './routes/siteConfig';
 import invoiceRoutes from './routes/invoices';
 import proposalRoutes from './routes/proposals';
+import webhookRoutes from './routes/webhooks';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -49,6 +50,8 @@ app.use(cors({
   credentials: true,
 }));
 app.use(morgan('dev'));
+// Stripe webhooks require raw body for signature verification — must run before express.json()
+app.use('/api/webhooks/stripe', express.raw({ type: 'application/json' }), webhookRoutes);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 

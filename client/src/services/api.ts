@@ -265,6 +265,9 @@ export const invoicesApi = {
   updateStatus: (id: string, status: InvoiceStatus) =>
     api.patch<SavedInvoice>(`/invoices/${id}/status`, { status }),
   delete: (id: string) => api.delete<{ message: string }>(`/invoices/${id}`),
+  getPaymentLinkConfig: () => api.get<{ enabled: boolean }>('/invoices/payment-link-config'),
+  createPaymentLink: (id: string) =>
+    api.post<SavedInvoice>(`/invoices/${id}/create-payment-link`),
 };
 
 // Proposals (admin)

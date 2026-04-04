@@ -165,6 +165,8 @@ export interface Invoice {
     start: string;
     end: string;
   };
+  /** Stripe Payment Link URL when set (for PDF / client copy) */
+  paymentLinkUrl?: string;
 }
 
 // Saved Invoice (persisted record)
@@ -197,6 +199,8 @@ export interface SavedInvoice {
   lineItemIds: string[];
   sentAt?: string;
   paidAt?: string;
+  paymentLinkUrl?: string;
+  stripePaymentLinkId?: string;
   notes?: string;
   createdAt: string;
   updatedAt: string;

@@ -167,6 +167,28 @@ CLOUDINARY_API_SECRET=your-api-secret
 - **PRIMARY_ADMIN_EMAIL** — Set to your email (e.g. `you@example.com`) to ensure you always get admin role, even if someone else signs up first.
 - **AUTH0_M2M_CLIENT_ID** and **AUTH0_M2M_CLIENT_SECRET** — Required for "Add by Email" (look up users in Auth0). See [server/AUTH0_M2M_SETUP.md](server/AUTH0_M2M_SETUP.md) for setup.
 
+### Optional: Stripe (online invoice payment links)
+
+Use [Stripe](https://stripe.com) test mode while developing; switch to live keys only in production after verification.
+
+1. **Create a Stripe account** at [stripe.com](https://stripe.com) and turn on **Test mode** in the Dashboard (toggle in the header).
+2. **API keys** — Developers → API keys → copy the **Secret key** (`sk_test_…`). Add to `server/.env`:
+   - `STRIPE_SECRET_KEY=sk_test_…`
+3. **Webhook signing secret** — Developers → Webhooks → **Add endpoint**:
+   - **Endpoint URL:** `https://YOUR-API-HOST/api/webhooks/stripe` (local development: use the Stripe CLI; see below).
+   - **Events to send:** `checkout.session.completed`
+   - After saving, open the endpoint and reveal **Signing secret** (`whsec_…`). Add to `server/.env`:
+   - `STRIPE_WEBHOOK_SECRET=whsec_…`
+4. **Post-payment redirect** — Set `FRONTEND_URL` in `server/.env` to your app origin (no trailing slash), e.g. `http://localhost:5173` locally or `https://your-domain.com` in production. If omitted, the server uses the first URL in `CLIENT_URL` or defaults to `http://localhost:5173`. Clients are redirected to `/invoices/paid` after paying.
+5. **Local webhook testing** — Install the [Stripe CLI](https://docs.stripe.com/stripe-cli), then run:
+   ```bash
+   stripe listen --forward-to localhost:3001/api/webhooks/stripe
+   ```
+   The CLI prints a **webhook signing secret** starting with `whsec_`; use that value for `STRIPE_WEBHOOK_SECRET` while testing locally (it differs from the Dashboard secret).
+6. **End-to-end test** — Create an invoice, mark it **Sent**, click **Create payment link**, open the link in a private window, pay with card `4242 4242 4242 4242` (any future expiry, any CVC). The webhook should mark the invoice **Paid**.
+
+If `STRIPE_SECRET_KEY` is unset, the app hides payment-link actions and the API returns 503 for create-payment-link.
+
 ### Root `.env` (usually no changes needed):
 ```env
 NODE_ENV=development

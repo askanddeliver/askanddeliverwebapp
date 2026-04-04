@@ -20,7 +20,8 @@
     "jwks-rsa": "^3.1.0",
     "mongoose": "^8.3.1",
     "morgan": "^1.10.0",
-    "multer": "^2.0.2"
+    "multer": "^2.0.2",
+    "stripe": "^22.0.0"
   },
   "devDependencies": {
     "@types/cors": "^2.8.17",

@@ -4,6 +4,7 @@ import { asyncHandler, createError } from '../middleware/errorHandler';
 import { Invoice, TimeEntry, LineItem, Client, Project, SiteConfig } from '../models';
 import type { InvoiceStatus } from '../models';
 import { parseDateStart, parseDateEnd } from '../utils/calculations';
+import { createPaymentLink, isStripeEnabled } from '../lib/stripeClient';
 
 const router = Router();
 
@@ -115,6 +116,62 @@ router.get(
       sent: { count: sent[0]?.count || 0, total: sent[0]?.total || 0 },
       paid: { count: paid[0]?.count || 0, total: paid[0]?.total || 0 },
     });
+  })
+);
+
+// GET /api/invoices/payment-link-config — whether Stripe payment links are available
+router.get(
+  '/payment-link-config',
+  asyncHandler(async (req: AuthRequest, res: Response) => {
+    const workspaceOwnerId = await getWorkspaceOwnerId(req);
+    if (!workspaceOwnerId) throw createError('Workspace access required', 403);
+    res.json({ enabled: isStripeEnabled() });
+  })
+);
+
+// POST /api/invoices/:id/create-payment-link — Stripe Payment Link for a SENT invoice
+router.post(
+  '/:id/create-payment-link',
+  asyncHandler(async (req: AuthRequest, res: Response) => {
+    const workspaceOwnerId = await getWorkspaceOwnerId(req);
+    if (!workspaceOwnerId) throw createError('Workspace access required', 403);
+
+    if (!isStripeEnabled()) {
+      throw createError('Payment links are not configured', 503);
+    }
+
+    const invoice = await Invoice.findOne({
+      _id: req.params.id,
+      userId: workspaceOwnerId,
+    });
+    if (!invoice) throw createError('Invoice not found', 404);
+    if (invoice.status !== 'SENT') {
+      throw createError('Payment links can only be created for sent invoices', 400);
+    }
+    if (invoice.paymentLinkUrl) {
+      res.json(invoice);
+      return;
+    }
+
+    const amountCents = Math.round(invoice.total * 100);
+    if (amountCents < 50) {
+      throw createError('Invoice total is below the minimum for card payment ($0.50)', 400);
+    }
+
+    const result = await createPaymentLink({
+      amountCents,
+      invoiceId: invoice._id.toString(),
+      invoiceNumber: invoice.invoiceNumber,
+      workspaceOwnerId,
+    });
+    if (!result) {
+      throw createError('Failed to create payment link', 500);
+    }
+
+    invoice.paymentLinkUrl = result.url;
+    invoice.stripePaymentLinkId = result.id;
+    await invoice.save();
+    res.json(invoice);
   })
 );
 
@@ -281,6 +338,8 @@ router.patch(
     // Backward transitions: unlink entries
     if (currentStatus === 'SENT' && status === 'DRAFT') {
       invoice.sentAt = undefined;
+      invoice.paymentLinkUrl = undefined;
+      invoice.stripePaymentLinkId = undefined;
       if (invoice.timeEntryIds.length > 0) {
         await TimeEntry.updateMany(
           { _id: { $in: invoice.timeEntryIds } },
