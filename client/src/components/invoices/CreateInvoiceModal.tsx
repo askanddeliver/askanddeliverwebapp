@@ -9,6 +9,8 @@ interface CreateInvoiceModalProps {
   invoice: Invoice;
   filteredEntries: TimeEntry[];
   lineItems: LineItem[];
+  /** Reports filter: ensures fixed-price (or other) invoices persist correct projectIds when there are no time entries */
+  reportProjectIds?: string[];
   onClose: () => void;
   onCreated: (invoiceId: string) => void;
 }
@@ -18,6 +20,7 @@ export function CreateInvoiceModal({
   invoice,
   filteredEntries,
   lineItems,
+  reportProjectIds = [],
   onClose,
   onCreated,
 }: CreateInvoiceModalProps) {
@@ -40,22 +43,33 @@ export function CreateInvoiceModal({
 
   if (!isOpen) return null;
 
+  const isRetainer = invoice.invoiceKind === 'RETAINER_REPORT';
+
   const clientId =
     typeof invoice.client?._id === 'string' ? invoice.client._id : '';
   const clientName = invoice.client?.name || 'Unknown Client';
 
-  const projectIds = [...new Set(
-    filteredEntries
-      .map((e) => {
-        const proj = typeof e.projectId === 'object' ? e.projectId : null;
-        return proj?._id;
-      })
-      .filter(Boolean) as string[]
-  )];
+  const entryProjectIds = [
+    ...new Set(
+      filteredEntries
+        .map((e) => {
+          const proj = typeof e.projectId === 'object' ? e.projectId : null;
+          return proj?._id;
+        })
+        .filter(Boolean) as string[]
+    ),
+  ];
+  const projectIds = [
+    ...new Set([...reportProjectIds, ...entryProjectIds]),
+  ];
 
   const handleCreate = async () => {
     if (!clientId) {
-      setError('A specific client must be selected to create an invoice.');
+      setError(
+        isRetainer
+          ? 'A client must be associated with this preview to save a report.'
+          : 'A specific client must be selected to create an invoice.'
+      );
       return;
     }
     if (!invoiceNumber.trim()) {
@@ -81,6 +95,7 @@ export function CreateInvoiceModal({
         timeEntryIds: filteredEntries.map((e) => e._id),
         lineItemIds: lineItems.map((li) => li._id),
         notes: notes.trim() || undefined,
+        documentKind: isRetainer ? 'RETAINER_REPORT' : 'INVOICE',
       });
 
       onCreated(res.data._id);
@@ -104,8 +119,14 @@ export function CreateInvoiceModal({
               <FileText className="w-5 h-5 text-primary-600" />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-gray-900">Create Invoice</h2>
-              <p className="text-sm text-gray-500">Save as a draft invoice record</p>
+              <h2 className="text-lg font-bold text-gray-900">
+                {isRetainer ? 'Save retainer report' : 'Create Invoice'}
+              </h2>
+              <p className="text-sm text-gray-500">
+                {isRetainer
+                  ? 'Stored like an invoice for PDF and history (no payment link)'
+                  : 'Save as a draft invoice record'}
+              </p>
             </div>
           </div>
           <button
@@ -142,16 +163,26 @@ export function CreateInvoiceModal({
               </span>
             </div>
             <div className="flex justify-between text-sm pt-2 border-t border-gray-200">
-              <span className="font-medium text-gray-700">Total</span>
+              <span className="font-medium text-gray-700">
+                {isRetainer ? 'Pass-through total' : 'Total'}
+              </span>
               <span className="text-lg font-bold text-gray-900">
-                {formatCurrency(invoice.total)}
+                {isRetainer && invoice.total === 0 ? '—' : formatCurrency(invoice.total)}
               </span>
             </div>
+            {isRetainer && (
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-500">Hours in period</span>
+                <span className="text-gray-700 font-medium tabular-nums">
+                  {invoice.totalHours.toFixed(2)} h
+                </span>
+              </div>
+            )}
           </div>
 
           <div>
             <label htmlFor="create-inv-number" className="block text-sm font-medium text-gray-700 mb-1">
-              Invoice Number
+              {isRetainer ? 'Document number' : 'Invoice Number'}
             </label>
             <input
               id="create-inv-number"
@@ -191,7 +222,11 @@ export function CreateInvoiceModal({
             disabled={saving || !invoiceNumber.trim()}
             className="btn-primary disabled:opacity-50"
           >
-            {saving ? 'Creating...' : 'Create Draft Invoice'}
+            {saving
+              ? 'Saving...'
+              : isRetainer
+                ? 'Save draft report'
+                : 'Create Draft Invoice'}
           </button>
         </div>
       </div>

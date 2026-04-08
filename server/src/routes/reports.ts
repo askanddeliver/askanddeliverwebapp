@@ -47,6 +47,92 @@ router.post(
       if (valid.length > 0) effectiveProjectIds = valid as unknown as typeof workspaceProjectIds;
     }
 
+    let selectedProjectDocs: Array<{
+      _id: unknown;
+      title: string;
+      clientId: { toString(): string };
+      billingMode?: string;
+      agreedAmount?: number;
+      fixedPriceInvoiceLabel?: string;
+      retainerHoursTotal?: number;
+      retainerHoursAdjustment?: number;
+    }> = [];
+    let isFixedPriceInvoice = false;
+    let isRetainerReport = false;
+
+    if (requestedIds.length > 0) {
+      selectedProjectDocs = await Project.find({
+        _id: { $in: requestedIds },
+        userId: workspaceOwnerId,
+      }).lean();
+      if (selectedProjectDocs.length !== requestedIds.length) {
+        throw createError('One or more projects not found', 400);
+      }
+      const modes = new Set(
+        selectedProjectDocs.map((p) => p.billingMode ?? 'HOURLY')
+      );
+      if (modes.size > 1) {
+        throw createError(
+          'Selected projects use different billing modes. Use one billing mode per invoice, or run separate previews.',
+          400
+        );
+      }
+      const mode = [...modes][0];
+      if (mode === 'FIXED_PRICE') {
+        isFixedPriceInvoice = true;
+        const clientIds = new Set(
+          selectedProjectDocs.map((p) => p.clientId.toString())
+        );
+        if (clientIds.size > 1) {
+          throw createError(
+            'Fixed-price invoicing requires projects for a single client.',
+            400
+          );
+        }
+        if (clientId && !clientIds.has(clientId)) {
+          throw createError(
+            'Selected projects do not match the selected client filter.',
+            400
+          );
+        }
+        for (const p of selectedProjectDocs) {
+          if (p.agreedAmount === undefined || p.agreedAmount === null) {
+            throw createError(
+              `Project "${p.title}" is missing an agreed amount for fixed-price billing.`,
+              400
+            );
+          }
+        }
+      }
+      if (mode === 'HOUR_RETAINER') {
+        isRetainerReport = true;
+        const clientIds = new Set(
+          selectedProjectDocs.map((p) => p.clientId.toString())
+        );
+        if (clientIds.size > 1) {
+          throw createError(
+            'Hour retainer reports require projects for a single client.',
+            400
+          );
+        }
+        if (clientId && !clientIds.has(clientId)) {
+          throw createError(
+            'Selected projects do not match the selected client filter.',
+            400
+          );
+        }
+        for (const p of selectedProjectDocs) {
+          const pool = p.retainerHoursTotal;
+          if (pool === undefined || pool === null || pool <= 0 || Number.isNaN(Number(pool))) {
+            throw createError(
+              `Project "${p.title}" is missing retainer hours (block size) for hour-retainer billing.`,
+              400
+            );
+          }
+        }
+      }
+    }
+
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const query: any = {
       projectId: { $in: effectiveProjectIds },
@@ -83,6 +169,13 @@ router.post(
       if (c) clientCache.set(clientId, c);
     }
 
+    // Fixed-price / retainer preview without client filter: load the project's client for the header
+    if ((isFixedPriceInvoice || isRetainerReport) && !clientId && selectedProjectDocs.length > 0) {
+      const cid = selectedProjectDocs[0].clientId.toString();
+      const inf = await Client.findOne({ _id: cid, userId: workspaceOwnerId });
+      if (inf) clientCache.set(cid, inf);
+    }
+
     // For "All Clients" mode, collect unique client IDs from entries and load them
     if (!clientId) {
       const clientIds = new Set<string>();
@@ -102,8 +195,15 @@ router.post(
       }
     }
 
-    // Determine the single client to show on the invoice header (only when filtered)
-    const invoiceClient = clientId ? clientCache.get(clientId) || null : null;
+    // Single client for invoice header: explicit filter, or inferred from fixed-price / retainer selection
+    const effectiveInvoiceClientId = clientId
+      ? clientId
+      : (isFixedPriceInvoice || isRetainerReport) && selectedProjectDocs.length > 0
+        ? selectedProjectDocs[0].clientId.toString()
+        : undefined;
+    const invoiceClient = effectiveInvoiceClientId
+      ? clientCache.get(effectiveInvoiceClientId) || null
+      : null;
 
     // Load users for earned rate lookup (entry.userId -> User.earnedRates)
     const entryUserIds = [...new Set(filteredEntries.map((e) => (e as ITimeEntry).userId))];
@@ -230,10 +330,15 @@ router.post(
       .populate('projectId', 'title clientId')
       .sort({ date: -1 });
 
-    // If no specific client filter, but we do have entries, still include
-    // line items that belong to clients represented in the entries
+    // Scope ad-hoc line items: fixed-price selection always uses that project's client;
+    // otherwise multi-client "All" mode uses clients seen in time entries
     let filteredFixedItems = fixedCostItems;
-    if (!clientId && filteredEntries.length > 0) {
+    if ((isFixedPriceInvoice || isRetainerReport) && selectedProjectDocs.length > 0) {
+      const cid = selectedProjectDocs[0].clientId.toString();
+      filteredFixedItems = fixedCostItems.filter(
+        (fi) => fi.clientId.toString() === cid
+      );
+    } else if (!clientId && filteredEntries.length > 0) {
       const entryClientIds = new Set<string>();
       for (const entry of filteredEntries) {
         const project = entry.projectId as unknown as IProject & { clientId: { _id: string } };
@@ -258,21 +363,142 @@ router.post(
       isFixedCost: true,
     }));
 
-    const allItems = [...items, ...fixedItems];
+    const tmEarnedUnrounded = Array.from(lineItems.values()).reduce(
+      (s, item) => s + item.earnedAmount,
+      0
+    );
+    const tmHoursUnrounded = Array.from(lineItems.values()).reduce(
+      (s, item) => s + item.hours,
+      0
+    );
 
-    const total = Math.round(
+    let allItems = [...items, ...fixedItems];
+    let invoiceKind: 'HOURLY' | 'FIXED_PRICE' | 'RETAINER_REPORT' = 'HOURLY';
+
+    let total = Math.round(
       allItems.reduce((sum, item) => sum + item.amount, 0) * 100
     ) / 100;
 
-    const totalHours = Math.round(
-      items.reduce((sum, item) => sum + item.hours, 0) * 100
-    ) / 100;
+    let totalHours = Math.round(tmHoursUnrounded * 100) / 100;
 
-    const totalEarned = Math.round(
-      items.reduce((sum, item) => sum + (item.earnedAmount ?? 0), 0) * 100
-    ) / 100;
+    let totalEarned = Math.round(tmEarnedUnrounded * 100) / 100;
 
-    const totalMargin = Math.round((total - totalEarned) * 100) / 100;
+    let totalMargin = Math.round((total - totalEarned) * 100) / 100;
+
+    if (isFixedPriceInvoice && selectedProjectDocs.length > 0) {
+      invoiceKind = 'FIXED_PRICE';
+      const projectFeeLines = selectedProjectDocs.map((p) => {
+        const amt = Math.round(Number(p.agreedAmount) * 100) / 100;
+        const label = (p.fixedPriceInvoiceLabel?.trim() || p.title) as string;
+        return {
+          taskTypeName: label,
+          taskTypeColor: '#0d9488',
+          baseRate: 0,
+          discount: 0,
+          effectiveRate: 0,
+          hours: 0,
+          amount: amt,
+          earnedAmount: 0,
+          descriptions: [
+            `Agreed project fee (${String(startDate).slice(0, 10)} – ${String(endDate).slice(0, 10)})`,
+          ],
+          isFixedCost: false,
+          isAgreedProjectFee: true,
+        };
+      });
+      allItems = [...projectFeeLines, ...fixedItems];
+      const feesTotal = projectFeeLines.reduce((s, x) => s + x.amount, 0);
+      const fixedSum = fixedItems.reduce((s, x) => s + x.amount, 0);
+      total = Math.round((feesTotal + fixedSum) * 100) / 100;
+      totalHours = Math.round(tmHoursUnrounded * 100) / 100;
+      totalEarned = Math.round(tmEarnedUnrounded * 100) / 100;
+      totalMargin = Math.round((total - totalEarned) * 100) / 100;
+    }
+
+    let retainerSummary:
+      | {
+          projects: Array<{
+            projectId: string;
+            title: string;
+            poolHours: number;
+            adjustmentHours: number;
+            consumedHoursAllTime: number;
+            remainingHours: number;
+          }>;
+        }
+      | undefined;
+
+    if (isRetainerReport && selectedProjectDocs.length > 0) {
+      invoiceKind = 'RETAINER_REPORT';
+
+      const allTimeEntries = await TimeEntry.find({
+        projectId: { $in: requestedIds },
+        isRunning: false,
+      })
+        .select('duration projectId')
+        .lean();
+
+      const consumedByProject = new Map<string, number>();
+      for (const e of allTimeEntries) {
+        const pid = e.projectId.toString();
+        const h = (e.duration || 0) / 3600;
+        consumedByProject.set(pid, (consumedByProject.get(pid) || 0) + h);
+      }
+
+      retainerSummary = {
+        projects: selectedProjectDocs.map((p) => {
+          const pid = (p._id as { toString(): string }).toString();
+          const consumedRaw = consumedByProject.get(pid) || 0;
+          const consumed = Math.round(consumedRaw * 100) / 100;
+          const adj = Number(p.retainerHoursAdjustment ?? 0);
+          const pool = Number(p.retainerHoursTotal) + adj;
+          const remaining = Math.round((pool - consumed) * 100) / 100;
+          return {
+            projectId: pid,
+            title: p.title,
+            poolHours: Number(p.retainerHoursTotal),
+            adjustmentHours: adj,
+            consumedHoursAllTime: consumed,
+            remainingHours: remaining,
+          };
+        }),
+      };
+
+      const basePeriodItems =
+        items.length > 0
+          ? items
+          : [
+              {
+                taskTypeName: 'Activity in period',
+                taskTypeColor: '#9ca3af',
+                baseRate: 0,
+                discount: 0,
+                effectiveRate: 0,
+                hours: 0,
+                amount: 0,
+                earnedAmount: 0,
+                descriptions: ['No time entries in this date range'],
+                isFixedCost: false,
+              },
+            ];
+
+      const retainerPeriodLines = basePeriodItems.map((item) => ({
+        ...item,
+        amount: 0,
+        baseRate: 0,
+        discount: 0,
+        effectiveRate: 0,
+        earnedAmount: 0,
+        isRetainerUtilizationRow: true,
+      }));
+
+      allItems = [...retainerPeriodLines, ...fixedItems];
+      const fixedSum = fixedItems.reduce((s, x) => s + x.amount, 0);
+      total = Math.round(fixedSum * 100) / 100;
+      totalHours = Math.round(tmHoursUnrounded * 100) / 100;
+      totalEarned = Math.round(tmEarnedUnrounded * 100) / 100;
+      totalMargin = Math.round((total - totalEarned) * 100) / 100;
+    }
 
     const roundedBreakdown = costBreakdown.map((r) => ({
       ...r,
@@ -320,6 +546,8 @@ router.post(
       entryCount: filteredEntries.length,
       lineItemCount: fixedItems.length,
       dateRange: { start: startDate, end: endDate },
+      invoiceKind,
+      retainerSummary,
     });
   })
 );

@@ -2,7 +2,7 @@ import { Router, Response } from 'express';
 import { checkJwt, AuthRequest, extractUserId, getWorkspaceOwnerId, requireAdmin } from '../middleware/auth';
 import { asyncHandler, createError } from '../middleware/errorHandler';
 import { Invoice, TimeEntry, LineItem, Client, Project, SiteConfig } from '../models';
-import type { InvoiceStatus } from '../models';
+import type { InvoiceDocumentKind, InvoiceStatus } from '../models';
 import { parseDateStart, parseDateEnd } from '../utils/calculations';
 import { createPaymentLink, isStripeEnabled } from '../lib/stripeClient';
 
@@ -148,6 +148,9 @@ router.post(
     if (invoice.status !== 'SENT') {
       throw createError('Payment links can only be created for sent invoices', 400);
     }
+    if (invoice.documentKind === 'RETAINER_REPORT') {
+      throw createError('Payment links are not available for retainer utilization reports', 400);
+    }
     if (invoice.paymentLinkUrl) {
       res.json(invoice);
       return;
@@ -217,7 +220,23 @@ router.post(
       timeEntryIds,
       lineItemIds,
       notes,
-    } = req.body;
+      documentKind: rawDocumentKind,
+    } = req.body as {
+      invoiceNumber?: string;
+      clientId: string;
+      projectIds?: string[];
+      dateRange: { start: string; end: string };
+      items: unknown[];
+      subtotal?: number;
+      total: number;
+      totalHours?: number;
+      totalEarned?: number;
+      totalMargin?: number;
+      timeEntryIds?: string[];
+      lineItemIds?: string[];
+      notes?: string;
+      documentKind?: InvoiceDocumentKind;
+    };
 
     if (!clientId) throw createError('Client is required for invoices', 400);
     if (!dateRange?.start || !dateRange?.end) throw createError('Date range is required', 400);
@@ -235,13 +254,17 @@ router.post(
     const existing = await Invoice.findOne({ userId: workspaceOwnerId, invoiceNumber: finalNumber });
     if (existing) throw createError(`Invoice number ${finalNumber} already exists`, 400);
 
+    const documentKind: InvoiceDocumentKind =
+      rawDocumentKind === 'RETAINER_REPORT' ? 'RETAINER_REPORT' : 'INVOICE';
+
     // Verify all referenced projects belong to workspace
-    if (projectIds?.length > 0) {
+    const projectIdsList = projectIds ?? [];
+    if (projectIdsList.length > 0) {
       const validProjects = await Project.countDocuments({
-        _id: { $in: projectIds },
+        _id: { $in: projectIdsList },
         userId: workspaceOwnerId,
       });
-      if (validProjects !== projectIds.length) {
+      if (validProjects !== projectIdsList.length) {
         throw createError('One or more projects not found', 400);
       }
     }
@@ -250,8 +273,9 @@ router.post(
       userId: workspaceOwnerId,
       invoiceNumber: finalNumber,
       clientId,
-      projectIds: projectIds || [],
+      projectIds: projectIdsList,
       status: 'DRAFT',
+      documentKind,
       dateRange: {
         start: new Date(dateRange.start),
         end: new Date(dateRange.end),

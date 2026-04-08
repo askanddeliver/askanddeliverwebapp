@@ -2,6 +2,8 @@ import mongoose, { Document, Schema } from 'mongoose';
 
 export type InvoiceStatus = 'DRAFT' | 'SENT' | 'PAID';
 
+export type InvoiceDocumentKind = 'INVOICE' | 'RETAINER_REPORT';
+
 export interface IInvoiceCompanyInfo {
   name?: string;
   address?: string;
@@ -29,6 +31,10 @@ export interface IInvoiceItem {
   earnedAmount: number;
   descriptions: string[];
   isFixedCost: boolean;
+  /** Agreed project fee line (FIXED_PRICE billing) — not T&M rollup */
+  isAgreedProjectFee?: boolean;
+  /** Period utilization row (HOUR_RETAINER) — hours only, no client $ */
+  isRetainerUtilizationRow?: boolean;
 }
 
 export interface IInvoice extends Document {
@@ -37,6 +43,8 @@ export interface IInvoice extends Document {
   clientId: mongoose.Types.ObjectId;
   projectIds: mongoose.Types.ObjectId[];
   status: InvoiceStatus;
+  /** Defaults to INVOICE; omitted on legacy records until re-saved */
+  documentKind?: InvoiceDocumentKind;
   dateRange: { start: Date; end: Date };
   companyInfo: IInvoiceCompanyInfo;
   clientInfo: IInvoiceClientInfo;
@@ -71,6 +79,8 @@ const InvoiceItemSchema = new Schema<IInvoiceItem>(
     earnedAmount: { type: Number, default: 0 },
     descriptions: [{ type: String }],
     isFixedCost: { type: Boolean, default: false },
+    isAgreedProjectFee: { type: Boolean, default: false },
+    isRetainerUtilizationRow: { type: Boolean, default: false },
   },
   { _id: false }
 );
@@ -102,6 +112,11 @@ const InvoiceSchema = new Schema<IInvoice>(
       type: String,
       enum: ['DRAFT', 'SENT', 'PAID'],
       default: 'DRAFT',
+    },
+    documentKind: {
+      type: String,
+      enum: ['INVOICE', 'RETAINER_REPORT'],
+      default: 'INVOICE',
     },
     dateRange: {
       start: { type: Date, required: true },

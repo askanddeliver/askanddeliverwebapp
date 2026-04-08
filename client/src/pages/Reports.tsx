@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Clock, DollarSign, TrendingUp, Wallet, FileText, List, Users, ChevronDown, ChevronUp, Plus } from 'lucide-react';
+import { Clock, DollarSign, TrendingUp, Wallet, FileText, List, Users, ChevronDown, ChevronUp, Plus, Hourglass } from 'lucide-react';
+import { useUserRole } from '../contexts/UserContext';
 import { InvoicePreview } from '../components/reports/InvoicePreview';
 import { ExportButtons } from '../components/reports/ExportButtons';
 import { LineItemsPanel } from '../components/reports/LineItemsPanel';
@@ -84,6 +85,7 @@ type EntrySortKey = 'date' | 'client' | 'amount' | 'member';
 
 function Reports() {
   const navigate = useNavigate();
+  const { isAdmin } = useUserRole();
   const [clients, setClients] = useState<Client[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [users, setUsers] = useState<User[]>([]);
@@ -400,6 +402,34 @@ function Reports() {
           </div>
         </div>
 
+        {projectIds.some((id) => {
+          const p = projects.find((x) => x._id === id);
+          return p?.billingMode === 'FIXED_PRICE';
+        }) && (
+          <div className="rounded-lg border border-teal-200 bg-teal-50/90 px-4 py-3 text-sm text-teal-950">
+            <p className="font-medium">Fixed-price project in selection</p>
+            <p className="mt-1 text-teal-900/90">
+              The client-facing total is the agreed project fee for each selected fixed project (plus any additional
+              charges in this period), not the sum of hours × rates. Cost and margin from time entries still appear
+              under Cost &amp; Margin for internal use. Payment links use the same invoice total.
+            </p>
+          </div>
+        )}
+
+        {projectIds.some((id) => {
+          const p = projects.find((x) => x._id === id);
+          return p?.billingMode === 'HOUR_RETAINER';
+        }) && (
+          <div className="rounded-lg border border-violet-200 bg-violet-50/90 px-4 py-3 text-sm text-violet-950">
+            <p className="font-medium">Hour retainer project in selection</p>
+            <p className="mt-1 text-violet-900/90">
+              Preview switches to a <strong>retainer utilization report</strong>: hours in this period by task type,
+              remaining hours against the block (using all-time usage), and optional pass-through line items only.
+              Dollar totals are not the client story unless you add charges below.
+            </p>
+          </div>
+        )}
+
         <div className="border-t border-gray-100 pt-4">
           <h4 className="text-sm font-semibold text-gray-700 mb-2">PDF options</h4>
           <div className="flex flex-wrap gap-6 items-center">
@@ -513,26 +543,52 @@ function Reports() {
 
       {/* Summary Cards */}
       {invoice && invoice.items.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6 print:hidden">
+        <div
+          className={`grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 print:hidden ${
+            invoice.invoiceKind === 'RETAINER_REPORT' && invoice.retainerSummary?.projects?.length
+              ? 'xl:grid-cols-5'
+              : 'lg:grid-cols-4'
+          }`}
+        >
           <div className="card flex items-center gap-4">
             <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
               <Clock className="w-5 h-5 text-blue-600" />
             </div>
             <div>
-              <p className="text-sm text-gray-500">Total Hours</p>
+              <p className="text-sm text-gray-500">Hours in period</p>
               <p className="text-2xl font-bold text-gray-900">
                 {formatDurationHuman(invoice.totalHours * 3600)}
               </p>
             </div>
           </div>
+          {invoice.invoiceKind === 'RETAINER_REPORT' && invoice.retainerSummary && invoice.retainerSummary.projects.length > 0 && (
+            <div className="card flex items-center gap-4">
+              <div className="w-10 h-10 bg-violet-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                <Hourglass className="w-5 h-5 text-violet-600" />
+              </div>
+              <div>
+                <p className="text-sm text-gray-500">Remaining (min pool)</p>
+                <p className="text-2xl font-bold text-violet-900 tabular-nums">
+                  {Math.min(
+                    ...invoice.retainerSummary.projects.map((p) => p.remainingHours)
+                  ).toFixed(2)}{' '}
+                  h
+                </p>
+              </div>
+            </div>
+          )}
           <div className="card flex items-center gap-4">
             <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center flex-shrink-0">
               <DollarSign className="w-5 h-5 text-green-600" />
             </div>
             <div>
-              <p className="text-sm text-gray-500">Total Billed</p>
+              <p className="text-sm text-gray-500">
+                {invoice.invoiceKind === 'RETAINER_REPORT' ? 'Pass-through charges' : 'Total Billed'}
+              </p>
               <p className="text-2xl font-bold text-gray-900">
-                {formatCurrency(invoice.total)}
+                {invoice.invoiceKind === 'RETAINER_REPORT' && invoice.total === 0
+                  ? '—'
+                  : formatCurrency(invoice.total)}
               </p>
             </div>
           </div>
@@ -542,7 +598,9 @@ function Reports() {
                 <Wallet className="w-5 h-5 text-amber-600" />
               </div>
               <div>
-                <p className="text-sm text-gray-500">Total Earned (Cost)</p>
+                <p className="text-sm text-gray-500">
+                  {invoice.invoiceKind === 'RETAINER_REPORT' ? 'Earned (cost, internal)' : 'Total Earned (Cost)'}
+                </p>
                 <p className="text-2xl font-bold text-gray-700">
                   {formatCurrency(invoice.totalEarned)}
                 </p>
@@ -588,14 +646,14 @@ function Reports() {
       {/* Tab content (hidden when printing - use print block below) */}
       {activeTab === 'invoice' && invoice && invoice.items.length > 0 && (
         <div className="mb-6 print:hidden">
-          {clientId && (
+          {(clientId || invoice.client?._id) && (
             <div className="flex justify-end mb-3">
               <button
                 onClick={() => setCreateModalOpen(true)}
                 className="btn-primary flex items-center gap-2"
               >
                 <Plus className="w-4 h-4" />
-                Create Invoice
+                {invoice.invoiceKind === 'RETAINER_REPORT' ? 'Save retainer report' : 'Create Invoice'}
               </button>
             </div>
           )}
@@ -658,7 +716,7 @@ function Reports() {
                     entry={entry}
                     onEdit={handleEditEntry}
                     onDelete={handleDeleteEntry}
-                    showAmount={true}
+                    showAmount={isAdmin}
                   />
                 ))}
               </div>
@@ -701,7 +759,7 @@ function Reports() {
                     entry={entry}
                     onEdit={() => {}}
                     onDelete={() => {}}
-                    showAmount={true}
+                    showAmount={isAdmin}
                     showDescription={includeEntryDescriptions}
                   />
                 ))}
@@ -718,6 +776,7 @@ function Reports() {
           invoice={invoice}
           filteredEntries={filteredEntries}
           lineItems={lineItems}
+          reportProjectIds={projectIds}
           onClose={() => setCreateModalOpen(false)}
           onCreated={(id) => {
             setCreateModalOpen(false);

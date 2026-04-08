@@ -1,10 +1,13 @@
 import { FolderOpen } from 'lucide-react';
-import type { Project, ProjectTask } from '../../types';
+import type { Project, ProjectBudgetBurn, ProjectTask } from '../../types';
 import { ProjectCard } from './ProjectCard';
 
 interface ProjectListProps {
   projects: Project[];
   tasksByProject: Record<string, ProjectTask[]>;
+  /** Admin: billed vs budget from API (HOURLY + budget only) */
+  budgetBurnByProjectId?: Record<string, ProjectBudgetBurn>;
+  budgetBurnPeriodLabel?: string;
   showBudget?: boolean;
   canEdit?: boolean;
   onEdit: (project: Project) => void;
@@ -27,6 +30,8 @@ interface ProjectListProps {
 export function ProjectList({
   projects,
   tasksByProject,
+  budgetBurnByProjectId,
+  budgetBurnPeriodLabel,
   showBudget = true,
   canEdit = true,
   onEdit,
@@ -60,6 +65,8 @@ export function ProjectList({
           key={project._id}
           project={project}
           tasks={tasksByProject[project._id] || []}
+          budgetBurn={budgetBurnByProjectId?.[project._id]}
+          budgetBurnPeriodLabel={budgetBurnPeriodLabel}
           onEdit={onEdit}
           onDelete={onDelete}
           onArchive={onArchive}

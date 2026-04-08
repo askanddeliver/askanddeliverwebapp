@@ -6,10 +6,22 @@ interface InvoicePreviewProps {
 }
 
 export function InvoicePreview({ invoice }: InvoicePreviewProps) {
-  const timeItems = invoice.items.filter((item) => !item.isFixedCost);
+  const retainerUtilItems = invoice.items.filter((item) => item.isRetainerUtilizationRow);
+  const projectFeeItems = invoice.items.filter((item) => item.isAgreedProjectFee);
+  const timeItems = invoice.items.filter(
+    (item) =>
+      !item.isFixedCost && !item.isAgreedProjectFee && !item.isRetainerUtilizationRow
+  );
   const fixedItems = invoice.items.filter((item) => item.isFixedCost);
+  const projectFeeSubtotal = projectFeeItems.reduce((s, item) => s + item.amount, 0);
   const showCostMargin = invoice.totalEarned != null && invoice.totalMargin != null;
   const { companyInfo } = invoice;
+  const tmSubtotal = timeItems.reduce((s, item) => s + item.amount, 0);
+  const isFixedPriceInvoice =
+    invoice.invoiceKind === 'FIXED_PRICE' || projectFeeItems.length > 0;
+  const isRetainerDoc =
+    invoice.invoiceKind === 'RETAINER_REPORT' || retainerUtilItems.length > 0;
+  const retainerPeriodHours = retainerUtilItems.reduce((s, item) => s + item.hours, 0);
 
   return (
     <div className="card print:p-0 print:overflow-visible" id="invoice-preview">
@@ -22,7 +34,8 @@ export function InvoicePreview({ invoice }: InvoicePreviewProps) {
             className="h-8 mb-3 print:h-6 print:mb-2"
           />
           <h2 className="text-xl font-bold text-gray-900 print:text-lg">
-            Invoice{invoice.invoiceNumber ? ` #${invoice.invoiceNumber}` : ''}
+            {isRetainerDoc ? 'Retainer utilization report' : 'Invoice'}
+            {invoice.invoiceNumber ? ` #${invoice.invoiceNumber}` : ''}
           </h2>
           {/* Company info for client payments */}
           {(companyInfo?.name || companyInfo?.address || companyInfo?.phone || companyInfo?.email) && (
@@ -69,7 +82,147 @@ export function InvoicePreview({ invoice }: InvoicePreviewProps) {
         <h3 className="text-sm font-semibold text-gray-700 mb-3 print:mb-2">
           Summary
         </h3>
-        {timeItems.length > 0 && (
+
+        {isRetainerDoc && invoice.retainerSummary && invoice.retainerSummary.projects.length > 0 && (
+          <div className="mb-4 space-y-3">
+            <p className="text-xs text-gray-500">
+              Hours remaining use the full block plus adjustments minus <strong>all</strong> time logged on the
+              project. Activity below is limited to the selected date range.
+            </p>
+            {invoice.retainerSummary.projects.map((p) => (
+              <div
+                key={p.projectId}
+                className="rounded-lg border border-violet-200 bg-violet-50/80 px-4 py-3 text-sm"
+              >
+                <p className="font-semibold text-violet-950">{p.title}</p>
+                <div className="mt-2 grid grid-cols-2 sm:grid-cols-4 gap-2 text-violet-900">
+                  <div>
+                    <span className="text-violet-600/90">Block</span>
+                    <p className="font-bold tabular-nums">{p.poolHours.toFixed(2)} h</p>
+                  </div>
+                  <div>
+                    <span className="text-violet-600/90">Adjustment</span>
+                    <p className="font-bold tabular-nums">
+                      {p.adjustmentHours === 0 ? '—' : `${p.adjustmentHours > 0 ? '+' : ''}${p.adjustmentHours.toFixed(2)} h`}
+                    </p>
+                  </div>
+                  <div>
+                    <span className="text-violet-600/90">Used (all-time)</span>
+                    <p className="font-bold tabular-nums">{p.consumedHoursAllTime.toFixed(2)} h</p>
+                  </div>
+                  <div>
+                    <span className="text-violet-600/90">Remaining</span>
+                    <p className="font-bold tabular-nums text-violet-950">{p.remainingHours.toFixed(2)} h</p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {isRetainerDoc && retainerUtilItems.length > 0 && (
+          <div className="overflow-x-auto print:overflow-visible mb-4">
+            <h4 className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">
+              Activity in period
+            </h4>
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b-2 border-gray-200">
+                  <th className="text-left py-2 font-bold text-gray-600">Task type</th>
+                  <th className="text-right py-2 font-bold text-gray-600">Hours</th>
+                </tr>
+              </thead>
+              <tbody>
+                {retainerUtilItems.map((item, idx) => (
+                  <tr key={idx} className="border-b border-gray-100">
+                    <td className="py-2">
+                      <div className="flex items-center gap-2">
+                        <div
+                          className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                          style={{ backgroundColor: item.taskTypeColor }}
+                        />
+                        <span className="font-medium text-gray-900">{item.taskTypeName}</span>
+                      </div>
+                    </td>
+                    <td className="text-right py-2 font-semibold text-gray-900 tabular-nums">
+                      {item.hours.toFixed(2)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr className="border-t-2 border-gray-300">
+                  <td className="py-2 text-right font-bold text-gray-600">Period hours</td>
+                  <td className="py-2 text-right font-bold text-gray-900 tabular-nums">
+                    {retainerPeriodHours.toFixed(2)}
+                  </td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        )}
+
+        {!isRetainerDoc && projectFeeItems.length > 0 && (
+          <div className="overflow-x-auto print:overflow-visible mb-4">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b-2 border-gray-200">
+                  <th className="text-left py-2 font-bold text-gray-600">
+                    Fixed project fee
+                  </th>
+                  <th className="text-right py-2 font-bold text-gray-600">Amount</th>
+                </tr>
+              </thead>
+              <tbody>
+                {projectFeeItems.map((item, idx) => (
+                  <tr key={idx} className="border-b border-gray-100">
+                    <td className="py-2">
+                      <div className="flex items-start gap-2">
+                        <div
+                          className="w-2.5 h-2.5 rounded-full flex-shrink-0 mt-1.5"
+                          style={{ backgroundColor: item.taskTypeColor }}
+                        />
+                        <div>
+                          <span className="font-medium text-gray-900">{item.taskTypeName}</span>
+                          {item.descriptions[0] && (
+                            <p className="text-xs text-gray-500 mt-0.5">{item.descriptions[0]}</p>
+                          )}
+                        </div>
+                      </div>
+                    </td>
+                    <td className="text-right py-2 font-bold text-gray-900">
+                      {formatCurrency(item.amount)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+              {(timeItems.length > 0 || fixedItems.length > 0) && (
+                <tfoot>
+                  <tr className="border-t border-gray-200">
+                    <td className="py-2 text-right text-sm font-medium text-gray-500">
+                      Subtotal
+                    </td>
+                    <td className="py-2 text-right font-bold text-gray-800">
+                      {formatCurrency(projectFeeSubtotal)}
+                    </td>
+                  </tr>
+                </tfoot>
+              )}
+              {timeItems.length === 0 && fixedItems.length === 0 && (
+                <tfoot>
+                  <tr className="border-t-2 border-gray-300">
+                    <td className="py-3 text-right font-bold text-gray-600">Invoice Total</td>
+                    <td className="py-3 text-right text-lg font-bold text-gray-900">
+                      {formatCurrency(invoice.total)}
+                    </td>
+                  </tr>
+                </tfoot>
+              )}
+            </table>
+          </div>
+        )}
+
+        {!isRetainerDoc && timeItems.length > 0 && (
           <div className="overflow-x-auto print:overflow-visible">
             <table className="w-full text-sm">
               <thead>
@@ -93,7 +246,7 @@ export function InvoicePreview({ invoice }: InvoicePreviewProps) {
                   <TimeRow key={idx} item={item} showCostMargin={showCostMargin} />
                 ))}
               </tbody>
-              {fixedItems.length === 0 && (
+              {fixedItems.length === 0 && projectFeeItems.length === 0 && (
                 <tfoot>
                   <tr className="border-t-2 border-gray-300">
                     <td colSpan={4} className="py-3 text-right font-bold text-gray-600">
@@ -118,7 +271,7 @@ export function InvoicePreview({ invoice }: InvoicePreviewProps) {
                   </tr>
                 </tfoot>
               )}
-              {fixedItems.length > 0 && (
+              {fixedItems.length > 0 && projectFeeItems.length === 0 && (
                 <tfoot>
                   <tr className="border-t border-gray-200">
                     <td colSpan={4} className="py-2 text-right text-sm font-medium text-gray-500">
@@ -128,9 +281,7 @@ export function InvoicePreview({ invoice }: InvoicePreviewProps) {
                       {invoice.totalHours.toFixed(2)}
                     </td>
                     <td className="py-2 text-right font-bold text-gray-800">
-                      {formatCurrency(
-                        timeItems.reduce((sum, item) => sum + item.amount, 0)
-                      )}
+                      {formatCurrency(tmSubtotal)}
                     </td>
                     {showCostMargin && (
                       <>
@@ -233,7 +384,8 @@ export function InvoicePreview({ invoice }: InvoicePreviewProps) {
           {invoice.lineItemCount
             ? ` | ${invoice.lineItemCount} additional charge${invoice.lineItemCount === 1 ? '' : 's'}`
             : ''}{' '}
-          | {invoice.totalHours.toFixed(2)} total hours
+          | {invoice.totalHours.toFixed(2)} hours in period
+          {isRetainerDoc ? ' (pool balance uses all-time usage)' : ''}
         </p>
       </div>
 
@@ -241,9 +393,23 @@ export function InvoicePreview({ invoice }: InvoicePreviewProps) {
       {showCostMargin && (
         <div className="mt-4 pt-3 border-t border-gray-200 print:hidden">
           <h4 className="text-sm font-bold text-gray-700 mb-2">Cost &amp; Margin</h4>
+          {isFixedPriceInvoice && !isRetainerDoc && (
+            <p className="text-xs text-gray-500 mb-3">
+              Client invoice total is the agreed project fee. Figures below use time &amp; materials for internal
+              tracking; per-row &quot;Billed&quot; is not what the client pays on a fixed bid.
+            </p>
+          )}
+          {isRetainerDoc && (
+            <p className="text-xs text-gray-500 mb-3">
+              This document is hours-focused. Dollar figures in Cost &amp; Margin are for internal use only (member
+              visibility follows your workspace role). Any amount shown in Summary is a pass-through charge only.
+            </p>
+          )}
           <div className="grid grid-cols-3 gap-4 text-sm mb-3">
             <div>
-              <span className="text-gray-500">Billed</span>
+              <span className="text-gray-500">
+                {isFixedPriceInvoice ? 'Client invoice' : 'Billed'}
+              </span>
               <p className="font-bold text-gray-900">{formatCurrency(invoice.total)}</p>
             </div>
             <div>

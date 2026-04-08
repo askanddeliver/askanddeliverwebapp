@@ -7,7 +7,7 @@ This document provides a comprehensive technical reference for the Ask And Deliv
 **Baseline:** Production MERN app with Auth0 multi-tenant workspaces (admin / member / pending), MongoDB persistence, and Vercel + Railway split deployment.
 
 - **Time & projects** — Live/resume timer, manual entries, project tasks, dashboard to-dos; workspace-scoped data with role-based visibility (members hide financials).
-- **Billing** — Reports-driven invoice preview; persistent `Invoice` records with DRAFT → SENT → PAID lifecycle; optional **Stripe Payment Links** + webhook to mark paid; CSV export and full JSON backup.
+- **Billing** — Reports-driven preview; persistent `Invoice` records (`documentKind`: **INVOICE** or **RETAINER_REPORT**) with DRAFT → SENT → PAID; **project billing modes** (HOURLY, FIXED_PRICE, HOUR_RETAINER) drive `POST /api/reports/generate-invoice`; optional **Stripe Payment Links** (blocked for retainer reports); optional **HOURLY budget burn** via `GET /api/projects/budget-burn`; CSV export and full JSON backup. See [docs/PROJECT_BILLING_MODES_BUILD_PLAN.md](docs/PROJECT_BILLING_MODES_BUILD_PLAN.md).
 - **Commercial** — Client proposals (`Proposal` model) with phases, investment totals, and DRAFT / FINALIZED status; lead pipeline with public intake → conversion.
 - **Public site** — Portfolio (case studies, media, themes), marketing pages, post-checkout `/invoices/paid` for Stripe returns.
 - **Ops** — Site config (company + theme), Cloudinary uploads, optional Auth0 M2M for add-by-email.
@@ -205,7 +205,8 @@ User (auth0Id)
  │     │
  │     ├──> Project (clientId, userId)
  │     │     ├── status: ACTIVE | PAUSED | COMPLETED | ARCHIVED
- │     │     ├── budget, brief (rich-text HTML)
+ │     │     ├── billingMode: HOURLY | FIXED_PRICE | HOUR_RETAINER (+ agreedAmount, retainerHoursTotal, retainerAdjustmentHours, fixedPriceInvoiceLabel as applicable)
+ │     │     ├── budget (HOURLY standing budget / burn), brief (rich-text HTML)
  │     │     ├── excerpt, year, categories, disciplines
  │     │     ├── challenge, solution, results (portfolio-aligned)
  │     │     │
@@ -229,6 +230,7 @@ User (auth0Id)
  │
  ├──> Invoice (userId, clientId)
  │     ├── invoiceNumber, status: DRAFT | SENT | PAID
+ │     ├── documentKind: INVOICE | RETAINER_REPORT (retainer utilization docs; no Stripe payment link)
  │     ├── dateRange, companyInfo (snapshot), clientInfo (snapshot)
  │     ├── items (snapshot of line items at creation)
  │     ├── total, totalHours, totalEarned, totalMargin
@@ -319,6 +321,7 @@ invoiceNumber: string (auto-generated, e.g. 260322-1)
 clientId: ObjectId → Client
 projectIds: ObjectId[] → Project[]
 status: 'DRAFT' | 'SENT' | 'PAID'
+documentKind: 'INVOICE' | 'RETAINER_REPORT' (default INVOICE; retainer reports are non-payment utilization docs)
 dateRange: { start: Date, end: Date }
 companyInfo: { name, address, phone, email } (snapshot at creation)
 clientInfo: { name, company, email, businessEntity, address, paymentPreference } (snapshot)
@@ -367,7 +370,7 @@ Auth0Provider
 API modules are organized as object namespaces:
 ```
 clientsApi.getAll(), .get(id), .create(data), .update(id, data), .delete(id)
-projectsApi.getAll(params), .getCounts(), .getByClient(clientId), ...
+projectsApi.getAll(params), .getCounts(), .getByClient(clientId), .getBudgetBurn(params), ...
 taskTypesApi.getAll(), .seedDefaults(), ...
 timeEntriesApi.getAll(params), .getActive(), .start(data), .stop(), .continue(id), ...
 projectTasksApi.getAll(projectId), .reorder(projectId, taskIds), .updateStatus(id, status), ...
@@ -470,6 +473,12 @@ The `POST /api/reports/generate-invoice` endpoint:
 6. Includes company info from SiteConfig (companyName, address, phone, email)
 7. Includes client billing details (businessEntity, address, paymentPreference)
 8. Returns the complete invoice data structure with totals, cost breakdown, and per-entry details
+
+**Project billing modes** (`Project.billingMode`, default HOURLY) change step 3–8 when the selected project set is not purely HOURLY. Full rules and edge cases: [docs/PROJECT_BILLING_MODES_BUILD_PLAN.md](docs/PROJECT_BILLING_MODES_BUILD_PLAN.md).
+
+- **HOURLY** — Time-and-materials: task-type rollups, discounts, margin; optional `budget` supports **budget burn** (billed vs budget for a date range or all time) via `GET /api/projects/budget-burn?projectIds=…` (HOURLY + positive budget only).
+- **FIXED_PRICE** — Single line from `agreedAmount` (optional label); no hourly rollups for that project in the same run; Stripe totals align with the fixed fee when persisting.
+- **HOUR_RETAINER** — **Retainer utilization report**: hours by task type, no client dollar line items; remaining hours = pool (`retainerHoursTotal` + `retainerAdjustmentHours`) minus all-time consumed on that project. Response uses `invoiceKind: 'RETAINER_REPORT'`, `documentKind: 'RETAINER_REPORT'`, and `retainerSummary` for UI; items may set `isRetainerUtilizationRow`. Stripe payment links are not created for `RETAINER_REPORT`.
 
 ### Invoice Lifecycle
 

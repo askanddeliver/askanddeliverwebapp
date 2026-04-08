@@ -1,6 +1,6 @@
 import { useState, useEffect, FormEvent } from 'react';
 import { X, Plus, Trash2 } from 'lucide-react';
-import type { Client, Project, ProjectStatus } from '../../types';
+import type { Client, Project, ProjectBillingMode, ProjectStatus } from '../../types';
 import { BriefEditor } from './BriefEditor';
 
 interface ProjectModalProps {
@@ -25,6 +25,11 @@ export interface ProjectModalSaveData {
   results?: string[];
   status: ProjectStatus;
   budget?: number;
+  billingMode: ProjectBillingMode;
+  agreedAmount?: number;
+  retainerHoursTotal?: number;
+  retainerHoursAdjustment?: number;
+  fixedPriceInvoiceLabel?: string;
 }
 
 const defaultCategories = [
@@ -57,6 +62,12 @@ export function ProjectModal({
   const [resultInput, setResultInput] = useState('');
   const [status, setStatus] = useState<ProjectStatus>('ACTIVE');
   const [budget, setBudget] = useState('');
+  const [billingMode, setBillingMode] = useState<ProjectBillingMode>('HOURLY');
+  const [agreedAmount, setAgreedAmount] = useState('');
+  const [retainerHoursTotal, setRetainerHoursTotal] = useState('');
+  const [retainerHoursAdjustment, setRetainerHoursAdjustment] = useState('');
+  const [fixedPriceInvoiceLabel, setFixedPriceInvoiceLabel] = useState('');
+  const [billingError, setBillingError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'basic' | 'brief'>('basic');
 
   useEffect(() => {
@@ -78,6 +89,24 @@ export function ProjectModal({
       setResults(project.results || []);
       setStatus(project.status);
       setBudget(project.budget?.toString() || '');
+      setBillingMode(project.billingMode ?? 'HOURLY');
+      setAgreedAmount(
+        project.agreedAmount !== undefined && project.agreedAmount !== null
+          ? String(project.agreedAmount)
+          : ''
+      );
+      setRetainerHoursTotal(
+        project.retainerHoursTotal !== undefined && project.retainerHoursTotal !== null
+          ? String(project.retainerHoursTotal)
+          : ''
+      );
+      setRetainerHoursAdjustment(
+        project.retainerHoursAdjustment !== undefined &&
+          project.retainerHoursAdjustment !== null
+          ? String(project.retainerHoursAdjustment)
+          : ''
+      );
+      setFixedPriceInvoiceLabel(project.fixedPriceInvoiceLabel || '');
     } else {
       setClientId('');
       setTitle('');
@@ -92,7 +121,13 @@ export function ProjectModal({
       setResults([]);
       setStatus('ACTIVE');
       setBudget('');
+      setBillingMode('HOURLY');
+      setAgreedAmount('');
+      setRetainerHoursTotal('');
+      setRetainerHoursAdjustment('');
+      setFixedPriceInvoiceLabel('');
     }
+    setBillingError(null);
     setActiveTab('basic');
   }, [project, isOpen]);
 
@@ -135,6 +170,32 @@ export function ProjectModal({
     e.preventDefault();
     if (!title.trim() || !clientId) return;
 
+    const agreed = agreedAmount.trim() ? parseFloat(agreedAmount) : undefined;
+    const retainerTotal = retainerHoursTotal.trim()
+      ? parseFloat(retainerHoursTotal)
+      : undefined;
+    const retainerAdj = retainerHoursAdjustment.trim()
+      ? parseFloat(retainerHoursAdjustment)
+      : undefined;
+
+    if (billingMode === 'FIXED_PRICE') {
+      if (agreed === undefined || Number.isNaN(agreed) || agreed < 0) {
+        setBillingError('Fixed price projects need a valid agreed amount.');
+        return;
+      }
+    }
+    if (billingMode === 'HOUR_RETAINER') {
+      if (
+        retainerTotal === undefined ||
+        Number.isNaN(retainerTotal) ||
+        retainerTotal <= 0
+      ) {
+        setBillingError('Hour retainer projects need retainer hours greater than zero.');
+        return;
+      }
+    }
+    setBillingError(null);
+
     onSave({
       clientId,
       title: title.trim(),
@@ -149,6 +210,17 @@ export function ProjectModal({
       results: results.length > 0 ? results : undefined,
       status,
       budget: budget ? parseFloat(budget) : undefined,
+      billingMode,
+      agreedAmount: billingMode === 'FIXED_PRICE' ? agreed : undefined,
+      retainerHoursTotal: billingMode === 'HOUR_RETAINER' ? retainerTotal : undefined,
+      retainerHoursAdjustment:
+        billingMode === 'HOUR_RETAINER' && retainerAdj !== undefined && !Number.isNaN(retainerAdj)
+          ? retainerAdj
+          : undefined,
+      fixedPriceInvoiceLabel:
+        billingMode === 'FIXED_PRICE' && fixedPriceInvoiceLabel.trim()
+          ? fixedPriceInvoiceLabel.trim()
+          : undefined,
     });
   };
 
@@ -263,21 +335,113 @@ export function ProjectModal({
                     </select>
                   </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Budget ($)
-                    </label>
-                    <input
-                      type="number"
-                      value={budget}
-                      onChange={(e) => setBudget(e.target.value)}
-                      className="input"
-                      placeholder="Optional"
-                      min="0"
-                      step="0.01"
-                    />
-                  </div>
+                  {billingMode === 'HOURLY' && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Budget ($)
+                      </label>
+                      <input
+                        type="number"
+                        value={budget}
+                        onChange={(e) => setBudget(e.target.value)}
+                        className="input"
+                        placeholder="Optional"
+                        min="0"
+                        step="0.01"
+                      />
+                    </div>
+                  )}
                 </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Billing mode
+                  </label>
+                  <select
+                    value={billingMode}
+                    onChange={(e) => {
+                      setBillingMode(e.target.value as ProjectBillingMode);
+                      setBillingError(null);
+                    }}
+                    className="input"
+                  >
+                    <option value="HOURLY">Hourly</option>
+                    <option value="FIXED_PRICE">Fixed price</option>
+                    <option value="HOUR_RETAINER">Hour retainer</option>
+                  </select>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Hourly uses task rates and optional budget. Fixed price and retainers are for tracking; invoicing rules come in a later step.
+                  </p>
+                </div>
+
+                {billingMode === 'FIXED_PRICE' && (
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Agreed amount ($) *
+                      </label>
+                      <input
+                        type="number"
+                        value={agreedAmount}
+                        onChange={(e) => setAgreedAmount(e.target.value)}
+                        className="input"
+                        min="0"
+                        step="0.01"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Invoice line label
+                      </label>
+                      <input
+                        type="text"
+                        value={fixedPriceInvoiceLabel}
+                        onChange={(e) => setFixedPriceInvoiceLabel(e.target.value)}
+                        className="input"
+                        placeholder="Optional description on fixed-price invoices"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {billingMode === 'HOUR_RETAINER' && (
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Retainer hours (total) *
+                      </label>
+                      <input
+                        type="number"
+                        value={retainerHoursTotal}
+                        onChange={(e) => setRetainerHoursTotal(e.target.value)}
+                        className="input"
+                        min="0"
+                        step="0.01"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Hours adjustment
+                      </label>
+                      <input
+                        type="number"
+                        value={retainerHoursAdjustment}
+                        onChange={(e) => setRetainerHoursAdjustment(e.target.value)}
+                        className="input"
+                        step="0.01"
+                        placeholder="Optional (+/− hours)"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {billingError && (
+                  <p className="text-sm text-red-600" role="alert">
+                    {billingError}
+                  </p>
+                )}
               </div>
             )}
 

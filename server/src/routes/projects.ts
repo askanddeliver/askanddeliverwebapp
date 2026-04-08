@@ -1,7 +1,40 @@
 import { Router, Response } from 'express';
 import { checkJwt, AuthRequest, extractUserId, getWorkspaceOwnerId, requireAdmin } from '../middleware/auth';
 import { asyncHandler, createError } from '../middleware/errorHandler';
-import { Project } from '../models';
+import { Project, TimeEntry } from '../models';
+import type { ITaskType } from '../models/TaskType';
+import type { ProjectBillingMode } from '../models';
+import { getEffectiveRate, parseDateStart, parseDateEnd } from '../utils/calculations';
+
+const BILLING_MODES: ProjectBillingMode[] = ['HOURLY', 'FIXED_PRICE', 'HOUR_RETAINER'];
+
+function parseOptionalNumber(value: unknown): number | undefined {
+  if (value === undefined || value === null || value === '') return undefined;
+  const n = typeof value === 'number' ? value : parseFloat(String(value));
+  return Number.isFinite(n) ? n : undefined;
+}
+
+/** Validates billing fields for the effective mode (after create or merge on update). */
+function assertProjectBillingValid(
+  mode: ProjectBillingMode,
+  agreedAmount: number | undefined,
+  retainerHoursTotal: number | undefined
+) {
+  if (mode === 'FIXED_PRICE') {
+    if (agreedAmount === undefined || agreedAmount < 0 || Number.isNaN(agreedAmount)) {
+      throw createError('Fixed price projects require a non-negative agreed amount', 400);
+    }
+  }
+  if (mode === 'HOUR_RETAINER') {
+    if (
+      retainerHoursTotal === undefined ||
+      retainerHoursTotal <= 0 ||
+      Number.isNaN(retainerHoursTotal)
+    ) {
+      throw createError('Hour retainer projects require retainer hours total greater than zero', 400);
+    }
+  }
+}
 
 const router = Router();
 
@@ -85,6 +118,117 @@ router.get(
   })
 );
 
+// GET /api/projects/budget-burn — Billed vs standing budget for HOURLY projects (workspace; admin use for $)
+router.get(
+  '/budget-burn',
+  asyncHandler(async (req: AuthRequest, res: Response) => {
+    const workspaceOwnerId = await getWorkspaceOwnerId(req);
+    if (!workspaceOwnerId) throw createError('Workspace access required', 403);
+
+    const rawIds = req.query.projectIds;
+    const ids: string[] = Array.isArray(rawIds)
+      ? (rawIds as string[]).map((s) => String(s).trim()).filter(Boolean)
+      : typeof rawIds === 'string'
+        ? rawIds
+            .split(',')
+            .map((s) => s.trim())
+            .filter(Boolean)
+        : [];
+
+    if (ids.length === 0) {
+      res.json({ periodLabel: 'All time', byProject: {} });
+      return;
+    }
+
+    const { startDate, endDate } = req.query as { startDate?: string; endDate?: string };
+
+    const projectDocs = await Project.find({
+      _id: { $in: ids },
+      userId: workspaceOwnerId,
+    }).lean();
+
+    const eligibleIds = projectDocs
+      .filter(
+        (p) =>
+          (p.billingMode ?? 'HOURLY') === 'HOURLY' &&
+          p.budget != null &&
+          Number(p.budget) > 0
+      )
+      .map((p) => p._id.toString());
+
+    if (eligibleIds.length === 0) {
+      res.json({ periodLabel: 'All time', byProject: {} });
+      return;
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const entryQuery: any = {
+      projectId: { $in: eligibleIds },
+      isRunning: false,
+    };
+    if (startDate || endDate) {
+      entryQuery.startTime = {};
+      if (startDate) entryQuery.startTime.$gte = parseDateStart(startDate);
+      if (endDate) entryQuery.startTime.$lte = parseDateEnd(endDate);
+    }
+
+    const entries = await TimeEntry.find(entryQuery)
+      .populate({
+        path: 'projectId',
+        populate: { path: 'clientId' },
+      })
+      .populate('taskTypeId')
+      .lean();
+
+    const billedByProject = new Map<string, number>();
+
+    for (const entry of entries) {
+      const taskType = entry.taskTypeId as unknown as ITaskType | null;
+      if (!taskType) continue;
+
+      const proj = entry.projectId as unknown as {
+        _id: { toString(): string };
+        clientId?: unknown;
+      } | null;
+      if (!proj?._id) continue;
+
+      const pid = proj._id.toString();
+      const client = proj.clientId as Parameters<typeof getEffectiveRate>[1];
+      const hours = (entry.duration || 0) / 3600;
+      const rate = getEffectiveRate(taskType, client);
+      const amount = Math.round(hours * rate * 100) / 100;
+      billedByProject.set(pid, (billedByProject.get(pid) || 0) + amount);
+    }
+
+    const byProject: Record<
+      string,
+      { budget: number; billed: number; remaining: number; percentUsed: number }
+    > = {};
+
+    for (const p of projectDocs) {
+      const id = p._id.toString();
+      if (!eligibleIds.includes(id)) continue;
+      const budget = Number(p.budget);
+      const billed = Math.round((billedByProject.get(id) || 0) * 100) / 100;
+      const remaining = Math.round((budget - billed) * 100) / 100;
+      const percentUsed =
+        budget > 0 ? Math.round((billed / budget) * 10000) / 100 : 0;
+      byProject[id] = { budget, billed, remaining, percentUsed };
+    }
+
+    let periodLabel = 'All time';
+    if (startDate && endDate) {
+      periodLabel = `${String(startDate).slice(0, 10)} – ${String(endDate).slice(0, 10)}`;
+    } else if (startDate) {
+      periodLabel = `From ${String(startDate).slice(0, 10)}`;
+    } else if (endDate) {
+      periodLabel = `Through ${String(endDate).slice(0, 10)}`;
+    }
+
+    res.json({ periodLabel, byProject });
+  })
+);
+
 // GET /api/projects/client/:clientId - Get projects by client (admin only - members don't use clients)
 router.get(
   '/client/:clientId',
@@ -127,6 +271,11 @@ router.post(
       results,
       status,
       budget,
+      billingMode: rawBillingMode,
+      agreedAmount: rawAgreedAmount,
+      retainerHoursTotal: rawRetainerHoursTotal,
+      retainerHoursAdjustment: rawRetainerAdjustment,
+      fixedPriceInvoiceLabel,
     } = req.body;
 
     if (!title || !title.trim()) {
@@ -135,6 +284,16 @@ router.post(
     if (!clientId) {
       throw createError('Client is required', 400);
     }
+
+    const billingMode: ProjectBillingMode =
+      rawBillingMode && BILLING_MODES.includes(rawBillingMode)
+        ? rawBillingMode
+        : 'HOURLY';
+    const agreedAmount = parseOptionalNumber(rawAgreedAmount);
+    const retainerHoursTotal = parseOptionalNumber(rawRetainerHoursTotal);
+    const retainerHoursAdjustment = parseOptionalNumber(rawRetainerAdjustment);
+
+    assertProjectBillingValid(billingMode, agreedAmount, retainerHoursTotal);
 
     const project = await Project.create({
       userId,
@@ -151,6 +310,14 @@ router.post(
       results: Array.isArray(results) ? results : [],
       status: status || 'ACTIVE',
       budget,
+      billingMode,
+      agreedAmount,
+      retainerHoursTotal,
+      retainerHoursAdjustment,
+      fixedPriceInvoiceLabel:
+        typeof fixedPriceInvoiceLabel === 'string'
+          ? fixedPriceInvoiceLabel.trim() || undefined
+          : undefined,
     });
 
     await project.populate('clientId');
@@ -180,7 +347,17 @@ router.put(
       status,
       budget,
       clientId,
+      billingMode: rawBillingMode,
+      agreedAmount: rawAgreedAmount,
+      retainerHoursTotal: rawRetainerHoursTotal,
+      retainerHoursAdjustment: rawRetainerAdjustment,
+      fixedPriceInvoiceLabel,
     } = req.body;
+
+    const existing = await Project.findOne({ _id: req.params.id, userId });
+    if (!existing) {
+      throw createError('Project not found', 404);
+    }
 
     const update: Record<string, unknown> = {};
     if (title !== undefined) update.title = title.trim();
@@ -197,9 +374,85 @@ router.put(
     if (budget !== undefined) update.budget = budget;
     if (clientId !== undefined) update.clientId = clientId;
 
+    if (rawBillingMode !== undefined) {
+      if (!BILLING_MODES.includes(rawBillingMode)) {
+        throw createError('Invalid billing mode', 400);
+      }
+      update.billingMode = rawBillingMode;
+    }
+    if (rawAgreedAmount !== undefined) {
+      const n = parseOptionalNumber(rawAgreedAmount);
+      update.agreedAmount = n;
+    }
+    if (rawRetainerHoursTotal !== undefined) {
+      const n = parseOptionalNumber(rawRetainerHoursTotal);
+      update.retainerHoursTotal = n;
+    }
+    if (rawRetainerAdjustment !== undefined) {
+      const n = parseOptionalNumber(rawRetainerAdjustment);
+      update.retainerHoursAdjustment = n;
+    }
+    if (fixedPriceInvoiceLabel !== undefined) {
+      update.fixedPriceInvoiceLabel =
+        typeof fixedPriceInvoiceLabel === 'string'
+          ? fixedPriceInvoiceLabel.trim() || undefined
+          : undefined;
+    }
+
+    const mergedMode: ProjectBillingMode =
+      (update.billingMode as ProjectBillingMode | undefined) ??
+      (existing.billingMode as ProjectBillingMode) ??
+      'HOURLY';
+    const mergedAgreed =
+      rawAgreedAmount !== undefined
+        ? parseOptionalNumber(rawAgreedAmount)
+        : existing.agreedAmount;
+    const mergedRetainer =
+      rawRetainerHoursTotal !== undefined
+        ? parseOptionalNumber(rawRetainerHoursTotal)
+        : existing.retainerHoursTotal;
+
+    assertProjectBillingValid(mergedMode, mergedAgreed, mergedRetainer);
+
+    const billingTouched =
+      rawBillingMode !== undefined ||
+      rawAgreedAmount !== undefined ||
+      rawRetainerHoursTotal !== undefined ||
+      rawRetainerAdjustment !== undefined ||
+      fixedPriceInvoiceLabel !== undefined;
+
+    const unsetPayload: Record<string, 1> = {};
+    if (billingTouched) {
+      if (mergedMode === 'HOURLY') {
+        unsetPayload.agreedAmount = 1;
+        unsetPayload.retainerHoursTotal = 1;
+        unsetPayload.retainerHoursAdjustment = 1;
+        unsetPayload.fixedPriceInvoiceLabel = 1;
+      } else if (mergedMode === 'FIXED_PRICE') {
+        unsetPayload.retainerHoursTotal = 1;
+        unsetPayload.retainerHoursAdjustment = 1;
+      } else if (mergedMode === 'HOUR_RETAINER') {
+        unsetPayload.agreedAmount = 1;
+        unsetPayload.fixedPriceInvoiceLabel = 1;
+      }
+    }
+
+    const setPayload = { ...update };
+    for (const k of Object.keys(unsetPayload)) {
+      delete setPayload[k];
+    }
+
+    const mongoUpdate: Record<string, unknown> = {};
+    if (Object.keys(setPayload).length > 0) {
+      mongoUpdate.$set = setPayload;
+    }
+    if (Object.keys(unsetPayload).length > 0) {
+      mongoUpdate.$unset = unsetPayload;
+    }
+
     const project = await Project.findOneAndUpdate(
       { _id: req.params.id, userId },
-      update,
+      Object.keys(mongoUpdate).length > 0 ? mongoUpdate : { $set: {} },
       { new: true, runValidators: true }
     ).populate('clientId');
 

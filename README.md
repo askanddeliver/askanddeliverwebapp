@@ -23,7 +23,8 @@ A full-featured time tracking, client management, and invoicing application buil
 - **Project CRUD** — Create and manage projects tied to specific clients
 - **Status tracking** — ACTIVE, PAUSED, COMPLETED, ARCHIVED workflow with status tabs and counts
 - **Filtering & search** — Filter by status, client, or search term; sort by date, title, or budget
-- **Budget tracking** — Optional budget field per project
+- **Budget tracking** — Optional budget field per project; for **HOURLY** projects, admins can compare billed (effective rates × hours) vs budget over a selected period or all time (**budget burn** on project cards)
+- **Billing modes** — Each project has `billingMode`: **HOURLY** (default, T&M and optional budget burn), **FIXED_PRICE** (agreed lump sum for invoicing), or **HOUR_RETAINER** (hour pool + adjustments; utilization reports). See [docs/PROJECT_BILLING_MODES_BUILD_PLAN.md](docs/PROJECT_BILLING_MODES_BUILD_PLAN.md)
 - **Rich-text briefs** — WYSIWYG project brief editor powered by Tiptap (bold, italic, lists, undo/redo)
 - **Portfolio-aligned fields** — Projects include excerpt, year, categories, disciplines, challenge, solution, and results fields for seamless conversion to portfolio case studies
 - **Archive vs. delete** — Soft-archive projects to hide them, or permanently delete
@@ -34,9 +35,9 @@ A full-featured time tracking, client management, and invoicing application buil
 - **Default seeding** — Pre-populate common task types on first use (Design $75, Development $100, Strategy $125, Meeting $50, Admin $0)
 
 ### Invoicing & Reports
-- **Persistent invoices** — Create invoices from Reports preview; list, filter, and manage status (DRAFT → SENT → PAID) on the Invoices page; auto-numbering and draft editing
+- **Persistent invoices** — Create invoices from Reports preview; list, filter, and manage status (DRAFT → SENT → PAID) on the Invoices page; auto-numbering and draft editing; stored `documentKind` is **INVOICE** or **RETAINER_REPORT** (utilization-only; no Stripe link)
 - **Online payment links (optional)** — When Stripe is configured, create a shareable Payment Link for a SENT invoice; successful checkout marks the invoice PAID via webhook; customers land on `/invoices/paid` after paying
-- **Invoice generation** — Generate invoice data with full discount calculations, showing base vs. effective rates; supports single-client or all-clients mode from Reports
+- **Invoice generation** — `POST /api/reports/generate-invoice` builds preview data from filters; **HOURLY** projects use task-type rollups with discounts and margin. **FIXED_PRICE** adds an agreed-fee line (no T&M for that project in the same document). **HOUR_RETAINER** produces a **retainer utilization** document (`documentKind` / preview `invoiceKind`: **RETAINER_REPORT**): hours and remaining pool, no client dollar line items; Stripe payment links are not offered for these. See [docs/PROJECT_BILLING_MODES_BUILD_PLAN.md](docs/PROJECT_BILLING_MODES_BUILD_PLAN.md)
 - **Company branding** — Company name, address, phone, and email appear in invoice headers (configured in Site Config)
 - **Client billing details** — Business entity, address, and payment preference (ACH/mailed check) on invoices
 - **Fixed-cost line items** — Add third-party costs (plugins, hosting, subcontractors, etc.) as flat-fee charges on invoices, separate from hourly time entries
@@ -394,6 +395,7 @@ See [SETUP.md](SETUP.md) for detailed MongoDB Atlas, Auth0, Cloudinary, and Stri
 | `GET` | `/api/projects` | List projects (filters: status, search, sort, clientId) |
 | `GET` | `/api/projects/counts` | Project counts by status |
 | `GET` | `/api/projects/client/:clientId` | Projects by client |
+| `GET` | `/api/projects/budget-burn` | HOURLY projects with budget: billed vs budget (`projectIds`, optional `startDate` / `endDate`) |
 | `POST` | `/api/projects` | Create project |
 | `PUT` | `/api/projects/:id` | Update project |
 | `PUT` | `/api/projects/:id/archive` | Archive project |
@@ -435,7 +437,7 @@ See [SETUP.md](SETUP.md) for detailed MongoDB Atlas, Auth0, Cloudinary, and Stri
 #### Reports & Export
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| `POST` | `/api/reports/generate-invoice` | Generate invoice with discount + margin calculations |
+| `POST` | `/api/reports/generate-invoice` | Invoice or retainer report preview (project `billingMode`: HOURLY / FIXED_PRICE / HOUR_RETAINER); see build plan doc |
 | `GET` | `/api/reports/summary` | Summary statistics |
 | `POST` | `/api/export/csv` | Export time entries and line items as CSV |
 | `POST` | `/api/export/backup` | Full workspace JSON backup download |

@@ -34,6 +34,8 @@ export interface Client {
 }
 
 // Project types
+export type ProjectBillingMode = 'HOURLY' | 'FIXED_PRICE' | 'HOUR_RETAINER';
+
 export interface Project {
   _id: string;
   clientId: string | Client;
@@ -51,6 +53,11 @@ export interface Project {
   results?: string[];
   status: 'ACTIVE' | 'PAUSED' | 'COMPLETED' | 'ARCHIVED';
   budget?: number;
+  billingMode?: ProjectBillingMode;
+  agreedAmount?: number;
+  retainerHoursTotal?: number;
+  retainerHoursAdjustment?: number;
+  fixedPriceInvoiceLabel?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -63,6 +70,19 @@ export interface ProjectCounts {
   COMPLETED: number;
   ARCHIVED: number;
   TOTAL: number;
+}
+
+/** HOURLY standing budget vs effective billed (from time entries × rates); client-only enrichment */
+export interface ProjectBudgetBurn {
+  budget: number;
+  billed: number;
+  remaining: number;
+  percentUsed: number;
+}
+
+export interface ProjectBudgetBurnResponse {
+  periodLabel: string;
+  byProject: Record<string, ProjectBudgetBurn>;
 }
 
 // Task Type types
@@ -131,6 +151,19 @@ export interface InvoiceLineItem {
   earnedAmount?: number;
   descriptions: string[];
   isFixedCost: boolean;
+  /** Agreed project fee (FIXED_PRICE) — client line, not hours×rate */
+  isAgreedProjectFee?: boolean;
+  /** Period hours by task type on HOUR_RETAINER reports — no client $ */
+  isRetainerUtilizationRow?: boolean;
+}
+
+export interface RetainerProjectSummary {
+  projectId: string;
+  title: string;
+  poolHours: number;
+  adjustmentHours: number;
+  consumedHoursAllTime: number;
+  remainingHours: number;
 }
 
 export interface CostBreakdownEntry {
@@ -167,10 +200,18 @@ export interface Invoice {
   };
   /** Stripe Payment Link URL when set (for PDF / client copy) */
   paymentLinkUrl?: string;
+  /** Preview generator mode */
+  invoiceKind?: 'HOURLY' | 'FIXED_PRICE' | 'RETAINER_REPORT';
+  /** Hour retainer: pool vs consumption (all-time) */
+  retainerSummary?: {
+    projects: RetainerProjectSummary[];
+  };
 }
 
 // Saved Invoice (persisted record)
 export type InvoiceStatus = 'DRAFT' | 'SENT' | 'PAID';
+
+export type InvoiceDocumentKind = 'INVOICE' | 'RETAINER_REPORT';
 
 export interface SavedInvoice {
   _id: string;
@@ -179,6 +220,7 @@ export interface SavedInvoice {
   clientId: string | Client;
   projectIds: string[];
   status: InvoiceStatus;
+  documentKind?: InvoiceDocumentKind;
   dateRange: { start: string; end: string };
   companyInfo: CompanyInfo;
   clientInfo: {

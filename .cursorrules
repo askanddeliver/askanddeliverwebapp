@@ -93,6 +93,15 @@ Users (team members) can have `earnedRates`: `Record<taskTypeId, earnedHourlyRat
 
 This enables tracking what you charge clients vs. what you pay team members per task type.
 
+### Project billing modes
+Each `Project` has `billingMode`: **HOURLY** (default), **FIXED_PRICE**, or **HOUR_RETAINER** — plus fields `agreedAmount` (fixed price), `retainerHoursTotal` / `retainerAdjustmentHours` (retainer pool), optional `fixedPriceInvoiceLabel`. Validation lives in `routes/projects.ts` (`assertProjectBillingValid`).
+
+- **Reports / `POST /api/reports/generate-invoice`** branches on selected projects’ modes (see `reports.ts`). HOURLY = existing T&M rollups. FIXED_PRICE = agreed-fee line (`isAgreedProjectFee`). HOUR_RETAINER = utilization-only rows (`isRetainerUtilizationRow`), `invoiceKind` / persisted **`documentKind`: `RETAINER_REPORT`**, `retainerSummary` in the JSON response for UI — no dollar billing lines for the client.
+- **`Invoice.documentKind`**: `INVOICE` | `RETAINER_REPORT`. Stripe Payment Links (`invoices.ts`) must refuse **`RETAINER_REPORT`**.
+- **HOURLY budget burn**: `GET /api/projects/budget-burn` — eligible only for HOURLY projects with a positive `budget`; sums effective-rate billed amounts from time entries (optional date range).
+
+Reference: [docs/PROJECT_BILLING_MODES_BUILD_PLAN.md](docs/PROJECT_BILLING_MODES_BUILD_PLAN.md).
+
 ### Workspace / Multi-Tenant Model
 Two data scoping patterns coexist:
 

@@ -1,10 +1,14 @@
 import { Pencil, Trash2, Archive } from 'lucide-react';
-import type { Project, Client, ProjectTask } from '../../types';
+import type { Project, Client, ProjectBudgetBurn, ProjectTask } from '../../types';
+import { formatCurrency } from '../../utils/calculations';
 import { ProjectTaskList } from '../projectTasks/ProjectTaskList';
 
 interface ProjectCardProps {
   project: Project;
   tasks: ProjectTask[];
+  /** Effective billed vs budget (admin); period set on Projects page */
+  budgetBurn?: ProjectBudgetBurn;
+  budgetBurnPeriodLabel?: string;
   onEdit: (project: Project) => void;
   onDelete: (id: string) => void;
   onArchive: (id: string) => void;
@@ -31,9 +35,34 @@ const statusStyles: Record<string, string> = {
   ARCHIVED: 'bg-gray-100 text-gray-400 border-gray-200',
 };
 
+function projectBillingSummary(project: Project, showAmounts: boolean): string {
+  const mode = project.billingMode ?? 'HOURLY';
+  if (!showAmounts) {
+    if (mode === 'FIXED_PRICE') return 'Fixed price';
+    if (mode === 'HOUR_RETAINER') return 'Hour retainer';
+    return 'Hourly';
+  }
+  if (mode === 'FIXED_PRICE' && project.agreedAmount != null) {
+    return `Fixed · $${project.agreedAmount.toLocaleString()}`;
+  }
+  if (mode === 'HOUR_RETAINER' && project.retainerHoursTotal != null) {
+    const adj =
+      project.retainerHoursAdjustment != null && project.retainerHoursAdjustment !== 0
+        ? ` · ${project.retainerHoursAdjustment > 0 ? '+' : ''}${project.retainerHoursAdjustment}h adj`
+        : '';
+    return `Retainer · ${project.retainerHoursTotal} hrs${adj}`;
+  }
+  if (mode === 'HOURLY' && project.budget) {
+    return `Hourly · Budget $${project.budget.toLocaleString()}`;
+  }
+  return 'Hourly';
+}
+
 export function ProjectCard({
   project,
   tasks,
+  budgetBurn,
+  budgetBurnPeriodLabel,
   onEdit,
   onDelete,
   onArchive,
@@ -132,12 +161,38 @@ export function ProjectCard({
         >
           {project.status}
         </span>
-        {showBudget && project.budget && (
-          <span className="text-xs text-gray-500">
-            Budget: ${project.budget.toLocaleString()}
-          </span>
-        )}
+        <span className="text-xs text-gray-500">
+          {projectBillingSummary(project, showBudget)}
+        </span>
       </div>
+
+      {showBudget &&
+        budgetBurn &&
+        (project.billingMode ?? 'HOURLY') === 'HOURLY' &&
+        project.budget != null &&
+        project.budget > 0 && (
+          <div className="mt-2 px-0.5" title="Billable amount from time entries × effective rates (excludes fixed-price/retainer logic)">
+            <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+              <div
+                className={`h-full rounded-full transition-all ${
+                  budgetBurn.percentUsed >= 100
+                    ? 'bg-red-500'
+                    : budgetBurn.percentUsed >= 85
+                      ? 'bg-amber-500'
+                      : 'bg-primary-500'
+                }`}
+                style={{
+                  width: `${Math.min(100, budgetBurn.percentUsed)}%`,
+                }}
+              />
+            </div>
+            <p className="text-[11px] text-gray-500 mt-1 leading-snug">
+              Budget burn {budgetBurn.percentUsed.toFixed(0)}% · {formatCurrency(budgetBurn.billed)} /{' '}
+              {formatCurrency(budgetBurn.budget)}
+              {budgetBurnPeriodLabel ? ` · ${budgetBurnPeriodLabel}` : ''}
+            </p>
+          </div>
+        )}
 
       {/* Project Task List */}
       <div className="mt-3 pt-3 border-t border-gray-100">

@@ -1,5 +1,7 @@
 import mongoose, { Document, Schema } from 'mongoose';
 
+export type ProjectBillingMode = 'HOURLY' | 'FIXED_PRICE' | 'HOUR_RETAINER';
+
 export interface IProject extends Document {
   userId: string;
   clientId: mongoose.Types.ObjectId;
@@ -17,6 +19,16 @@ export interface IProject extends Document {
   results: string[];
   status: 'ACTIVE' | 'PAUSED' | 'COMPLETED' | 'ARCHIVED';
   budget?: number;
+  /** Defaults to HOURLY in schema; may be absent on legacy documents */
+  billingMode?: ProjectBillingMode;
+  /** Agreed fixed price (required when billingMode is FIXED_PRICE) */
+  agreedAmount?: number;
+  /** Total retainer hours (required when billingMode is HOUR_RETAINER) */
+  retainerHoursTotal?: number;
+  /** Manual adjustment to retainer pool (hours) */
+  retainerHoursAdjustment?: number;
+  /** Optional line label on fixed-price invoices */
+  fixedPriceInvoiceLabel?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -83,6 +95,26 @@ const ProjectSchema = new Schema<IProject>(
     budget: {
       type: Number,
       min: 0,
+    },
+    billingMode: {
+      type: String,
+      enum: ['HOURLY', 'FIXED_PRICE', 'HOUR_RETAINER'],
+      default: 'HOURLY',
+    },
+    agreedAmount: {
+      type: Number,
+      min: 0,
+    },
+    retainerHoursTotal: {
+      type: Number,
+      min: 0,
+    },
+    retainerHoursAdjustment: {
+      type: Number,
+    },
+    fixedPriceInvoiceLabel: {
+      type: String,
+      trim: true,
     },
   },
   {

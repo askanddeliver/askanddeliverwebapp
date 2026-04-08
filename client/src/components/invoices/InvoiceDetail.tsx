@@ -170,6 +170,8 @@ export function InvoiceDetail({ invoice, onClose, onUpdated, onDeleted }: Invoic
 
   const previewInvoice: Invoice = {
     invoiceNumber: invoice.invoiceNumber,
+    invoiceKind:
+      invoice.documentKind === 'RETAINER_REPORT' ? 'RETAINER_REPORT' : undefined,
     client: {
       _id: typeof invoice.clientId === 'object' ? invoice.clientId._id : invoice.clientId,
       name: invoice.clientInfo.name,
@@ -344,7 +346,7 @@ export function InvoiceDetail({ invoice, onClose, onUpdated, onDeleted }: Invoic
                     </button>
                   </div>
                 )}
-                {stripePaymentLinksEnabled === true && (
+                {stripePaymentLinksEnabled === true && invoice.documentKind !== 'RETAINER_REPORT' && (
                   <div className="w-full flex flex-wrap items-center gap-2 mt-2 pt-3 border-t border-gray-100">
                     <span className="text-sm font-medium text-gray-700 flex items-center gap-1.5">
                       <Link2 className="w-4 h-4 text-gray-500" />

@@ -10,7 +10,9 @@ import type {
   TimeEntry,
   LineItem,
   Invoice,
+  InvoiceDocumentKind,
   InvoiceStatus,
+  ProjectBudgetBurnResponse,
   SavedInvoice,
   InvoiceStats,
   SavedProposal,
@@ -149,6 +151,20 @@ export const projectsApi = {
     api.put<Project>(`/projects/${id}`, data),
   archive: (id: string) => api.put<Project>(`/projects/${id}/archive`),
   delete: (id: string) => api.delete(`/projects/${id}`),
+  getBudgetBurn: (params: {
+    projectIds: string[];
+    startDate?: string;
+    endDate?: string;
+  }) => {
+    const { projectIds, startDate, endDate } = params;
+    return api.get<ProjectBudgetBurnResponse>('/projects/budget-burn', {
+      params: {
+        projectIds: projectIds.join(','),
+        startDate,
+        endDate,
+      },
+    });
+  },
 };
 
 // Task Types
@@ -295,6 +311,7 @@ export const invoicesApi = {
     timeEntryIds?: string[];
     lineItemIds?: string[];
     notes?: string;
+    documentKind?: InvoiceDocumentKind;
   }) => api.post<SavedInvoice>('/invoices', data),
   update: (id: string, data: { invoiceNumber?: string; notes?: string }) =>
     api.put<SavedInvoice>(`/invoices/${id}`, data),

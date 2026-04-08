@@ -4,7 +4,20 @@ import { useUserRole } from '../contexts/UserContext';
 import { ProjectList } from '../components/projects/ProjectList';
 import { ProjectModal, type ProjectModalSaveData } from '../components/projects/ProjectModal';
 import { projectsApi, clientsApi, projectTasksApi } from '../services/api';
-import type { Project, Client, ProjectTask, ProjectStatus, ProjectCounts } from '../types';
+import type {
+  Project,
+  Client,
+  ProjectTask,
+  ProjectStatus,
+  ProjectCounts,
+  ProjectBudgetBurn,
+} from '../types';
+import {
+  getDaysAgoString,
+  getTodayString,
+  toUTCStartOfDay,
+  toUTCEndOfDay,
+} from '../utils/calculations';
 import { sortProjectTasksByOrder } from '../utils/projectTasks';
 
 type StatusTab = ProjectStatus | 'ALL';
@@ -25,6 +38,21 @@ const SORT_OPTIONS = [
   { value: 'budget_desc', label: 'Budget High–Low' },
 ];
 
+type BurnPeriod = 'all' | 'month' | '30d';
+
+function getBurnDateRange(period: BurnPeriod): { startDate?: string; endDate?: string } {
+  if (period === 'all') return {};
+  const endDate = toUTCEndOfDay(getTodayString());
+  if (period === '30d') {
+    return { startDate: toUTCStartOfDay(getDaysAgoString(30)), endDate };
+  }
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = d.getMonth();
+  const firstLocal = `${y}-${String(m + 1).padStart(2, '0')}-01`;
+  return { startDate: toUTCStartOfDay(firstLocal), endDate };
+}
+
 function Projects() {
   const { isAdmin } = useUserRole();
   const [projects, setProjects] = useState<Project[]>([]);
@@ -35,6 +63,11 @@ function Projects() {
   const [error, setError] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
+  const [budgetBurnByProjectId, setBudgetBurnByProjectId] = useState<
+    Record<string, ProjectBudgetBurn>
+  >({});
+  const [budgetBurnPeriodLabel, setBudgetBurnPeriodLabel] = useState('');
+  const [burnPeriod, setBurnPeriod] = useState<BurnPeriod>('all');
 
   // Filters
   const [activeTab, setActiveTab] = useState<StatusTab>('ACTIVE');
@@ -95,6 +128,50 @@ function Projects() {
   useEffect(() => {
     loadProjects();
   }, [loadProjects]);
+
+  useEffect(() => {
+    if (!isAdmin) {
+      setBudgetBurnByProjectId({});
+      setBudgetBurnPeriodLabel('');
+      return;
+    }
+
+    const ids = projects
+      .filter(
+        (p) =>
+          (p.billingMode ?? 'HOURLY') === 'HOURLY' &&
+          p.budget != null &&
+          p.budget > 0
+      )
+      .map((p) => p._id);
+
+    if (ids.length === 0) {
+      setBudgetBurnByProjectId({});
+      setBudgetBurnPeriodLabel('');
+      return;
+    }
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const range = getBurnDateRange(burnPeriod);
+        const res = await projectsApi.getBudgetBurn({ projectIds: ids, ...range });
+        if (!cancelled) {
+          setBudgetBurnByProjectId(res.data.byProject);
+          setBudgetBurnPeriodLabel(res.data.periodLabel);
+        }
+      } catch {
+        if (!cancelled) {
+          setBudgetBurnByProjectId({});
+          setBudgetBurnPeriodLabel('');
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [projects, isAdmin, burnPeriod]);
 
   const handleSave = async (data: ProjectModalSaveData) => {
     try {
@@ -400,6 +477,26 @@ function Projects() {
           </select>
           <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
         </div>
+
+        {isAdmin && (
+          <div className="relative">
+            <label htmlFor="burn-period" className="sr-only">
+              Budget burn period
+            </label>
+            <select
+              id="burn-period"
+              value={burnPeriod}
+              onChange={(e) => setBurnPeriod(e.target.value as BurnPeriod)}
+              title="Period for comparing billed time to standing budget (HOURLY projects with budget)"
+              className="appearance-none pl-3 pr-8 py-2.5 border border-gray-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent max-w-[200px]"
+            >
+              <option value="all">Burn: all time</option>
+              <option value="month">Burn: this month</option>
+              <option value="30d">Burn: last 30 days</option>
+            </select>
+            <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+          </div>
+        )}
       </div>
 
       {/* Loading State */}
@@ -411,6 +508,8 @@ function Projects() {
         <ProjectList
           projects={projects}
           tasksByProject={tasksByProject}
+          budgetBurnByProjectId={budgetBurnByProjectId}
+          budgetBurnPeriodLabel={budgetBurnPeriodLabel}
           showBudget={isAdmin}
           canEdit={isAdmin}
           canReorder={isAdmin}

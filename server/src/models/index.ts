@@ -1,6 +1,7 @@
 export { User, IUser } from './User';
 export { Client, IClient } from './Client';
 export { Project, IProject } from './Project';
+export type { ProjectBillingMode } from './Project';
 export { TaskType, ITaskType } from './TaskType';
 export { TimeEntry, ITimeEntry } from './TimeEntry';
 export { ProjectTask, IProjectTask } from './ProjectTask';
@@ -9,7 +10,7 @@ export { LineItem, ILineItem } from './LineItem';
 export { Lead, ILead, ILeadNote } from './Lead';
 export { SiteConfig, ISiteConfig, IThemeColors, IColorPalette } from './SiteConfig';
 export { Invoice, IInvoice, IInvoiceItem, IInvoiceCompanyInfo, IInvoiceClientInfo } from './Invoice';
-export type { InvoiceStatus } from './Invoice';
+export type { InvoiceStatus, InvoiceDocumentKind } from './Invoice';
 export {
   Proposal,
   IProposal,
