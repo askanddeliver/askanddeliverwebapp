@@ -26,7 +26,6 @@ This document describes expanding **Ask And Deliver** so projects can be tracked
 
 ## Overview
 
-
 ### Problem
 
 1. **Fixed bid** — You need hours and margin for internal operations, but the client invoice must reflect the **agreed project price**, not ∑(hours × rates), whether you are under or over budget on internal effort.
