@@ -361,7 +361,7 @@ Auth0Provider
 
 `client/src/services/api.ts` provides two axios instances:
 
-1. **Authenticated instance** (`api`) — Has a request interceptor that attaches the Auth0 bearer token. Used by all protected API modules.
+1. **Authenticated instance** (`api`) — Request interceptor awaits the token from `registerAccessTokenGetter` (wired in `ApiAuthContext` with `getAccessTokenSilently`). No `localStorage` bearer storage. Optional single 401 retry with `config._retry`. Used by all protected API modules.
 2. **Public instance** (raw `axios`) — No auth headers. Used by `portfolioPublicApi`, `leadsPublicApi`, and `siteConfigPublicApi`.
 
 API modules are organized as object namespaces:
@@ -593,7 +593,7 @@ askanddeliver.com (Vercel)  ──HTTPS──>  Railway (server)
 4. **Multi-tenant isolation** — Data queries always filter by userId or workspaceOwnerId; no cross-workspace data leakage
 5. **Admin middleware** — `requireAdmin` verifies role from database (not just token claims)
 6. **Self-protection** — Admins cannot demote or disable their own account via the team management UI
-7. **Token storage** — Access tokens stored in localStorage with the `auth0_token` key; refreshed via Auth0 SDK
+7. **Token handling (client)** — Access tokens are not persisted in `localStorage`. Axios uses `registerAccessTokenGetter` + `getAccessTokenSilently()` per request; `Auth0Provider` uses `useRefreshTokens` and `cacheLocation="memory"`. Response interceptor may retry once on 401 with `_retry` to avoid loops.
 8. **Input sanitization** — Mongoose schema validation with `trim`, `lowercase`, `required`, and `enum` constraints
 
 ---
@@ -680,6 +680,7 @@ askanddeliver.com (Vercel)  ──HTTPS──>  Railway (server)
 
 | Function | Purpose |
 |----------|---------|
+| `getDiscountPercent(client, taskTypeId)` | Reads discount % from `taskDiscounts` (Mongoose Map or plain object) |
 | `getEffectiveRate(taskType, client)` | Applies client discount to task type base rate |
 | `calculateAmount(durationSeconds, effectiveRate)` | Computes billable amount from time and rate |
 | `formatDuration(totalSeconds)` | Returns `HH:MM:SS` format |

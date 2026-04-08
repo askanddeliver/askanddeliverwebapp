@@ -117,6 +117,10 @@ git push -u origin main
 
 The identifier value becomes your `AUTH0_AUDIENCE`.
 
+### Refresh tokens (SPA)
+
+The client uses `useRefreshTokens` and in-memory token storage (no custom `localStorage` bearer). In your Auth0 **Application** settings, ensure **Refresh Token** is allowed under **Application** → **Credentials** / grant configuration (and enable **Refresh Token Rotation** for SPAs if shown). If login fails after deploy, verify this before changing code.
+
 ---
 
 ## Step 6: Configure Cloudinary

@@ -99,7 +99,7 @@ A full-featured time tracking, client management, and invoicing application buil
 - **Pending user handling** — New signups see an "Account Pending Approval" message until an admin adds them
 - **Multi-tenant data isolation** — Data scoped by workspace (admin + their members)
 - **JWT validation** — Server-side token verification via `express-oauth2-jwt-bearer`
-- **Token persistence** — Auth tokens stored in localStorage for session persistence across refreshes
+- **Token handling** — Access tokens are obtained via Auth0 (`getAccessTokenSilently`), attached per request by an axios interceptor (`registerAccessTokenGetter` from `ApiAuthContext`), with `useRefreshTokens` and in-memory SDK cache — not stored in `localStorage` (legacy `auth0_token` is cleared on load)
 
 ---
 
@@ -564,7 +564,7 @@ Per-user configuration. Stores `colors` (8 brand color values: brandSage, brandS
 1. User clicks "Login" on the public site
 2. Redirected to Auth0 Universal Login
 3. Auth0 authenticates and returns to the app with an access token
-4. Frontend stores the token in localStorage and injects it into all API requests via the API auth context
+4. Frontend registers a token getter with the shared axios client; each API request awaits `getAccessTokenSilently()` and sends `Authorization: Bearer …` (see `ApiAuthContext` + `services/api.ts`)
 5. Backend validates the token using `express-oauth2-jwt-bearer`
 6. `GET /api/users/me` auto-creates the user record on first login, syncing Auth0 profile data
 7. Role assignment: `PRIMARY_ADMIN_EMAIL` match → admin; first user in DB → admin; all others → pending
