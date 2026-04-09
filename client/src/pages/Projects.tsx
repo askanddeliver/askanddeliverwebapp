@@ -230,10 +230,14 @@ function Projects() {
     try {
       const res = await projectTasksApi.create(data);
       const pid = data.projectId;
-      setTasksByProject((prev) => ({
-        ...prev,
-        [pid]: [...(prev[pid] || []), res.data],
-      }));
+      setTasksByProject((prev) => {
+        const existing = prev[pid] || [];
+        const bumped = existing.map((t) => ({
+          ...t,
+          order: (t.order ?? 0) + 1,
+        }));
+        return { ...prev, [pid]: [res.data, ...bumped] };
+      });
       setError(null);
     } catch (err) {
       console.error('Failed to create task:', err);

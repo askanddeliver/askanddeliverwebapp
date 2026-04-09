@@ -71,11 +71,8 @@ router.post(
       throw createError('Task title is required', 400);
     }
 
-    // Determine order: place new task at the end
-    const lastTask = await ProjectTask.findOne({ userId, projectId })
-      .sort({ order: -1 })
-      .lean();
-    const order = lastTask ? lastTask.order + 1 : 0;
+    // Place new task at the top: shift existing orders so reorder (0,1,2,…) stays consistent
+    await ProjectTask.updateMany({ userId, projectId }, { $inc: { order: 1 } });
 
     const task = await ProjectTask.create({
       userId,
@@ -83,7 +80,7 @@ router.post(
       title: title.trim(),
       description: description?.trim(),
       status: status || 'TODO',
-      order,
+      order: 0,
       estimatedHours,
     });
 
