@@ -328,7 +328,7 @@ function Reports() {
   ];
 
   return (
-    <div className="max-w-5xl mx-auto">
+    <div className="w-full">
       <div className="mb-6 print:hidden">
         <h1 className="text-3xl font-bold text-gray-900">
           Reports & Invoicing

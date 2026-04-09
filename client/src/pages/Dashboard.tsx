@@ -224,7 +224,7 @@ function Dashboard() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto">
+    <div className="w-full">
       {/* Welcome Header */}
       <div className="mb-6">
         <h1 className="text-3xl font-bold text-gray-900">
@@ -247,8 +247,11 @@ function Dashboard() {
         </div>
       )}
 
+      <div className="xl:grid xl:grid-cols-12 xl:gap-8 xl:items-start">
+      {/* Left: stats, prompts, timer */}
+      <div className="space-y-6 xl:col-span-5">
       {/* Summary Stat Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+      <div className="grid grid-cols-2 lg:grid-cols-4 xl:grid-cols-2 2xl:grid-cols-4 gap-3">
         <div className="card !p-4 flex items-center gap-3">
           <div className="w-10 h-10 rounded-lg bg-primary-50 flex items-center justify-center flex-shrink-0">
             <Clock className="w-5 h-5 text-primary-600" />
@@ -333,7 +336,7 @@ function Dashboard() {
 
       {/* Timer Section */}
       {projects.length > 0 && taskTypes.length > 0 && (
-        <div className="card mb-6">
+        <div className="card">
           <TimerDisplay
             startTime={activeTimer?.startTime}
             isRunning={activeTimer?.isRunning || false}
@@ -374,7 +377,7 @@ function Dashboard() {
 
       {/* Quick Manual Entry */}
       {projects.length > 0 && taskTypes.length > 0 && (
-        <div className="mb-6">
+        <div>
           <QuickEntry
             projects={projects}
             taskTypes={taskTypes}
@@ -384,7 +387,10 @@ function Dashboard() {
           />
         </div>
       )}
+      </div>
 
+      {/* Right: tasks + recent (wide screens) */}
+      <div className="space-y-6 xl:col-span-7 mt-6 xl:mt-0">
       {/* Open tasks across active projects */}
       {projects.length > 0 && (
         <DashboardTaskList
@@ -395,17 +401,6 @@ function Dashboard() {
           onPlay={(project, task) => setStartTaskContext({ project, task })}
         />
       )}
-
-      <StartTaskTimerModal
-        isOpen={startTaskContext !== null}
-        project={startTaskContext?.project ?? null}
-        projectTask={startTaskContext?.task ?? null}
-        taskTypes={taskTypes}
-        showRate={isAdmin}
-        isTimerRunning={Boolean(activeTimer?.isRunning)}
-        onClose={() => setStartTaskContext(null)}
-        onStart={handleStartFromTaskModal}
-      />
 
       {/* Recent Entries */}
       {recentEntries.length > 0 && (
@@ -427,6 +422,19 @@ function Dashboard() {
           />
         </div>
       )}
+      </div>
+      </div>
+
+      <StartTaskTimerModal
+        isOpen={startTaskContext !== null}
+        project={startTaskContext?.project ?? null}
+        projectTask={startTaskContext?.task ?? null}
+        taskTypes={taskTypes}
+        showRate={isAdmin}
+        isTimerRunning={Boolean(activeTimer?.isRunning)}
+        onClose={() => setStartTaskContext(null)}
+        onStart={handleStartFromTaskModal}
+      />
 
       <EntryModal
         entry={editingEntry}

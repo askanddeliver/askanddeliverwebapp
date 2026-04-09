@@ -82,7 +82,7 @@ function Proposals() {
 
   return (
     <>
-      <div className="max-w-5xl mx-auto print:hidden">
+      <div className="w-full print:hidden">
         <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Proposals</h1>

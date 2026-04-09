@@ -54,11 +54,19 @@ export function EntryRow({
     amount = Math.round(hours * taskType.rate * 100) / 100;
   }
 
+  const metaLine = (
+    <>
+      {client && <span>{client.name}</span>}
+      {taskType && <span>{client ? ` (${taskType.name})` : taskType.name}</span>}
+      <span> &middot; {formatDate(entry.startTime)}</span>
+    </>
+  );
+
   return (
-    <div className="flex items-start gap-4 py-4 px-4 hover:bg-gray-50 rounded-lg transition-colors print:gap-2 print:py-1.5 print:px-0">
+    <div className="flex items-start gap-4 py-4 px-4 hover:bg-gray-50 rounded-lg transition-colors print:gap-2 print:py-1.5 print:px-0 xl:grid xl:grid-cols-[auto_minmax(0,1fr)_minmax(11rem,18rem)_minmax(4.5rem,auto)_auto] xl:items-center xl:gap-5">
       {taskType && (
         <div
-          className="w-3 h-3 rounded-full flex-shrink-0 mt-1.5 print:w-2 print:h-2 print:mt-1"
+          className="w-3 h-3 rounded-full flex-shrink-0 mt-1.5 xl:mt-0 print:w-2 print:h-2 print:mt-1"
           style={{ backgroundColor: taskType.color }}
         />
       )}
@@ -73,16 +81,18 @@ export function EntryRow({
             </span>
           )}
         </div>
-        <div className="text-xs text-gray-500 mt-0.5 print:text-[10px] print:mt-0">
-          {client && <span>{client.name}</span>}
-          {taskType && <span>{client ? ` (${taskType.name})` : taskType.name}</span>}
-          <span> &middot; {formatDate(entry.startTime)}</span>
+        <div className="text-xs text-gray-500 mt-0.5 xl:hidden print:text-[10px] print:mt-0">
+          {metaLine}
         </div>
         {showDescription && entry.description && (
-          <div className="text-xs text-gray-400 mt-1 line-clamp-2 print:text-[10px] print:mt-0 print:line-clamp-1">
+          <div className="text-xs text-gray-400 mt-1 line-clamp-2 xl:line-clamp-1 print:text-[10px] print:mt-0 print:line-clamp-1">
             {entry.description}
           </div>
         )}
+      </div>
+
+      <div className="hidden xl:block text-xs text-gray-500 self-center truncate min-w-0">
+        {metaLine}
       </div>
 
       <div className="text-right flex-shrink-0">

@@ -59,8 +59,9 @@ router.post(
   '/',
   requireAdmin,
   asyncHandler(async (req: AuthRequest, res: Response) => {
-    const userId = extractUserId(req);
-    if (!userId) throw createError('User ID not found in token', 401);
+    // Match GET /project-tasks: tasks are keyed by workspace owner, not raw JWT sub
+    const workspaceOwnerId = await getWorkspaceOwnerId(req);
+    if (!workspaceOwnerId) throw createError('Workspace access required', 403);
 
     const { projectId, title, description, status, estimatedHours } = req.body;
 
@@ -72,10 +73,13 @@ router.post(
     }
 
     // Place new task at the top: shift existing orders so reorder (0,1,2,…) stays consistent
-    await ProjectTask.updateMany({ userId, projectId }, { $inc: { order: 1 } });
+    await ProjectTask.updateMany(
+      { userId: workspaceOwnerId, projectId },
+      { $inc: { order: 1 } }
+    );
 
     const task = await ProjectTask.create({
-      userId,
+      userId: workspaceOwnerId,
       projectId,
       title: title.trim(),
       description: description?.trim(),

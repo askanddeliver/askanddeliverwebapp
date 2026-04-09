@@ -323,7 +323,7 @@ function Projects() {
   };
 
   return (
-    <div className="max-w-5xl mx-auto">
+    <div className="w-full">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>

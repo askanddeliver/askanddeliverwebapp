@@ -144,7 +144,7 @@ function PortfolioAdmin() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto">
+    <div className="w-full">
       {/* Header */}
       <div className="flex items-start justify-between mb-6">
         <div>

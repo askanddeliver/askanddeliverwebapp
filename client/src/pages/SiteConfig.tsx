@@ -367,7 +367,7 @@ function SiteConfigPage() {
 
   if (loading) {
     return (
-      <div className="max-w-4xl mx-auto">
+      <div className="w-full">
         <div className="animate-pulse">
           <div className="h-8 bg-gray-200 rounded w-64 mb-2" />
           <div className="h-4 bg-gray-100 rounded w-96 mb-8" />
@@ -381,7 +381,7 @@ function SiteConfigPage() {
   }
 
   return (
-    <div className="max-w-5xl mx-auto">
+    <div className="w-full">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
@@ -499,9 +499,9 @@ function SiteConfigPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 xl:grid-cols-12 xl:gap-8 gap-6">
         {/* Color tiers */}
-        <div className="lg:col-span-2 space-y-4">
+        <div className="lg:col-span-2 xl:col-span-8 space-y-4 2xl:grid 2xl:grid-cols-2 2xl:gap-4 2xl:space-y-0">
           {COLOR_TIERS.map((tier) => (
             <div key={tier.label} className="card">
               <div className="mb-4">
@@ -527,7 +527,7 @@ function SiteConfigPage() {
         </div>
 
         {/* Sidebar: Preview + Palettes */}
-        <div className="space-y-4">
+        <div className="space-y-4 xl:col-span-4">
           {/* Live Preview */}
           <div>
             <h3 className="text-sm font-semibold text-gray-900 mb-3">
