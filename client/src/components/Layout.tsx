@@ -52,7 +52,7 @@ function LayoutInner({ children }: LayoutProps) {
         />
 
         <div className="flex-1 flex flex-col min-w-0 overflow-auto bg-[var(--admin-cream,var(--brand-cream,#F7F5F2))]">
-          <main className="flex-1 w-full max-w-[90rem] mx-auto px-6 py-10 sm:px-8 lg:px-12 xl:px-14 2xl:px-16">
+          <main className="flex-1 w-full min-w-0 px-6 py-10 sm:px-8 lg:px-12 xl:px-14 2xl:px-16">
             {!isLoading && isPending ? (
               <div className="flex flex-col items-center justify-center min-h-[50vh] text-center px-4">
                 <div className="max-w-md">

@@ -247,58 +247,60 @@ function Dashboard() {
         </div>
       )}
 
-      <div className="xl:grid xl:grid-cols-12 xl:gap-8 xl:items-start">
-      {/* Left: stats, prompts, timer */}
-      <div className="space-y-6 xl:col-span-5">
-      {/* Summary Stat Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 xl:grid-cols-2 2xl:grid-cols-4 gap-3">
-        <div className="card !p-4 flex items-center gap-3">
+      {/* Summary stats — full width so values are not squeezed in the xl sidebar */}
+      <div
+        className={`grid grid-cols-2 gap-3 mb-6 ${isAdmin ? 'md:grid-cols-4' : 'md:grid-cols-3'}`}
+      >
+        <div className="card !p-4 flex items-center gap-3 min-w-0">
           <div className="w-10 h-10 rounded-lg bg-primary-50 flex items-center justify-center flex-shrink-0">
             <Clock className="w-5 h-5 text-primary-600" />
           </div>
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Today</p>
-            <p className="text-lg font-bold text-gray-900 truncate">
+            <p className="text-lg sm:text-xl font-bold text-gray-900 tabular-nums leading-tight">
               {todaySeconds > 0 ? formatDurationHuman(todaySeconds) : '0h'}
             </p>
           </div>
         </div>
 
-        <div className="card !p-4 flex items-center gap-3">
+        <div className="card !p-4 flex items-center gap-3 min-w-0">
           <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0">
             <CalendarDays className="w-5 h-5 text-blue-600" />
           </div>
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">This Week</p>
-            <p className="text-lg font-bold text-gray-900 truncate">
+            <p className="text-lg sm:text-xl font-bold text-gray-900 tabular-nums leading-tight">
               {weekSeconds > 0 ? formatDurationHuman(weekSeconds) : '0h'}
             </p>
           </div>
         </div>
 
-        <div className="card !p-4 flex items-center gap-3">
+        <div className="card !p-4 flex items-center gap-3 min-w-0">
           <div className="w-10 h-10 rounded-lg bg-green-50 flex items-center justify-center flex-shrink-0">
             <FolderOpen className="w-5 h-5 text-green-600" />
           </div>
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Active Projects</p>
-            <p className="text-lg font-bold text-gray-900">{activeProjects}</p>
+            <p className="text-lg sm:text-xl font-bold text-gray-900 tabular-nums leading-tight">{activeProjects}</p>
           </div>
         </div>
 
         {isAdmin && (
-        <div className="card !p-4 flex items-center gap-3">
+        <div className="card !p-4 flex items-center gap-3 min-w-0">
           <div className="w-10 h-10 rounded-lg bg-amber-50 flex items-center justify-center flex-shrink-0">
             <Inbox className="w-5 h-5 text-amber-600" />
           </div>
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Open Leads</p>
-            <p className="text-lg font-bold text-gray-900">{newLeads}</p>
+            <p className="text-lg sm:text-xl font-bold text-gray-900 tabular-nums leading-tight">{newLeads}</p>
           </div>
         </div>
         )}
       </div>
 
+      <div className="flex flex-col xl:grid xl:grid-cols-12 xl:gap-8 xl:items-start">
+      {/* Mobile order: timer stack first; xl: todo left (7), stack right (5) */}
+      <div className="space-y-6 xl:col-span-5 xl:col-start-8 xl:row-start-1">
       {/* Setup Prompts (admin only - members can't configure task types) */}
       {isAdmin && taskTypes.length === 0 && (
         <div className="card bg-blue-50 border-blue-200 mb-6">
@@ -387,22 +389,8 @@ function Dashboard() {
           />
         </div>
       )}
-      </div>
 
-      {/* Right: tasks + recent (wide screens) */}
-      <div className="space-y-6 xl:col-span-7 mt-6 xl:mt-0">
-      {/* Open tasks across active projects */}
-      {projects.length > 0 && (
-        <DashboardTaskList
-          projects={projects}
-          projectTasks={projectTasks}
-          isTimerRunning={Boolean(activeTimer?.isRunning)}
-          hasTaskTypes={taskTypes.length > 0}
-          onPlay={(project, task) => setStartTaskContext({ project, task })}
-        />
-      )}
-
-      {/* Recent Entries */}
+      {/* Recent Entries — with timer stack, not beside todo */}
       {recentEntries.length > 0 && (
         <div className="card">
           <div className="flex items-center justify-between mb-4">
@@ -421,6 +409,19 @@ function Dashboard() {
             showAmount={isAdmin}
           />
         </div>
+      )}
+      </div>
+
+      {/* To-do column — left on xl; below timer stack on narrow screens */}
+      <div className="space-y-6 xl:col-span-7 xl:col-start-1 xl:row-start-1 mt-6 xl:mt-0">
+      {projects.length > 0 && (
+        <DashboardTaskList
+          projects={projects}
+          projectTasks={projectTasks}
+          isTimerRunning={Boolean(activeTimer?.isRunning)}
+          hasTaskTypes={taskTypes.length > 0}
+          onPlay={(project, task) => setStartTaskContext({ project, task })}
+        />
       )}
       </div>
       </div>
