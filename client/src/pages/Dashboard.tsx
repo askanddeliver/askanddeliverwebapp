@@ -389,10 +389,25 @@ function Dashboard() {
           />
         </div>
       )}
+      </div>
 
-      {/* Recent Entries — with timer stack, not beside todo */}
+      {/* To-do column — left on xl; below timer stack on narrow screens */}
+      <div className="space-y-6 xl:col-span-7 xl:col-start-1 xl:row-start-1 mt-6 xl:mt-0">
+      {projects.length > 0 && (
+        <DashboardTaskList
+          projects={projects}
+          projectTasks={projectTasks}
+          isTimerRunning={Boolean(activeTimer?.isRunning)}
+          hasTaskTypes={taskTypes.length > 0}
+          onPlay={(project, task) => setStartTaskContext({ project, task })}
+        />
+      )}
+      </div>
+      </div>
+
+      {/* Recent entries: full width — avoids narrow sidebar + viewport-xl EntryRow grid clash */}
       {recentEntries.length > 0 && (
-        <div className="card">
+        <div className="card mt-6 xl:mt-8">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-bold text-gray-900">
               Recent Entries
@@ -410,21 +425,6 @@ function Dashboard() {
           />
         </div>
       )}
-      </div>
-
-      {/* To-do column — left on xl; below timer stack on narrow screens */}
-      <div className="space-y-6 xl:col-span-7 xl:col-start-1 xl:row-start-1 mt-6 xl:mt-0">
-      {projects.length > 0 && (
-        <DashboardTaskList
-          projects={projects}
-          projectTasks={projectTasks}
-          isTimerRunning={Boolean(activeTimer?.isRunning)}
-          hasTaskTypes={taskTypes.length > 0}
-          onPlay={(project, task) => setStartTaskContext({ project, task })}
-        />
-      )}
-      </div>
-      </div>
 
       <StartTaskTimerModal
         isOpen={startTaskContext !== null}
