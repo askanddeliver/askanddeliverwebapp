@@ -1,7 +1,7 @@
 {
-  "name": "mern-starter-server",
+  "name": "askanddeliverwebapp-server",
   "version": "1.0.0",
-  "description": "Express API server with TypeScript and MongoDB",
+  "description": "Ask And Deliver API — Express, TypeScript, MongoDB",
   "main": "dist/index.js",
   "scripts": {
     "dev": "nodemon",

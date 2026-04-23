@@ -70,8 +70,8 @@ The application supports multi-user workspaces with role-based access control, a
 │  └──────────────────────┬──────────────────────────┘     │
 │                         ▼                                 │
 │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐   │
-│  │ 12 Mongoose  │  │  Cloudinary  │  │ Auth0 / Stripe│   │
-│  │  Models      │  │  (uploads)   │  │ (M2M + links) │   │
+│  │ 12 active    │  │  Cloudinary  │  │ Auth0 / Stripe│   │
+│  │  Mongoose    │  │  (uploads)   │  │ (M2M + links) │   │
 │  └──────┬───────┘  └──────────────┘  └──────────────┘   │
 │         │                                                 │
 └─────────┼─────────────────────────────────────────────────┘
@@ -631,7 +631,7 @@ askanddeliver.com (Vercel)  ──HTTPS──>  Railway (server)
 | `routes/siteConfig.ts` | `/api/site-config` | Mixed (1 public, rest checkJwt + requireAdmin) |
 | `routes/webhooks.ts` | `/api/webhooks/stripe` | Stripe signature (no JWT; raw body) |
 
-### Server Models (12 production + legacy)
+### Server Models (12 active)
 
 | File | Collection | Key Indexes |
 |------|-----------|-------------|
@@ -647,7 +647,7 @@ askanddeliver.com (Vercel)  ──HTTPS──>  Railway (server)
 | `models/Lead.ts` | leads | `{ status, createdAt }`, `email`, `createdAt` |
 | `models/PortfolioProject.ts` | portfolioprojects | `{ userId, slug }` (unique), `{ userId, published, order }`, `{ userId, published, featured }` |
 | `models/SiteConfig.ts` | siteconfigs | `userId` (unique) |
-| `models/Item.ts` | *(legacy)* | MERN starter artifact — unused |
+| `models/Item.ts` | *(not mounted)* | Unexported in `models/index.ts` — MERN-starter stub; safe to delete |
 
 ### Client Contexts (3)
 

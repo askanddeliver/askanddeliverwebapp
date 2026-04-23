@@ -60,7 +60,7 @@ client/                        # React frontend (Vite)
 server/                        # Express backend
   src/
     routes/                    # 17 route modules + Stripe webhook (see below)
-    models/                    # 12 Mongoose models + legacy Item (see below)
+    models/                    # 12 active Mongoose models (+ Item.ts stub, unexported; see Models)
     middleware/
       auth.ts                  # checkJwt, extractUserId, requireAdmin, getWorkspaceOwnerId, optionalAuth, loadUser
       errorHandler.ts          # asyncHandler, createError, notFoundHandler, errorHandler
@@ -290,7 +290,7 @@ NewModelSchema.index({ userId: 1, createdAt: -1 });
 export const NewModel = mongoose.model<INewModel>('NewModel', NewModelSchema);
 ```
 
-## Models (12 production + legacy Item)
+## Models (12 active; Item.ts is an unexported starter stub)
 
 | Model | Key Fields | Scoping |
 |-------|-----------|---------|
@@ -306,7 +306,7 @@ export const NewModel = mongoose.model<INewModel>('NewModel', NewModelSchema);
 | Lead | confidence, projectType, budget, timeline, name, email, status, priority, notes | No userId (global) |
 | PortfolioProject | slug, title, client, categories, disciplines, images, published, featured, order | userId (Pattern A) |
 | SiteConfig | colors, palettes, companyName, companyAddress, companyPhone, companyEmail | userId (Pattern A) |
-| Item | — | Legacy MERN starter — unused |
+| *(Item.ts)* | — | Not in `models/index` exports — remove or ignore; MERN-starter stub |
 
 ## Routes (17 modules + webhook)
 
