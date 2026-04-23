@@ -16,6 +16,8 @@ interface ClientModalProps {
     address?: string;
     paymentPreference?: PaymentPreference;
     taskDiscounts: Record<string, number>;
+    isInternal?: boolean;
+    calendarColor?: string | null;
   }) => void;
 }
 
@@ -35,6 +37,8 @@ export function ClientModal({
   const [taskDiscounts, setTaskDiscounts] = useState<Record<string, number>>(
     {}
   );
+  const [isInternal, setIsInternal] = useState(false);
+  const [calendarColor, setCalendarColor] = useState('');
 
   useEffect(() => {
     if (client) {
@@ -45,6 +49,8 @@ export function ClientModal({
       setAddress(client.address || '');
       setPaymentPreference(client.paymentPreference || 'MAILED');
       setTaskDiscounts(client.taskDiscounts || {});
+      setIsInternal(Boolean(client.isInternal));
+      setCalendarColor(client.calendarColor || '');
     } else {
       setName('');
       setCompany('');
@@ -53,6 +59,8 @@ export function ClientModal({
       setAddress('');
       setPaymentPreference('MAILED');
       setTaskDiscounts({});
+      setIsInternal(false);
+      setCalendarColor('');
     }
   }, [client, isOpen]);
 
@@ -60,6 +68,7 @@ export function ClientModal({
     e.preventDefault();
     if (!name.trim()) return;
 
+    const cc = calendarColor.trim();
     onSave({
       name: name.trim(),
       company: company.trim() || undefined,
@@ -68,6 +77,8 @@ export function ClientModal({
       address: address.trim() || undefined,
       paymentPreference,
       taskDiscounts,
+      isInternal,
+      calendarColor: cc ? cc : client ? null : undefined,
     });
   };
 
@@ -187,6 +198,43 @@ export function ClientModal({
             <p className="text-xs text-gray-500 mt-1">
               Determines payment instructions shown on invoices for this client.
             </p>
+          </div>
+
+          <div className="rounded-lg border border-gray-200 p-4 space-y-3">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={isInternal}
+                onChange={(e) => setIsInternal(e.target.checked)}
+                className="rounded border-gray-300"
+              />
+              <span className="text-sm font-medium text-gray-800">
+                Internal workspace client (self-work)
+              </span>
+            </label>
+            <p className="text-xs text-gray-500">
+              Hides this client from the default dashboard to-do and invoice candidates. Use Internal Workspace to manage these tasks.
+            </p>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Block Time color (optional)
+              </label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="color"
+                  value={calendarColor || '#3b82f6'}
+                  onChange={(e) => setCalendarColor(e.target.value)}
+                  className="h-9 w-14 rounded border border-gray-200 cursor-pointer"
+                />
+                <button
+                  type="button"
+                  className="text-xs text-gray-600 underline"
+                  onClick={() => setCalendarColor('')}
+                >
+                  Clear (use default)
+                </button>
+              </div>
+            </div>
           </div>
 
           <div>

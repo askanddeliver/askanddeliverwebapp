@@ -32,6 +32,8 @@ import Invoices from './pages/Invoices';
 import Proposals from './pages/Proposals';
 import PortfolioAdmin from './pages/PortfolioAdmin';
 import SiteConfig from './pages/SiteConfig';
+import TimeBlocks from './pages/TimeBlocks';
+import InternalWorkspace from './pages/InternalWorkspace';
 
 // Components
 import ProtectedRoute from './components/ProtectedRoute';
@@ -153,6 +155,30 @@ function App() {
             <ProtectedRoute>
               <AdminRoute>
                 <Clients />
+              </AdminRoute>
+            </ProtectedRoute>
+          </Layout>
+        }
+      />
+      <Route
+        path="/internal-workspace"
+        element={
+          <Layout>
+            <ProtectedRoute>
+              <AdminRoute>
+                <InternalWorkspace />
+              </AdminRoute>
+            </ProtectedRoute>
+          </Layout>
+        }
+      />
+      <Route
+        path="/time-blocks"
+        element={
+          <Layout>
+            <ProtectedRoute>
+              <AdminRoute>
+                <TimeBlocks />
               </AdminRoute>
             </ProtectedRoute>
           </Layout>

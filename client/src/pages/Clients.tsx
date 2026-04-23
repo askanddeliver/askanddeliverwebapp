@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Plus } from 'lucide-react';
 import { ClientList } from '../components/clients/ClientList';
 import { ClientModal } from '../components/clients/ClientModal';
@@ -12,6 +12,7 @@ function Clients() {
   const [error, setError] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
+  const [showInternal, setShowInternal] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -41,7 +42,10 @@ function Clients() {
     email?: string;
     businessEntity?: string;
     address?: string;
+    paymentPreference?: Client['paymentPreference'];
     taskDiscounts: Record<string, number>;
+    isInternal?: boolean;
+    calendarColor?: string | null;
   }) => {
     try {
       if (editingClient) {
@@ -82,6 +86,14 @@ function Clients() {
     setModalOpen(true);
   };
 
+  const visibleClients = useMemo(
+    () =>
+      showInternal
+        ? clients
+        : clients.filter((c) => c.isInternal !== true),
+    [clients, showInternal]
+  );
+
   if (loading) {
     return (
       <div className="flex justify-center items-center h-64">
@@ -92,20 +104,31 @@ function Clients() {
 
   return (
     <div className="w-full">
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-6">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Clients</h1>
           <p className="text-gray-500 mt-1">
             Manage your clients and their discount rates
           </p>
         </div>
-        <button
-          onClick={handleNewClient}
-          className="btn-primary flex items-center gap-2"
-        >
-          <Plus className="w-4 h-4" />
-          New Client
-        </button>
+        <div className="flex flex-wrap items-center gap-4">
+          <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={showInternal}
+              onChange={(e) => setShowInternal(e.target.checked)}
+              className="rounded border-gray-300"
+            />
+            Show internal clients
+          </label>
+          <button
+            onClick={handleNewClient}
+            className="btn-primary flex items-center gap-2"
+          >
+            <Plus className="w-4 h-4" />
+            New Client
+          </button>
+        </div>
       </div>
 
       {error && (
@@ -115,7 +138,7 @@ function Clients() {
       )}
 
       <ClientList
-        clients={clients}
+        clients={visibleClients}
         onEdit={handleEdit}
         onDelete={handleDelete}
       />

@@ -159,6 +159,15 @@ router.post(
       });
     }
 
+    // Exclude internal (self-work) clients from invoice candidate data
+    filteredEntries = filteredEntries.filter((entry) => {
+      const project = entry.projectId as unknown as IProject & {
+        clientId: { _id: string; isInternal?: boolean } | null;
+      };
+      const c = project?.clientId;
+      return c && c.isInternal !== true;
+    });
+
     // Build a cache of client documents (with full Mongoose doc for Map access)
     // We need the actual Mongoose documents to reliably read the Map field
     const clientCache = new Map<string, IClient>();

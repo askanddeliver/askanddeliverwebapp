@@ -14,6 +14,8 @@ import {
   Palette,
   UserCog,
   X,
+  CalendarClock,
+  Briefcase,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { useUserRole } from '../contexts/UserContext';
@@ -42,6 +44,7 @@ const navSections: NavSection[] = [
     label: 'Time Tracking',
     items: [
       { to: '/entries', label: 'Entries', icon: FileText },
+      { to: '/time-blocks', label: 'Block Time', icon: CalendarClock, adminOnly: true },
       { to: '/reports', label: 'Reports', icon: BarChart3, adminOnly: true },
       { to: '/invoices', label: 'Invoices', icon: Receipt, adminOnly: true },
       { to: '/proposals', label: 'Proposals', icon: FileStack, adminOnly: true },
@@ -51,6 +54,7 @@ const navSections: NavSection[] = [
     label: 'Manage',
     items: [
       { to: '/clients', label: 'Clients', icon: Users, adminOnly: true },
+      { to: '/internal-workspace', label: 'Internal Workspace', icon: Briefcase, adminOnly: true },
       { to: '/projects', label: 'Projects', icon: FolderOpen },
     ],
   },

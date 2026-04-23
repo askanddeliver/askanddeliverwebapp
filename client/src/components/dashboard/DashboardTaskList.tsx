@@ -18,6 +18,10 @@ interface DashboardTaskListProps {
   isTimerRunning: boolean;
   hasTaskTypes: boolean;
   onPlay: (project: Project, task: ProjectTask) => void;
+  /** When true, render list only (no outer card). Used inside Internal workspace card. */
+  hideOuterCard?: boolean;
+  /** Override default "To-do" heading */
+  title?: string;
 }
 
 const statusIcons: Record<string, React.ReactNode> = {
@@ -110,6 +114,8 @@ export function DashboardTaskList({
   isTimerRunning,
   hasTaskTypes,
   onPlay,
+  hideOuterCard = false,
+  title = 'To-do',
 }: DashboardTaskListProps) {
   const groups = useMemo(
     () => buildGroups(projects, projectTasks),
@@ -138,11 +144,12 @@ export function DashboardTaskList({
   );
 
   if (groups.length === 0) {
+    const emptyWrap = hideOuterCard ? 'mb-0' : 'card mb-6';
     return (
-      <div className="card mb-6">
+      <div className={emptyWrap}>
         <div className="flex items-center gap-2 mb-3">
           <ListTodo className="w-5 h-5 text-primary-600" />
-          <h2 className="text-lg font-bold text-gray-900">To-do</h2>
+          <h2 className="text-lg font-bold text-gray-900">{title}</h2>
         </div>
         <p className="text-sm text-gray-500 mb-3">
           No open tasks for active projects. Add or reopen tasks on the Projects
@@ -155,12 +162,13 @@ export function DashboardTaskList({
     );
   }
 
+  const outer = hideOuterCard ? 'mb-0' : 'card mb-6';
   return (
-    <div className="card mb-6">
+    <div className={outer}>
       <div className="flex items-center justify-between mb-4 gap-2 flex-wrap">
         <div className="flex items-center gap-2">
           <ListTodo className="w-5 h-5 text-primary-600" />
-          <h2 className="text-lg font-bold text-gray-900">To-do</h2>
+          <h2 className="text-lg font-bold text-gray-900">{title}</h2>
           <span className="text-xs font-medium text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">
             {totalOpen} open
           </span>

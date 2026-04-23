@@ -48,7 +48,17 @@ router.post(
     const userId = extractUserId(req);
     if (!userId) throw createError('User ID not found in token', 401);
 
-    const { name, company, email, businessEntity, address, paymentPreference, taskDiscounts } = req.body;
+    const {
+      name,
+      company,
+      email,
+      businessEntity,
+      address,
+      paymentPreference,
+      taskDiscounts,
+      isInternal,
+      calendarColor,
+    } = req.body;
 
     if (!name || !name.trim()) {
       throw createError('Client name is required', 400);
@@ -63,6 +73,11 @@ router.post(
       address: address?.trim(),
       paymentPreference: paymentPreference === 'ACH' ? 'ACH' : 'MAILED',
       taskDiscounts: taskDiscounts || {},
+      isInternal: Boolean(isInternal),
+      calendarColor:
+        calendarColor != null && String(calendarColor).trim()
+          ? String(calendarColor).trim()
+          : undefined,
     });
 
     res.status(201).json(client);
@@ -76,7 +91,17 @@ router.put(
     const userId = extractUserId(req);
     if (!userId) throw createError('User ID not found in token', 401);
 
-    const { name, company, email, businessEntity, address, paymentPreference, taskDiscounts } = req.body;
+    const {
+      name,
+      company,
+      email,
+      businessEntity,
+      address,
+      paymentPreference,
+      taskDiscounts,
+      isInternal,
+      calendarColor,
+    } = req.body;
 
     const update: Record<string, unknown> = {};
     if (name !== undefined) update.name = name.trim();
@@ -86,10 +111,20 @@ router.put(
     if (address !== undefined) update.address = address?.trim();
     if (paymentPreference !== undefined) update.paymentPreference = paymentPreference === 'ACH' ? 'ACH' : 'MAILED';
     if (taskDiscounts !== undefined) update.taskDiscounts = taskDiscounts;
+    if (isInternal !== undefined) update.isInternal = Boolean(isInternal);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const mongoUpdate: Record<string, any> = { ...update };
+    if (calendarColor !== undefined) {
+      if (calendarColor === null || calendarColor === '') {
+        mongoUpdate.$unset = { calendarColor: 1 };
+      } else {
+        mongoUpdate.calendarColor = String(calendarColor).trim();
+      }
+    }
 
     const client = await Client.findOneAndUpdate(
       { _id: req.params.id, userId },
-      update,
+      mongoUpdate,
       { new: true, runValidators: true }
     );
 

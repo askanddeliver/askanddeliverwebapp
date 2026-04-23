@@ -8,6 +8,7 @@ import type {
   TaskType,
   ProjectTask,
   TimeEntry,
+  ExpandedTimeBlock,
   LineItem,
   Invoice,
   InvoiceDocumentKind,
@@ -130,7 +131,7 @@ export const clientsApi = {
   getAll: () => api.get<Client[]>('/clients'),
   getOne: (id: string) => api.get<Client>(`/clients/${id}`),
   create: (data: Partial<Client>) => api.post<Client>('/clients', data),
-  update: (id: string, data: Partial<Client>) =>
+  update: (id: string, data: Partial<Client> & { calendarColor?: string | null }) =>
     api.put<Client>(`/clients/${id}`, data),
   delete: (id: string) => api.delete(`/clients/${id}`),
 };
@@ -180,7 +181,7 @@ export const taskTypesApi = {
 
 // Project Tasks
 export const projectTasksApi = {
-  getAll: (params?: { projectId?: string }) =>
+  getAll: (params?: { projectId?: string; scope?: 'all' | 'client-only' | 'internal-only' }) =>
     api.get<ProjectTask[]>('/project-tasks', { params }),
   getOne: (id: string) => api.get<ProjectTask>(`/project-tasks/${id}`),
   create: (data: {
@@ -215,6 +216,7 @@ export const timeEntriesApi = {
     taskTypeId: string;
     projectTaskId?: string;
     description?: string;
+    blockId?: string;
   }) => api.post<TimeEntry>('/time-entries/start', data),
   stop: () => api.post<TimeEntry>('/time-entries/stop'),
   continue: (id: string) => api.post<TimeEntry>(`/time-entries/${id}/continue`),
@@ -226,10 +228,53 @@ export const timeEntriesApi = {
     startTime: string;
     endTime?: string;
     duration?: number;
+    blockId?: string;
   }) => api.post<TimeEntry>('/time-entries', data),
   update: (id: string, data: Partial<TimeEntry>) =>
     api.put<TimeEntry>(`/time-entries/${id}`, data),
   delete: (id: string) => api.delete(`/time-entries/${id}`),
+};
+
+// Block Time (admin only)
+export const timeBlocksApi = {
+  getAll: (params: {
+    start: string;
+    end: string;
+    projectIds?: string[];
+    kinds?: string[];
+  }) => api.get<ExpandedTimeBlock[]>('/time-blocks', { params }),
+  getOne: (id: string) => api.get(`/time-blocks/${id}`),
+  create: (data: {
+    title: string;
+    startTime: string;
+    endTime: string;
+    kind?: string;
+    projectId?: string;
+    taskTypeId?: string;
+    projectTaskId?: string;
+    colorHint?: string;
+    recurrenceRule?: string;
+    notes?: string;
+  }) => api.post('/time-blocks', data),
+  update: (
+    id: string,
+    data: Partial<{
+      title: string;
+      startTime: string;
+      endTime: string;
+      kind: string;
+      projectId: string | null;
+      taskTypeId: string | null;
+      projectTaskId: string | null;
+      colorHint: string;
+      recurrenceRule: string;
+      notes: string;
+      exceptionDates: string[];
+    }>
+  ) => api.patch(`/time-blocks/${id}`, data),
+  delete: (id: string) => api.delete(`/time-blocks/${id}`),
+  launch: (id: string, body?: { description?: string }) =>
+    api.post<{ timeEntry: TimeEntry; block: unknown }>(`/time-blocks/${id}/launch`, body ?? {}),
 };
 
 // Line Items (fixed-cost charges)

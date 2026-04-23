@@ -16,9 +16,16 @@ export function ClientCard({ client, onEdit, onDelete }: ClientCardProps) {
     <div className="card hover:shadow-md transition-shadow">
       <div className="flex items-start justify-between">
         <div className="flex-1 min-w-0">
-          <h3 className="text-lg font-bold text-gray-900 truncate">
-            {client.name}
-          </h3>
+          <div className="flex items-center gap-2 flex-wrap min-w-0">
+            <h3 className="text-lg font-bold text-gray-900 truncate">
+              {client.name}
+            </h3>
+            {client.isInternal && (
+              <span className="text-[10px] font-semibold uppercase tracking-wide bg-indigo-100 text-indigo-800 px-2 py-0.5 rounded-full flex-shrink-0">
+                Internal
+              </span>
+            )}
+          </div>
           {client.company && (
             <div className="flex items-center gap-1.5 text-sm text-gray-500 mt-1">
               <Building2 className="w-3.5 h-3.5" />

@@ -28,6 +28,10 @@ export interface Client {
   businessEntity?: string;
   address?: string;
   paymentPreference?: PaymentPreference;
+  /** Self-work / internal workspace client */
+  isInternal?: boolean;
+  /** Hex color for Block Time (optional; UI may hash id when unset). Null clears on update. */
+  calendarColor?: string | null;
   taskDiscounts: Record<string, number>;
   createdAt: string;
   updatedAt: string;
@@ -108,6 +112,26 @@ export interface ProjectTask {
   updatedAt: string;
 }
 
+export type TimeBlockKind = 'WORK' | 'PERSONAL' | 'DOWNTIME' | 'MEETING' | 'ADMIN';
+
+/** Expanded row from GET /api/time-blocks (includes recurring instances) */
+export interface ExpandedTimeBlock {
+  masterId: string;
+  instanceKey: string;
+  startTime: string;
+  endTime: string;
+  title: string;
+  projectId?: string | Project;
+  taskTypeId?: string | TaskType;
+  projectTaskId?: string | ProjectTask;
+  kind: TimeBlockKind;
+  colorHint?: string;
+  recurrenceRule?: string;
+  notes?: string;
+  launchedTimeEntryIds: string[];
+  isRecurringInstance: boolean;
+}
+
 // Time Entry types
 export interface TimeEntry {
   _id: string;
@@ -115,6 +139,7 @@ export interface TimeEntry {
   projectId: string | Project;
   taskTypeId: string | TaskType;
   projectTaskId?: string | ProjectTask;
+  blockId?: string;
   invoiceId?: string;
   description?: string;
   startTime: string;

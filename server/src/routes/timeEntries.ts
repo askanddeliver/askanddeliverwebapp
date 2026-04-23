@@ -173,7 +173,7 @@ router.post(
     const workspaceOwnerId = await getWorkspaceOwnerId(req);
     if (!workspaceOwnerId) throw createError('Workspace access required', 403);
 
-    const { projectId, taskTypeId, projectTaskId, description } = req.body;
+    const { projectId, taskTypeId, projectTaskId, description, blockId } = req.body;
 
     if (!projectId) throw createError('Project is required', 400);
     if (!taskTypeId) throw createError('Task type is required', 400);
@@ -193,12 +193,18 @@ router.post(
       await timer.save();
     }
 
+    const blockIdVal =
+      blockId && mongoose.Types.ObjectId.isValid(blockId)
+        ? new mongoose.Types.ObjectId(blockId)
+        : undefined;
+
     // Create new timer
     const timer = await TimeEntry.create({
       userId,
       projectId,
       taskTypeId,
       projectTaskId: projectTaskId || undefined,
+      blockId: blockIdVal,
       description: description?.trim(),
       startTime: new Date(),
       isRunning: true,
@@ -292,8 +298,16 @@ router.post(
     const workspaceOwnerId = await getWorkspaceOwnerId(req);
     if (!workspaceOwnerId) throw createError('Workspace access required', 403);
 
-    const { projectId, taskTypeId, projectTaskId, description, startTime, endTime, duration } =
-      req.body;
+    const {
+      projectId,
+      taskTypeId,
+      projectTaskId,
+      description,
+      startTime,
+      endTime,
+      duration,
+      blockId,
+    } = req.body;
 
     if (!projectId) throw createError('Project is required', 400);
     if (!taskTypeId) throw createError('Task type is required', 400);
@@ -309,11 +323,17 @@ router.post(
       );
     }
 
+    const blockIdVal =
+      blockId && mongoose.Types.ObjectId.isValid(blockId)
+        ? new mongoose.Types.ObjectId(blockId)
+        : undefined;
+
     const entry = await TimeEntry.create({
       userId,
       projectId,
       taskTypeId,
       projectTaskId: projectTaskId || undefined,
+      blockId: blockIdVal,
       description: description?.trim(),
       startTime: new Date(startTime),
       endTime: endTime ? new Date(endTime) : undefined,

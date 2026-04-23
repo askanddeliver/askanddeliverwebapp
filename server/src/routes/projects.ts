@@ -1,7 +1,7 @@
 import { Router, Response } from 'express';
 import { checkJwt, AuthRequest, extractUserId, getWorkspaceOwnerId, requireAdmin } from '../middleware/auth';
 import { asyncHandler, createError } from '../middleware/errorHandler';
-import { Project, TimeEntry } from '../models';
+import { Project, TimeEntry, TimeBlock } from '../models';
 import type { ITaskType } from '../models/TaskType';
 import type { ProjectBillingMode } from '../models';
 import { getEffectiveRate, parseDateStart, parseDateEnd } from '../utils/calculations';
@@ -502,6 +502,14 @@ router.delete(
     if (!project) {
       throw createError('Project not found', 404);
     }
+
+    await TimeBlock.updateMany(
+      { userId: project.userId, projectId: project._id },
+      {
+        $unset: { projectId: 1, projectTaskId: 1 },
+        $set: { kind: 'PERSONAL' },
+      }
+    );
 
     res.json({ message: 'Project deleted successfully' });
   })

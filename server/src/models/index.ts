@@ -4,6 +4,7 @@ export { Project, IProject } from './Project';
 export type { ProjectBillingMode } from './Project';
 export { TaskType, ITaskType } from './TaskType';
 export { TimeEntry, ITimeEntry } from './TimeEntry';
+export { TimeBlock, ITimeBlock, TimeBlockKind } from './TimeBlock';
 export { ProjectTask, IProjectTask } from './ProjectTask';
 export { PortfolioProject, IPortfolioProject } from './PortfolioProject';
 export { LineItem, ILineItem } from './LineItem';

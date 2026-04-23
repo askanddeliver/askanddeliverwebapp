@@ -14,6 +14,7 @@ import {
   projectsApi,
   reportsApi,
   timeEntriesApi,
+  timeBlocksApi,
   lineItemsApi,
   usersApi,
   taskTypesApi,
@@ -28,7 +29,17 @@ import {
   toUTCStartOfDay,
   toUTCEndOfDay,
 } from '../utils/calculations';
-import type { Client, Project, Invoice, TimeEntry, LineItem, User, TaskType, ProjectTask } from '../types';
+import type {
+  Client,
+  Project,
+  Invoice,
+  TimeEntry,
+  LineItem,
+  User,
+  TaskType,
+  ProjectTask,
+  ExpandedTimeBlock,
+} from '../types';
 
 type TabId = 'invoice' | 'entries' | 'members';
 
@@ -98,6 +109,7 @@ function Reports() {
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<TabId>('invoice');
+  const [plannedBlocks, setPlannedBlocks] = useState<ExpandedTimeBlock[]>([]);
   const [lineItemsExpanded, setLineItemsExpanded] = useState(false);
   const [entrySort, setEntrySort] = useState<EntrySortKey>('date');
   const [entrySortDesc, setEntrySortDesc] = useState(true);
@@ -201,7 +213,7 @@ function Reports() {
       const utcStart = toUTCStartOfDay(startDate);
       const utcEnd = toUTCEndOfDay(endDate);
 
-      const [invoiceRes, entriesRes, lineItemsRes] = await Promise.all([
+      const [invoiceRes, entriesRes, lineItemsRes, blocksRes] = await Promise.all([
         reportsApi.generateInvoice({
           clientId: clientId || undefined,
           projectIds: projectIds.length > 0 ? projectIds : undefined,
@@ -219,6 +231,7 @@ function Reports() {
           startDate: utcStart,
           endDate: utcEnd,
         }),
+        timeBlocksApi.getAll({ start: utcStart, end: utcEnd }).catch(() => ({ data: [] })),
       ]);
 
       setInvoice(invoiceRes.data);
@@ -238,6 +251,7 @@ function Reports() {
         });
       }
       setFilteredEntries(entries);
+      setPlannedBlocks(blocksRes.data || []);
     } catch (err: unknown) {
       console.error('Failed to generate report:', err);
       const serverMsg =
@@ -301,6 +315,21 @@ function Reports() {
     });
     return arr;
   }, [filteredEntries, memberFilter, entrySort, entrySortDesc, userMap]);
+
+  const blockTimeStats = useMemo(() => {
+    const plannedSeconds = plannedBlocks.reduce((sum, b) => {
+      const a = new Date(b.startTime).getTime();
+      const z = new Date(b.endTime).getTime();
+      return sum + Math.max(0, (z - a) / 1000);
+    }, 0);
+    let linkedSeconds = 0;
+    let unlinkedSeconds = 0;
+    for (const e of filteredEntries) {
+      if (e.blockId) linkedSeconds += e.duration;
+      else unlinkedSeconds += e.duration;
+    }
+    return { plannedSeconds, linkedSeconds, unlinkedSeconds };
+  }, [plannedBlocks, filteredEntries]);
 
   const uniqueMembersInEntries = useMemo(() => {
     const names = new Set<string>();
@@ -663,6 +692,37 @@ function Reports() {
 
       {activeTab === 'entries' && (
         <div className="mb-6 print:hidden">
+          {isAdmin &&
+            (blockTimeStats.plannedSeconds > 0 ||
+              blockTimeStats.linkedSeconds > 0 ||
+              blockTimeStats.unlinkedSeconds > 0) && (
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
+                <div className="card !p-4">
+                  <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">
+                    Planned (blocks)
+                  </p>
+                  <p className="text-lg font-bold text-gray-900 tabular-nums mt-1">
+                    {formatDurationHuman(blockTimeStats.plannedSeconds)}
+                  </p>
+                </div>
+                <div className="card !p-4">
+                  <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">
+                    Actual (linked to block)
+                  </p>
+                  <p className="text-lg font-bold text-gray-900 tabular-nums mt-1">
+                    {formatDurationHuman(blockTimeStats.linkedSeconds)}
+                  </p>
+                </div>
+                <div className="card !p-4">
+                  <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">
+                    Unlinked entries
+                  </p>
+                  <p className="text-lg font-bold text-gray-900 tabular-nums mt-1">
+                    {formatDurationHuman(blockTimeStats.unlinkedSeconds)}
+                  </p>
+                </div>
+              </div>
+            )}
           <div className="card">
             <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
               <h3 className="text-lg font-bold text-gray-900">

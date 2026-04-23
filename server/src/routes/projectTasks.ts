@@ -1,7 +1,8 @@
 import { Router, Response } from 'express';
 import { checkJwt, AuthRequest, extractUserId, getWorkspaceOwnerId, requireAdmin } from '../middleware/auth';
 import { asyncHandler, createError } from '../middleware/errorHandler';
-import { ProjectTask } from '../models';
+import mongoose from 'mongoose';
+import { ProjectTask, Client, Project } from '../models';
 
 const router = Router();
 
@@ -15,12 +16,49 @@ router.get(
     const workspaceOwnerId = await getWorkspaceOwnerId(req);
     if (!workspaceOwnerId) throw createError('Workspace access required', 403);
 
-    const { projectId } = req.query;
+    const { projectId, scope } = req.query;
+    const scopeVal =
+      scope === 'client-only' || scope === 'internal-only' ? scope : 'all';
+
+    let scopedProjectIds: mongoose.Types.ObjectId[] | undefined;
+    if (scopeVal === 'client-only') {
+      const externalClientIds = await Client.find({
+        userId: workspaceOwnerId,
+        isInternal: { $ne: true },
+      }).distinct('_id');
+      scopedProjectIds = await Project.find({
+        userId: workspaceOwnerId,
+        clientId: { $in: externalClientIds },
+      }).distinct('_id');
+    } else if (scopeVal === 'internal-only') {
+      const internalClientIds = await Client.find({
+        userId: workspaceOwnerId,
+        isInternal: true,
+      }).distinct('_id');
+      scopedProjectIds = await Project.find({
+        userId: workspaceOwnerId,
+        clientId: { $in: internalClientIds },
+      }).distinct('_id');
+    }
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const query: any = { userId: workspaceOwnerId };
     if (projectId) {
+      const pid = projectId as string;
+      if (scopedProjectIds !== undefined) {
+        const allowed = scopedProjectIds.some((id) => id.toString() === pid);
+        if (!allowed) {
+          res.json([]);
+          return;
+        }
+      }
       query.projectId = projectId;
+    } else if (scopedProjectIds !== undefined) {
+      if (scopedProjectIds.length === 0) {
+        res.json([]);
+        return;
+      }
+      query.projectId = { $in: scopedProjectIds };
     }
 
     const tasks = await ProjectTask.find(query)

@@ -8,6 +8,7 @@ import { TimerControls } from '../components/timer/TimerControls';
 import { QuickEntry } from '../components/timer/QuickEntry';
 import { StartTaskTimerModal } from '../components/timer/StartTaskTimerModal';
 import { DashboardTaskList } from '../components/dashboard/DashboardTaskList';
+import { InternalWorkspaceTodoCard } from '../components/dashboard/InternalWorkspaceTodoCard';
 import { EntryList } from '../components/entries/EntryList';
 import { EntryModal } from '../components/entries/EntryModal';
 import { timeEntriesApi, projectsApi, taskTypesApi, projectTasksApi, leadsApi } from '../services/api';
@@ -22,6 +23,8 @@ function Dashboard() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [taskTypes, setTaskTypes] = useState<TaskType[]>([]);
   const [projectTasks, setProjectTasks] = useState<ProjectTask[]>([]);
+  const [projectTasksClient, setProjectTasksClient] = useState<ProjectTask[]>([]);
+  const [projectTasksInternal, setProjectTasksInternal] = useState<ProjectTask[]>([]);
   const [leadStats, setLeadStats] = useState<LeadStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -34,27 +37,49 @@ function Dashboard() {
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [isAdmin]);
 
   const loadData = async () => {
     try {
       setLoading(true);
-      const [timerRes, entriesRes, projectsRes, taskTypesRes, projectTasksRes, leadStatsRes] =
-        await Promise.all([
-          timeEntriesApi.getActive(),
-          timeEntriesApi.getAll(),
-          projectsApi.getAll(),
-          taskTypesApi.getAll(),
+      const [timerRes, entriesRes, projectsRes, taskTypesRes, leadStatsRes] = await Promise.all([
+        timeEntriesApi.getActive(),
+        timeEntriesApi.getAll(),
+        projectsApi.getAll(),
+        taskTypesApi.getAll(),
+        leadsApi.getStats().catch(() => ({ data: null })),
+      ]);
+
+      let clientTodo: ProjectTask[] = [];
+      let internalTodo: ProjectTask[] = [];
+      let allTodo: ProjectTask[] = [];
+
+      if (isAdmin) {
+        const [cRes, iRes, aRes] = await Promise.all([
+          projectTasksApi.getAll({ scope: 'client-only' }),
+          projectTasksApi.getAll({ scope: 'internal-only' }),
           projectTasksApi.getAll(),
-          leadsApi.getStats().catch(() => ({ data: null })),
         ]);
+        clientTodo = cRes.data || [];
+        internalTodo = iRes.data || [];
+        allTodo = aRes.data || [];
+      } else {
+        const [cRes, aRes] = await Promise.all([
+          projectTasksApi.getAll({ scope: 'client-only' }),
+          projectTasksApi.getAll(),
+        ]);
+        clientTodo = cRes.data || [];
+        allTodo = aRes.data || [];
+      }
 
       setActiveTimer(timerRes.data);
       const entries = (entriesRes.data || []).filter((e: TimeEntry) => !e.isRunning);
       setAllEntries(entries);
       setProjects(projectsRes.data || []);
       setTaskTypes(taskTypesRes.data || []);
-      setProjectTasks(projectTasksRes.data || []);
+      setProjectTasksClient(clientTodo);
+      setProjectTasksInternal(internalTodo);
+      setProjectTasks(allTodo);
       setLeadStats(leadStatsRes.data);
       setError(null);
     } catch (err) {
@@ -158,9 +183,11 @@ function Dashboard() {
     if (isAdmin && ctx.task.status === 'TODO') {
       try {
         const res = await projectTasksApi.updateStatus(ctx.task._id, 'IN_PROGRESS');
-        setProjectTasks((prev) =>
-          prev.map((t) => (t._id === res.data._id ? res.data : t))
-        );
+        const next = (prev: ProjectTask[]) =>
+          prev.map((t) => (t._id === res.data._id ? res.data : t));
+        setProjectTasks(next);
+        setProjectTasksClient(next);
+        setProjectTasksInternal(next);
       } catch (e) {
         console.error('Could not mark task in progress:', e);
       }
@@ -394,13 +421,24 @@ function Dashboard() {
       {/* To-do column — left on xl; below timer stack on narrow screens */}
       <div className="space-y-6 xl:col-span-7 xl:col-start-1 xl:row-start-1 mt-6 xl:mt-0">
       {projects.length > 0 && (
-        <DashboardTaskList
-          projects={projects}
-          projectTasks={projectTasks}
-          isTimerRunning={Boolean(activeTimer?.isRunning)}
-          hasTaskTypes={taskTypes.length > 0}
-          onPlay={(project, task) => setStartTaskContext({ project, task })}
-        />
+        <>
+          <DashboardTaskList
+            projects={projects}
+            projectTasks={projectTasksClient}
+            isTimerRunning={Boolean(activeTimer?.isRunning)}
+            hasTaskTypes={taskTypes.length > 0}
+            onPlay={(project, task) => setStartTaskContext({ project, task })}
+          />
+          {isAdmin && (
+            <InternalWorkspaceTodoCard
+              projects={projects}
+              projectTasks={projectTasksInternal}
+              isTimerRunning={Boolean(activeTimer?.isRunning)}
+              hasTaskTypes={taskTypes.length > 0}
+              onPlay={(project, task) => setStartTaskContext({ project, task })}
+            />
+          )}
+        </>
       )}
       </div>
       </div>

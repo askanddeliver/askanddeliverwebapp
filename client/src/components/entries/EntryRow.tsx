@@ -1,4 +1,4 @@
-import { Play, Pencil, Trash2 } from 'lucide-react';
+import { Play, Pencil, Trash2, CalendarDays } from 'lucide-react';
 import type { TimeEntry, Project, TaskType, Client, ProjectTask } from '../../types';
 import {
   formatDurationHuman,
@@ -81,8 +81,17 @@ export function EntryRow({
             </span>
           )}
         </div>
-        <div className="text-xs text-gray-500 mt-0.5 2xl:hidden print:text-[10px] print:mt-0">
-          {metaLine}
+        <div className="text-xs text-gray-500 mt-0.5 2xl:hidden print:text-[10px] print:mt-0 flex flex-wrap items-center gap-2">
+          <span>{metaLine}</span>
+          {entry.blockId && (
+            <span
+              className="inline-flex items-center gap-0.5 text-[10px] text-teal-800 bg-teal-50 px-1.5 py-0.5 rounded"
+              title="Started from a planned block"
+            >
+              <CalendarDays className="w-3 h-3" />
+              From block
+            </span>
+          )}
         </div>
         {showDescription && entry.description && (
           <div className="text-xs text-gray-400 mt-1 line-clamp-2 2xl:line-clamp-1 print:text-[10px] print:mt-0 print:line-clamp-1">
@@ -91,8 +100,17 @@ export function EntryRow({
         )}
       </div>
 
-      <div className="hidden 2xl:block text-xs text-gray-500 self-center truncate min-w-0">
-        {metaLine}
+      <div className="hidden 2xl:flex text-xs text-gray-500 self-center truncate min-w-0 items-center gap-2">
+        <span className="truncate">{metaLine}</span>
+        {entry.blockId && (
+          <span
+            className="inline-flex items-center gap-0.5 text-[10px] text-teal-800 bg-teal-50 px-1.5 py-0.5 rounded flex-shrink-0"
+            title="Started from a planned block"
+          >
+            <CalendarDays className="w-3 h-3" />
+            Block
+          </span>
+        )}
       </div>
 
       <div className="text-right flex-shrink-0 self-start 2xl:self-center">

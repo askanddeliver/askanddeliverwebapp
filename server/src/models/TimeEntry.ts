@@ -5,6 +5,8 @@ export interface ITimeEntry extends Document {
   projectId: mongoose.Types.ObjectId;
   taskTypeId: mongoose.Types.ObjectId;
   projectTaskId?: mongoose.Types.ObjectId;
+  /** Set when the timer was started from a Block Time block */
+  blockId?: mongoose.Types.ObjectId;
   invoiceId?: mongoose.Types.ObjectId;
   description?: string;
   startTime: Date;
@@ -35,6 +37,11 @@ const TimeEntrySchema = new Schema<ITimeEntry>(
     projectTaskId: {
       type: Schema.Types.ObjectId,
       ref: 'ProjectTask',
+    },
+    blockId: {
+      type: Schema.Types.ObjectId,
+      ref: 'TimeBlock',
+      default: null,
     },
     invoiceId: {
       type: Schema.Types.ObjectId,
@@ -71,5 +78,6 @@ TimeEntrySchema.index({ userId: 1, startTime: -1 });
 TimeEntrySchema.index({ projectId: 1 });
 TimeEntrySchema.index({ userId: 1, isRunning: 1 });
 TimeEntrySchema.index({ invoiceId: 1 });
+TimeEntrySchema.index({ blockId: 1 });
 
 export const TimeEntry = mongoose.model<ITimeEntry>('TimeEntry', TimeEntrySchema);
