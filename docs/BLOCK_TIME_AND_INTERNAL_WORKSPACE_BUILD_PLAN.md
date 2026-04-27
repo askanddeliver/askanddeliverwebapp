@@ -15,6 +15,10 @@ Dependencies: **foundation (`isInternal` + API filters) → Internal Workspace p
 
 Sequencing matches the concept doc §10; each phase below aims for a **single shippable outcome**.
 
+### 1.1 UI/UX design reference (Claude Design prototype)
+
+A standalone HTML/JSX prototype in **[`docs/block time ui ux updates/`](./block%20time%20ui%20ux%20updates/README.md)** documents the **intended** Block Time look and behavior: client color legend, kind colors, week/month/day layouts, create modal (kind pills, internal client label), detail popover with **Start Timer** primary, grid constants (7am–9pm, 64px/hour), and theme variants. **Read [`block time ui ux updates/README.md`](./block%20time%20ui%20ux%20updates/README.md)** before building Phases 4–6 so the production UI matches the agreed design. The prototype is not production code; wire it to real APIs and the global timer per the concept doc.
+
 ---
 
 ## 2. Phase map
@@ -131,6 +135,7 @@ Assume workspace root `askanddeliverwebapp/`, and patterns in `ARCHITECTURE.md`,
 ## 5. Reference
 
 - **Source concept:** [Internal_Workspace_and_Block_Time_Concept.md](./Internal_Workspace_and_Block_Time_Concept.md)  
+- **UI/UX prototype (Claude Design):** [block time ui ux updates/README.md](./block%20time%20ui%20ux%20updates/README.md)  
 - **App rules & architecture:** `askanddeliverwebapp/.cursorrules`, `askanddeliverwebapp/ARCHITECTURE.md`  
 
 **Estimated full v1 (concept §10):** on the order of **6–8 working days**; Phase 1 alone is a **standalone** ship that addresses dashboard congestion from internal tasks.

@@ -1,26 +1,29 @@
 import type { Client, ExpandedTimeBlock, Project, TimeBlockKind } from '../types';
 
-/** Fixed semantic colors for non-work block kinds (Tailwind-aligned hex) */
-const KIND_COLORS: Record<TimeBlockKind, string> = {
-  WORK: '#3b82f6',
-  PERSONAL: '#8b5cf6',
-  DOWNTIME: '#64748b',
-  MEETING: '#f59e0b',
-  ADMIN: '#0d9488',
+/**
+ * Kind colors — match Claude Design prototype (`docs/block time ui ux updates/bt-data.jsx`).
+ * Work blocks with a client use the client color; these apply to non-work kinds and work-without-client.
+ */
+export const KIND_PILL_COLORS: Record<TimeBlockKind, string> = {
+  WORK: '#3B82F6',
+  PERSONAL: '#F59E0B',
+  DOWNTIME: '#94A3B8',
+  MEETING: '#EF4444',
+  ADMIN: '#A855F7',
 };
 
 const CLIENT_PALETTE = [
-  '#2563eb',
-  '#7c3aed',
-  '#db2777',
-  '#ea580c',
-  '#059669',
-  '#ca8a04',
-  '#4f46e5',
-  '#0e7490',
+  '#3B82F6',
+  '#8B5CF6',
+  '#0EA5E9',
+  '#F97316',
+  '#EC4899',
+  '#10B981',
+  '#6366F1',
 ];
 
-const INTERNAL_CLIENT_COLOR = '#6366f1';
+/** Neutral slate for internal / self-work client (prototype) */
+const INTERNAL_CLIENT_COLOR = '#64748B';
 
 function hashToIndex(id: string, mod: number): number {
   let h = 0;
@@ -38,8 +41,13 @@ export function clientCalendarColor(client: Client | undefined | null): string {
 
 export function blockBarBackground(block: ExpandedTimeBlock): string {
   if (block.colorHint?.trim()) return block.colorHint.trim();
-  if (block.kind === 'PERSONAL' || block.kind === 'DOWNTIME' || block.kind === 'MEETING' || block.kind === 'ADMIN') {
-    return KIND_COLORS[block.kind];
+  if (
+    block.kind === 'PERSONAL' ||
+    block.kind === 'DOWNTIME' ||
+    block.kind === 'MEETING' ||
+    block.kind === 'ADMIN'
+  ) {
+    return KIND_PILL_COLORS[block.kind];
   }
   const proj = block.projectId;
   if (proj && typeof proj === 'object') {
@@ -49,7 +57,25 @@ export function blockBarBackground(block: ExpandedTimeBlock): string {
         : null;
     if (c) return clientCalendarColor(c);
   }
-  return KIND_COLORS.WORK;
+  return KIND_PILL_COLORS.WORK;
+}
+
+/** Readable text on colored block (WCAG-ish luminance) */
+export function contrastTextOnHex(hex: string): string {
+  if (!hex || hex.length < 7) return '#ffffff';
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  const y = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  return y > 0.55 ? '#1e293b' : '#ffffff';
+}
+
+export function alphaHexToRgba(hex: string, a: number): string {
+  if (!hex || hex.length < 7) return hex;
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return `rgba(${r},${g},${b},${a})`;
 }
 
 export function blockKindLabel(kind: TimeBlockKind): string {
@@ -72,5 +98,16 @@ export function blockKindLabel(kind: TimeBlockKind): string {
 export function projectLabel(block: ExpandedTimeBlock): string {
   const p = block.projectId;
   if (p && typeof p === 'object') return (p as Project).title;
+  return '';
+}
+
+export function clientLabel(block: ExpandedTimeBlock): string {
+  const p = block.projectId;
+  if (p && typeof p === 'object') {
+    const raw = (p as Project).clientId;
+    if (typeof raw === 'object' && raw !== null && 'name' in raw) {
+      return (raw as Client).name;
+    }
+  }
   return '';
 }
