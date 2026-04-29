@@ -54,3 +54,24 @@ export function fmtDurationMs(start: Date, end: Date): string {
 export function snapMinutesTo15(m: number): number {
   return Math.round(m / 15) * 15;
 }
+
+/**
+ * Move block to another calendar day while preserving duration (local wall-clock times).
+ * `startLocal` / `endLocal` match editor format `yyyy-mm-ddTHH:mm`.
+ */
+export function shiftBlockToCalendarDate(
+  startLocal: string,
+  endLocal: string,
+  dateYmd: string
+): { startTime: string; endTime: string } {
+  const dur = new Date(endLocal).getTime() - new Date(startLocal).getTime();
+  const startBase = new Date(startLocal);
+  const [y, mo, d] = dateYmd.split('-').map((x) => parseInt(x, 10));
+  if (!y || !mo || !d) return { startTime: startLocal, endTime: endLocal };
+  const newStart = new Date(y, mo - 1, d, startBase.getHours(), startBase.getMinutes(), 0, 0);
+  const newEnd = new Date(newStart.getTime() + Math.max(60000, dur));
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const fmt = (dt: Date) =>
+    `${dt.getFullYear()}-${pad(dt.getMonth() + 1)}-${pad(dt.getDate())}T${pad(dt.getHours())}:${pad(dt.getMinutes())}`;
+  return { startTime: fmt(newStart), endTime: fmt(newEnd) };
+}

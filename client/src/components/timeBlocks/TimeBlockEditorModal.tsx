@@ -1,11 +1,18 @@
-import { X } from 'lucide-react';
+import { Copy, X } from 'lucide-react';
 import type { Client, Project, ProjectTask, TaskType, TimeBlockKind } from '../../types';
 import {
   blockKindLabel,
   contrastTextOnHex,
   KIND_PILL_COLORS,
 } from '../../utils/blockColors';
-import { HOUR_END, HOUR_START } from './calendarUtils';
+import { HOUR_END, HOUR_START, shiftBlockToCalendarDate } from './calendarUtils';
+import {
+  emptyWeeklyDays,
+  formModelToRule,
+  repeatPresetFromRule,
+  ruleToFormModel,
+  type RepeatEndsMode,
+} from './blockRecurrence';
 
 const KINDS: TimeBlockKind[] = ['WORK', 'PERSONAL', 'DOWNTIME', 'MEETING', 'ADMIN'];
 const MIN_OPTS = [0, 15, 30, 45];
@@ -35,6 +42,8 @@ interface TimeBlockEditorModalProps {
   showProjectFields: boolean;
   onSave: () => void;
   onCancel: () => void;
+  /** Save as a new block from current form (edit mode only). */
+  onDuplicate?: () => void;
   error: string | null;
 }
 
@@ -65,6 +74,16 @@ function setLocalDateTime(
   return `${y}-${pad(mo + 1)}-${pad(d)}T${pad(h)}:${pad(m)}`;
 }
 
+/** yyyy-mm-dd from local datetime string */
+function localDateInputValue(isoLike: string): string {
+  const { y, mo, d } = localParts(isoLike);
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${y}-${pad(mo + 1)}-${pad(d)}`;
+}
+
+const WEEK_TOGGLE_ORDER = [1, 2, 3, 4, 5, 6, 0] as const;
+const WEEK_TOGGLE_LABELS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+
 export function TimeBlockEditorModal({
   open,
   isEdit,
@@ -77,6 +96,7 @@ export function TimeBlockEditorModal({
   showProjectFields,
   onSave,
   onCancel,
+  onDuplicate,
   error,
 }: TimeBlockEditorModalProps) {
   if (!open) return null;
@@ -85,6 +105,10 @@ export function TimeBlockEditorModal({
     { length: HOUR_END - HOUR_START + 1 },
     (_, i) => HOUR_START + i
   );
+
+  const anchorDate = new Date(draft.startTime);
+  const preset = repeatPresetFromRule(draft.recurrenceRule);
+  const recModel = ruleToFormModel(draft.recurrenceRule, anchorDate);
 
   const sh = localParts(draft.startTime);
   const eh = localParts(draft.endTime);
@@ -241,6 +265,22 @@ export function TimeBlockEditorModal({
 
           <div>
             <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider mb-2">
+              Date
+            </p>
+            <input
+              type="date"
+              className="input text-sm max-w-[200px]"
+              value={localDateInputValue(draft.startTime)}
+              onChange={(e) => {
+                const v = e.target.value;
+                if (!v) return;
+                onDraftChange(shiftBlockToCalendarDate(draft.startTime, draft.endTime, v));
+              }}
+            />
+          </div>
+
+          <div>
+            <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider mb-2">
               Time
             </p>
             <div className="flex flex-wrap items-center gap-2">
@@ -359,14 +399,212 @@ export function TimeBlockEditorModal({
 
           <div>
             <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider mb-1.5">
-              Repeats (RRULE)
+              Repeat
             </p>
-            <input
-              className="input font-mono text-xs"
-              placeholder="Optional — e.g. RRULE:FREQ=WEEKLY;BYDAY=MO,WE,FR"
-              value={draft.recurrenceRule}
-              onChange={(e) => onDraftChange({ recurrenceRule: e.target.value })}
-            />
+
+            {preset === 'custom' && (
+              <div className="space-y-2 mb-3">
+                <p className="text-xs text-amber-900 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
+                  This recurrence isn&apos;t covered by the simple editor (for example monthly rules).
+                  Edit the text below, or reset to a weekly schedule.
+                </p>
+                <textarea
+                  className="input font-mono text-xs min-h-[80px] resize-y"
+                  placeholder="RRULE:…"
+                  value={draft.recurrenceRule}
+                  onChange={(e) => onDraftChange({ recurrenceRule: e.target.value })}
+                />
+                <button
+                  type="button"
+                  className="text-xs font-medium text-primary-700 hover:underline"
+                  onClick={() =>
+                    onDraftChange({
+                      recurrenceRule: formModelToRule(
+                        {
+                          mode: 'weekly',
+                          interval: 1,
+                          weeklyDays: emptyWeeklyDays(anchorDate),
+                          ends: 'never',
+                          untilInput: '',
+                          count: 5,
+                        },
+                        anchorDate
+                      ),
+                    })
+                  }
+                >
+                  Reset to simple weekly…
+                </button>
+              </div>
+            )}
+
+            {preset !== 'custom' && (
+              <>
+                <select
+                  className="input text-sm mb-3"
+                  value={preset}
+                  onChange={(e) => {
+                    const v = e.target.value as typeof preset;
+                    if (v === 'none') {
+                      onDraftChange({ recurrenceRule: '' });
+                      return;
+                    }
+                    if (v === 'daily') {
+                      onDraftChange({
+                        recurrenceRule: formModelToRule(
+                          {
+                            mode: 'daily',
+                            interval: 1,
+                            weeklyDays: emptyWeeklyDays(anchorDate),
+                            ends: 'never',
+                            untilInput: '',
+                            count: 5,
+                          },
+                          anchorDate
+                        ),
+                      });
+                      return;
+                    }
+                    if (v === 'weekly') {
+                      onDraftChange({
+                        recurrenceRule: formModelToRule(
+                          {
+                            mode: 'weekly',
+                            interval: 1,
+                            weeklyDays: emptyWeeklyDays(anchorDate),
+                            ends: 'never',
+                            untilInput: '',
+                            count: 5,
+                          },
+                          anchorDate
+                        ),
+                      });
+                    }
+                  }}
+                >
+                  <option value="none">Does not repeat</option>
+                  <option value="daily">Daily</option>
+                  <option value="weekly">Weekly</option>
+                </select>
+
+                {recModel && preset === 'daily' && (
+                  <div className="flex flex-wrap items-center gap-2 mb-3">
+                    <span className="text-sm text-gray-600">Every</span>
+                    <input
+                      type="number"
+                      min={1}
+                      className="input text-sm w-[4rem]"
+                      value={recModel.interval}
+                      onChange={(e) => {
+                        const interval = Math.max(1, parseInt(e.target.value, 10) || 1);
+                        onDraftChange({
+                          recurrenceRule: formModelToRule({ ...recModel, interval }, anchorDate),
+                        });
+                      }}
+                    />
+                    <span className="text-sm text-gray-600">day(s)</span>
+                  </div>
+                )}
+
+                {recModel && preset === 'weekly' && (
+                  <div className="space-y-3 mb-3">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-sm text-gray-600">Every</span>
+                      <input
+                        type="number"
+                        min={1}
+                        className="input text-sm w-[4rem]"
+                        value={recModel.interval}
+                        onChange={(e) => {
+                          const interval = Math.max(1, parseInt(e.target.value, 10) || 1);
+                          onDraftChange({
+                            recurrenceRule: formModelToRule({ ...recModel, interval }, anchorDate),
+                          });
+                        }}
+                      />
+                      <span className="text-sm text-gray-600">week(s) on</span>
+                    </div>
+                    <div className="flex flex-wrap gap-1">
+                      {WEEK_TOGGLE_ORDER.map((idx, i) => {
+                        const on = recModel.weeklyDays[idx];
+                        return (
+                          <button
+                            key={`${idx}-${i}`}
+                            type="button"
+                            onClick={() => {
+                              const weeklyDays = [...recModel.weeklyDays];
+                              weeklyDays[idx] = !weeklyDays[idx];
+                              onDraftChange({
+                                recurrenceRule: formModelToRule({ ...recModel, weeklyDays }, anchorDate),
+                              });
+                            }}
+                            className={`min-w-[2rem] px-2 py-1 rounded-lg text-xs font-semibold border transition-colors ${
+                              on
+                                ? 'bg-primary-600 border-primary-600 text-white'
+                                : 'border-gray-200 bg-gray-50 text-gray-600 hover:bg-gray-100'
+                            }`}
+                          >
+                            {WEEK_TOGGLE_LABELS[i]}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {recModel && preset !== 'none' && (
+                  <div className="space-y-2">
+                    <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
+                      Ends
+                    </p>
+                    <select
+                      className="input text-sm"
+                      value={recModel.ends}
+                      onChange={(e) => {
+                        const ends = e.target.value as RepeatEndsMode;
+                        onDraftChange({
+                          recurrenceRule: formModelToRule({ ...recModel, ends }, anchorDate),
+                        });
+                      }}
+                    >
+                      <option value="never">Never</option>
+                      <option value="until">On date</option>
+                      <option value="count">After N occurrences</option>
+                    </select>
+                    {recModel.ends === 'until' && (
+                      <input
+                        type="date"
+                        className="input text-sm max-w-[200px]"
+                        value={recModel.untilInput}
+                        onChange={(e) => {
+                          const untilInput = e.target.value;
+                          onDraftChange({
+                            recurrenceRule: formModelToRule({ ...recModel, untilInput }, anchorDate),
+                          });
+                        }}
+                      />
+                    )}
+                    {recModel.ends === 'count' && (
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="number"
+                          min={1}
+                          className="input text-sm w-[5rem]"
+                          value={recModel.count}
+                          onChange={(e) => {
+                            const count = Math.max(1, parseInt(e.target.value, 10) || 1);
+                            onDraftChange({
+                              recurrenceRule: formModelToRule({ ...recModel, count }, anchorDate),
+                            });
+                          }}
+                        />
+                        <span className="text-sm text-gray-600">occurrences</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </>
+            )}
           </div>
 
           <div>
@@ -382,18 +620,32 @@ export function TimeBlockEditorModal({
           </div>
         </div>
 
-        <div className="px-5 py-3 border-t border-gray-100 flex justify-end gap-2">
-          <button type="button" onClick={onCancel} className="btn-outline text-sm">
-            Cancel
-          </button>
-          <button
-            type="button"
-            onClick={onSave}
-            disabled={!draft.title.trim() || startBad}
-            className="btn-primary text-sm font-bold disabled:opacity-45 disabled:cursor-not-allowed"
-          >
-            Save Block
-          </button>
+        <div className="px-5 py-3 border-t border-gray-100 flex flex-wrap items-center justify-between gap-2">
+          <div>
+            {isEdit && onDuplicate && (
+              <button
+                type="button"
+                onClick={onDuplicate}
+                className="btn-outline text-sm inline-flex items-center gap-1.5"
+              >
+                <Copy className="w-3.5 h-3.5" />
+                Duplicate
+              </button>
+            )}
+          </div>
+          <div className="flex gap-2 ml-auto">
+            <button type="button" onClick={onCancel} className="btn-outline text-sm">
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={onSave}
+              disabled={!draft.title.trim() || startBad}
+              className="btn-primary text-sm font-bold disabled:opacity-45 disabled:cursor-not-allowed"
+            >
+              Save Block
+            </button>
+          </div>
         </div>
       </div>
     </div>

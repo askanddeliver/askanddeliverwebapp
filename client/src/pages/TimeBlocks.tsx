@@ -6,7 +6,7 @@ import {
   projectTasksApi,
   clientsApi,
 } from '../services/api';
-import type { ExpandedTimeBlock, Project, TaskType, ProjectTask, Client, TimeBlockKind } from '../types';
+import type { ExpandedTimeBlock, Project, TaskType, ProjectTask, Client } from '../types';
 import { toUTCStartOfDay, toUTCEndOfDay, formatDate } from '../utils/calculations';
 import { addDays, startOfWeekMonday, ymd } from '../components/timeBlocks/calendarUtils';
 import { TimeBlockLegend } from '../components/timeBlocks/TimeBlockLegend';
@@ -37,6 +37,35 @@ function emptyDraft(day: Date): BlockEditorDraft {
     projectTaskId: '',
     recurrenceRule: '',
     notes: '',
+  };
+}
+
+function expandedBlockToDraft(b: ExpandedTimeBlock): BlockEditorDraft {
+  const s = new Date(b.startTime);
+  const e = new Date(b.endTime);
+  const proj = b.projectId && typeof b.projectId === 'object' ? b.projectId : null;
+  const tt = b.taskTypeId && typeof b.taskTypeId === 'object' ? b.taskTypeId : null;
+  const pt = b.projectTaskId && typeof b.projectTaskId === 'object' ? b.projectTaskId : null;
+  const cid =
+    proj && typeof proj.clientId === 'object'
+      ? proj.clientId._id
+      : proj?.clientId
+        ? String(proj.clientId)
+        : '';
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const ls = `${s.getFullYear()}-${pad(s.getMonth() + 1)}-${pad(s.getDate())}T${pad(s.getHours())}:${pad(s.getMinutes())}`;
+  const le = `${e.getFullYear()}-${pad(e.getMonth() + 1)}-${pad(e.getDate())}T${pad(e.getHours())}:${pad(e.getMinutes())}`;
+  return {
+    title: b.title,
+    kind: b.kind,
+    startTime: ls,
+    endTime: le,
+    clientId: cid,
+    projectId: proj?._id || '',
+    taskTypeId: tt?._id || '',
+    projectTaskId: pt?._id || '',
+    recurrenceRule: b.recurrenceRule || '',
+    notes: b.notes || '',
   };
 }
 
@@ -162,34 +191,28 @@ export default function TimeBlocks() {
 
   const openEdit = (b: ExpandedTimeBlock) => {
     setEditingMasterId(b.masterId);
-    const s = new Date(b.startTime);
-    const e = new Date(b.endTime);
-    const proj = b.projectId && typeof b.projectId === 'object' ? b.projectId : null;
-    const tt = b.taskTypeId && typeof b.taskTypeId === 'object' ? b.taskTypeId : null;
-    const pt = b.projectTaskId && typeof b.projectTaskId === 'object' ? b.projectTaskId : null;
-    const cid =
-      proj && typeof proj.clientId === 'object'
-        ? proj.clientId._id
-        : proj?.clientId
-          ? String(proj.clientId)
-          : '';
-    const pad = (n: number) => String(n).padStart(2, '0');
-    const ls = `${s.getFullYear()}-${pad(s.getMonth() + 1)}-${pad(s.getDate())}T${pad(s.getHours())}:${pad(s.getMinutes())}`;
-    const le = `${e.getFullYear()}-${pad(e.getMonth() + 1)}-${pad(e.getDate())}T${pad(e.getHours())}:${pad(e.getMinutes())}`;
+    setDraft(expandedBlockToDraft(b));
+    setModalOpen(true);
+    setDetail(null);
+  };
+
+  const duplicateBlockAsNew = (b: ExpandedTimeBlock) => {
+    const d = expandedBlockToDraft(b);
+    setEditingMasterId(null);
     setDraft({
-      title: b.title,
-      kind: b.kind,
-      startTime: ls,
-      endTime: le,
-      clientId: cid,
-      projectId: proj?._id || '',
-      taskTypeId: tt?._id || '',
-      projectTaskId: pt?._id || '',
-      recurrenceRule: b.recurrenceRule || '',
-      notes: b.notes || '',
+      ...d,
+      title: d.title.trim() ? `${d.title.trim()} (copy)` : 'Untitled (copy)',
     });
     setModalOpen(true);
     setDetail(null);
+  };
+
+  const duplicateCurrentDraftAsNew = () => {
+    setEditingMasterId(null);
+    setDraft((d) => ({
+      ...d,
+      title: d.title.trim() ? `${d.title.trim()} (copy)` : 'Untitled (copy)',
+    }));
   };
 
   const saveBlock = async () => {
@@ -407,6 +430,7 @@ export default function TimeBlocks() {
           onEdit={() => {
             openEdit(detail.block);
           }}
+          onDuplicate={() => duplicateBlockAsNew(detail.block)}
           onDelete={() => deleteBlock(detail.block.masterId)}
           onStartTimer={() => launchBlock(detail.block)}
           canStartTimer={detailCanStart}
@@ -428,6 +452,7 @@ export default function TimeBlocks() {
           setModalOpen(false);
           setError(null);
         }}
+        onDuplicate={editingMasterId ? duplicateCurrentDraftAsNew : undefined}
         error={modalOpen ? error : null}
       />
     </div>

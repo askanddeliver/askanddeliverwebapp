@@ -1,4 +1,4 @@
-import { Play, Pencil, Trash2 } from 'lucide-react';
+import { Copy, Play, Pencil, Trash2 } from 'lucide-react';
 import type { ExpandedTimeBlock } from '../../types';
 import {
   blockBarBackground,
@@ -16,6 +16,7 @@ interface TimeBlockDetailPopoverProps {
   anchorY: number;
   onClose: () => void;
   onEdit: () => void;
+  onDuplicate: () => void;
   onDelete: () => void;
   onStartTimer: () => void;
   canStartTimer: boolean;
@@ -27,6 +28,7 @@ export function TimeBlockDetailPopover({
   anchorY,
   onClose,
   onEdit,
+  onDuplicate,
   onDelete,
   onStartTimer,
   canStartTimer,
@@ -106,13 +108,21 @@ export function TimeBlockDetailPopover({
             </button>
             <button
               type="button"
-              onClick={onDelete}
-              className="flex-1 py-2 rounded-lg border border-red-200 bg-red-50 text-sm font-medium text-red-600 hover:bg-red-100 flex items-center justify-center gap-1.5"
+              onClick={onDuplicate}
+              className="flex-1 py-2 rounded-lg border border-gray-200 text-sm font-medium text-gray-800 hover:bg-gray-50 flex items-center justify-center gap-1.5"
             >
-              <Trash2 className="w-3.5 h-3.5" />
-              Delete
+              <Copy className="w-3.5 h-3.5" />
+              Duplicate
             </button>
           </div>
+          <button
+            type="button"
+            onClick={onDelete}
+            className="w-full mt-2 py-2 rounded-lg border border-red-200 bg-red-50 text-sm font-medium text-red-600 hover:bg-red-100 flex items-center justify-center gap-1.5"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+            Delete
+          </button>
         </div>
       </div>
     </>
