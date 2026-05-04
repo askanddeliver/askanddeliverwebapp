@@ -194,6 +194,7 @@ export function InvoiceDetail({ invoice, onClose, onUpdated, onDeleted }: Invoic
     lineItemCount: invoice.lineItemIds.length,
     dateRange: invoice.dateRange,
     paymentLinkUrl: invoice.paymentLinkUrl,
+    retainerSummary: invoice.retainerSummary,
   };
 
   return (

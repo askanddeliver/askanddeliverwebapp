@@ -20,6 +20,20 @@ export interface IInvoiceClientInfo {
   paymentPreference?: string;
 }
 
+/** Snapshot of hour-retainer pool vs usage when a RETAINER_REPORT is saved */
+export interface IInvoiceRetainerSummaryProject {
+  projectId: string;
+  title: string;
+  poolHours: number;
+  adjustmentHours: number;
+  consumedHoursAllTime: number;
+  remainingHours: number;
+}
+
+export interface IInvoiceRetainerSummary {
+  projects: IInvoiceRetainerSummaryProject[];
+}
+
 export interface IInvoiceItem {
   taskTypeName: string;
   taskTypeColor: string;
@@ -45,6 +59,8 @@ export interface IInvoice extends Document {
   status: InvoiceStatus;
   /** Defaults to INVOICE; omitted on legacy records until re-saved */
   documentKind?: InvoiceDocumentKind;
+  /** Snapshot from preview when saving a retainer utilization report */
+  retainerSummary?: IInvoiceRetainerSummary;
   dateRange: { start: Date; end: Date };
   companyInfo: IInvoiceCompanyInfo;
   clientInfo: IInvoiceClientInfo;
@@ -66,6 +82,18 @@ export interface IInvoice extends Document {
   createdAt: Date;
   updatedAt: Date;
 }
+
+const RetainerSummaryProjectSchema = new Schema<IInvoiceRetainerSummaryProject>(
+  {
+    projectId: { type: String, required: true },
+    title: { type: String, required: true },
+    poolHours: { type: Number, required: true },
+    adjustmentHours: { type: Number, required: true },
+    consumedHoursAllTime: { type: Number, required: true },
+    remainingHours: { type: Number, required: true },
+  },
+  { _id: false }
+);
 
 const InvoiceItemSchema = new Schema<IInvoiceItem>(
   {
@@ -117,6 +145,15 @@ const InvoiceSchema = new Schema<IInvoice>(
       type: String,
       enum: ['INVOICE', 'RETAINER_REPORT'],
       default: 'INVOICE',
+    },
+    retainerSummary: {
+      type: new Schema<IInvoiceRetainerSummary>(
+        {
+          projects: { type: [RetainerSummaryProjectSchema], default: [] },
+        },
+        { _id: false }
+      ),
+      required: false,
     },
     dateRange: {
       start: { type: Date, required: true },

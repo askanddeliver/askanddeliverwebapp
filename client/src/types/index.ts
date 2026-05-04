@@ -271,6 +271,9 @@ export interface SavedInvoice {
   notes?: string;
   createdAt: string;
   updatedAt: string;
+  retainerSummary?: {
+    projects: RetainerProjectSummary[];
+  };
 }
 
 export interface InvoiceStats {

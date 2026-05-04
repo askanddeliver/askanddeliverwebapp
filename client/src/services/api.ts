@@ -357,6 +357,7 @@ export const invoicesApi = {
     lineItemIds?: string[];
     notes?: string;
     documentKind?: InvoiceDocumentKind;
+    retainerSummary?: Invoice['retainerSummary'];
   }) => api.post<SavedInvoice>('/invoices', data),
   update: (id: string, data: { invoiceNumber?: string; notes?: string }) =>
     api.put<SavedInvoice>(`/invoices/${id}`, data),

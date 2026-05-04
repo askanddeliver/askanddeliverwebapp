@@ -2,7 +2,7 @@ import { Router, Response } from 'express';
 import { checkJwt, AuthRequest, extractUserId, getWorkspaceOwnerId, requireAdmin } from '../middleware/auth';
 import { asyncHandler, createError } from '../middleware/errorHandler';
 import { Invoice, TimeEntry, LineItem, Client, Project, SiteConfig } from '../models';
-import type { InvoiceDocumentKind, InvoiceStatus } from '../models';
+import type { InvoiceDocumentKind, InvoiceStatus, IInvoiceRetainerSummary } from '../models';
 import { parseDateStart, parseDateEnd } from '../utils/calculations';
 import { createPaymentLink, isStripeEnabled } from '../lib/stripeClient';
 
@@ -221,6 +221,7 @@ router.post(
       lineItemIds,
       notes,
       documentKind: rawDocumentKind,
+      retainerSummary: bodyRetainerSummary,
     } = req.body as {
       invoiceNumber?: string;
       clientId: string;
@@ -236,6 +237,7 @@ router.post(
       lineItemIds?: string[];
       notes?: string;
       documentKind?: InvoiceDocumentKind;
+      retainerSummary?: IInvoiceRetainerSummary;
     };
 
     if (!clientId) throw createError('Client is required for invoices', 400);
@@ -257,6 +259,20 @@ router.post(
     const documentKind: InvoiceDocumentKind =
       rawDocumentKind === 'RETAINER_REPORT' ? 'RETAINER_REPORT' : 'INVOICE';
 
+    const retainerSummary: IInvoiceRetainerSummary | undefined =
+      documentKind === 'RETAINER_REPORT' &&
+      bodyRetainerSummary?.projects &&
+      bodyRetainerSummary.projects.length > 0
+        ? { projects: bodyRetainerSummary.projects }
+        : undefined;
+
+    if (documentKind === 'RETAINER_REPORT' && !retainerSummary) {
+      throw createError(
+        'Retainer utilization reports require a pool summary. Regenerate the preview, then save again.',
+        400
+      );
+    }
+
     // Verify all referenced projects belong to workspace
     const projectIdsList = projectIds ?? [];
     if (projectIdsList.length > 0) {
@@ -276,6 +292,7 @@ router.post(
       projectIds: projectIdsList,
       status: 'DRAFT',
       documentKind,
+      retainerSummary,
       dateRange: {
         start: new Date(dateRange.start),
         end: new Date(dateRange.end),

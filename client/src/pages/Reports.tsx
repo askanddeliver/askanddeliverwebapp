@@ -693,6 +693,7 @@ function Reports() {
       {activeTab === 'entries' && (
         <div className="mb-6 print:hidden">
           {isAdmin &&
+            invoice?.invoiceKind !== 'RETAINER_REPORT' &&
             (blockTimeStats.plannedSeconds > 0 ||
               blockTimeStats.linkedSeconds > 0 ||
               blockTimeStats.unlinkedSeconds > 0) && (

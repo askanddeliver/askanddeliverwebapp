@@ -96,6 +96,7 @@ export function CreateInvoiceModal({
         lineItemIds: lineItems.map((li) => li._id),
         notes: notes.trim() || undefined,
         documentKind: isRetainer ? 'RETAINER_REPORT' : 'INVOICE',
+        retainerSummary: isRetainer ? invoice.retainerSummary : undefined,
       });
 
       onCreated(res.data._id);
