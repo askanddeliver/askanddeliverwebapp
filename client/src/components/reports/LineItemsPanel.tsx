@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus, Trash2, Package, X } from 'lucide-react';
+import { Plus, Trash2, Package, X, Pencil } from 'lucide-react';
 import { lineItemsApi } from '../../services/api';
 import { formatCurrency, formatDate, toUTCStartOfDay } from '../../utils/calculations';
 import type { LineItem, Client, Project } from '../../types';
@@ -31,6 +31,7 @@ export function LineItemsPanel({
   onChanged,
 }: LineItemsPanelProps) {
   const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
 
@@ -42,6 +43,7 @@ export function LineItemsPanel({
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
 
   const resetForm = () => {
+    setEditingId(null);
     setClientId(selectedClientId || '');
     setProjectId('');
     setDescription('');
@@ -51,24 +53,63 @@ export function LineItemsPanel({
     setShowForm(false);
   };
 
+  const openAddForm = () => {
+    setEditingId(null);
+    setClientId(selectedClientId || '');
+    setProjectId('');
+    setDescription('');
+    setAmount('');
+    setCategory('');
+    setDate(new Date().toISOString().split('T')[0]);
+    setShowForm(true);
+  };
+
+  const openEditForm = (item: LineItem) => {
+    const cid =
+      typeof item.clientId === 'object' ? item.clientId._id : item.clientId;
+    const pid = item.projectId
+      ? typeof item.projectId === 'object'
+        ? item.projectId._id
+        : item.projectId
+      : '';
+    setEditingId(item._id);
+    setClientId(cid);
+    setProjectId(pid);
+    setDescription(item.description);
+    setAmount(String(item.amount));
+    setCategory(item.category || '');
+    const raw = item.date;
+    setDate(
+      typeof raw === 'string'
+        ? raw.slice(0, 10)
+        : new Date(raw).toISOString().slice(0, 10)
+    );
+    setShowForm(true);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!clientId || !description || !amount || !date) return;
 
     try {
       setSaving(true);
-      await lineItemsApi.create({
+      const payload = {
         clientId,
         projectId: projectId || undefined,
         description,
         amount: parseFloat(amount),
         category: category || undefined,
         date: toUTCStartOfDay(date),
-      });
+      };
+      if (editingId) {
+        await lineItemsApi.update(editingId, payload);
+      } else {
+        await lineItemsApi.create(payload);
+      }
       resetForm();
       onChanged();
     } catch (err) {
-      console.error('Failed to create line item:', err);
+      console.error(editingId ? 'Failed to update line item:' : 'Failed to create line item:', err);
     } finally {
       setSaving(false);
     }
@@ -110,7 +151,7 @@ export function LineItemsPanel({
         </div>
         {!showForm && (
           <button
-            onClick={() => setShowForm(true)}
+            onClick={openAddForm}
             className="btn-secondary flex items-center gap-1.5 text-sm"
           >
             <Plus className="w-4 h-4" />
@@ -127,7 +168,9 @@ export function LineItemsPanel({
       {showForm && (
         <form onSubmit={handleSubmit} className="mb-4 p-4 bg-gray-50 rounded-lg space-y-3">
           <div className="flex items-center justify-between mb-1">
-            <span className="text-sm font-medium text-gray-700">New Line Item</span>
+            <span className="text-sm font-medium text-gray-700">
+              {editingId ? 'Edit line item' : 'New line item'}
+            </span>
             <button
               type="button"
               onClick={resetForm}
@@ -250,7 +293,7 @@ export function LineItemsPanel({
               disabled={saving || !clientId || !description || !amount || !date}
               className="btn-primary text-sm disabled:opacity-50"
             >
-              {saving ? 'Saving...' : 'Add Line Item'}
+              {saving ? 'Saving...' : editingId ? 'Save changes' : 'Add line item'}
             </button>
           </div>
         </form>
@@ -270,7 +313,7 @@ export function LineItemsPanel({
             const project = typeof item.projectId === 'object' ? item.projectId : null;
 
             return (
-              <div key={item._id} className="flex items-center justify-between py-2.5 group">
+              <div key={item._id} className="flex items-center justify-between gap-3 py-2.5">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <span className="font-medium text-gray-900 text-sm truncate">
@@ -294,14 +337,23 @@ export function LineItemsPanel({
                     <span>{formatDate(item.date)}</span>
                   </div>
                 </div>
-                <div className="flex items-center gap-3">
-                  <span className="font-bold text-gray-900 text-sm">
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <span className="font-bold text-gray-900 text-sm tabular-nums">
                     {formatCurrency(item.amount)}
                   </span>
                   <button
+                    type="button"
+                    onClick={() => openEditForm(item)}
+                    className="p-1.5 rounded-lg text-gray-400 hover:text-primary-600 hover:bg-primary-50 transition-colors"
+                    title="Edit"
+                  >
+                    <Pencil className="w-4 h-4" />
+                  </button>
+                  <button
+                    type="button"
                     onClick={() => handleDelete(item._id)}
                     disabled={deleting === item._id}
-                    className="text-gray-300 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
+                    className="p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors disabled:opacity-40"
                     title="Delete"
                   >
                     <Trash2 className="w-4 h-4" />
