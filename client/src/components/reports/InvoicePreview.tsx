@@ -21,6 +21,7 @@ export function InvoicePreview({ invoice }: InvoicePreviewProps) {
     invoice.invoiceKind === 'FIXED_PRICE' || projectFeeItems.length > 0;
   const isRetainerDoc =
     invoice.invoiceKind === 'RETAINER_REPORT' || retainerUtilItems.length > 0;
+  const retainerPeriodHours = retainerUtilItems.reduce((s, item) => s + item.hours, 0);
 
   return (
     <div className="card print:p-0 print:overflow-visible" id="invoice-preview">
@@ -153,17 +154,11 @@ export function InvoicePreview({ invoice }: InvoicePreviewProps) {
                 <tr className="border-t-2 border-gray-300">
                   <td className="py-2 text-right font-bold text-gray-600">Period hours</td>
                   <td className="py-2 text-right font-bold text-gray-900 tabular-nums">
-                    {invoice.totalHours.toFixed(2)}
+                    {retainerPeriodHours.toFixed(2)}
                   </td>
                 </tr>
               </tfoot>
             </table>
-            {retainerUtilItems.length > 1 && (
-              <p className="text-xs text-gray-500 mt-2">
-                Per-task-type hours are rounded to two decimals. The period total matches the exact sum of time
-                entries in this date range.
-              </p>
-            )}
           </div>
         )}
 

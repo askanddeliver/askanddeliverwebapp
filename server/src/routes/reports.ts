@@ -246,31 +246,29 @@ router.post(
     }> = [];
 
     for (const entry of filteredEntries) {
-      const taskType = entry.taskTypeId as unknown as ITaskType | null | undefined;
+      const taskType = entry.taskTypeId as unknown as ITaskType;
+      if (!taskType) continue;
 
       // Resolve the client for THIS entry (each entry may belong to a different client)
       const project = entry.projectId as unknown as IProject & { clientId: { _id: string } };
       const entryClientId = project?.clientId?._id?.toString();
       const entryClient = entryClientId ? clientCache.get(entryClientId) || null : null;
 
-      const taskTypeKey = taskType ? taskType._id.toString() : '__no_task_type';
-      const discount = taskType ? getDiscountPercent(entryClient, taskTypeKey) : 0;
+      const taskTypeKey = taskType._id.toString();
+      const discount = getDiscountPercent(entryClient, taskTypeKey);
       const clampedDiscount = Math.min(100, Math.max(0, discount));
-      const effectiveRate = taskType && entryClient ? getEffectiveRate(taskType, entryClient) : 0;
-      const hours = ((entry as ITimeEntry).duration || 0) / 3600;
+      const effectiveRate = getEffectiveRate(taskType, entryClient);
+      const hours = (entry as ITimeEntry).duration / 3600;
       const amount = hours * effectiveRate;
 
       const entryUser = userMap.get((entry as ITimeEntry).userId);
-      const earnedRate =
-        taskType && entryUser?.earnedRates
-          ? (entryUser.earnedRates[taskTypeKey] ?? 0)
-          : 0;
+      const earnedRate = entryUser?.earnedRates?.[taskTypeKey] ?? 0;
       const earnedAmount = hours * (typeof earnedRate === 'number' ? earnedRate : 0);
       const margin = amount - earnedAmount;
 
       costBreakdown.push({
         userName: entryUser?.name ?? 'Unknown',
-        taskTypeName: taskType?.name ?? 'Uncategorized',
+        taskTypeName: taskType.name,
         hours,
         billed: amount,
         earned: earnedAmount,
@@ -286,9 +284,9 @@ router.post(
 
       if (!lineItems.has(groupKey)) {
         lineItems.set(groupKey, {
-          taskTypeName: taskType?.name ?? 'Uncategorized',
-          taskTypeColor: taskType?.color ?? '#9ca3af',
-          baseRate: taskType?.rate ?? 0,
+          taskTypeName: taskType.name,
+          taskTypeColor: taskType.color,
+          baseRate: taskType.rate,
           discount: clampedDiscount,
           effectiveRate,
           hours: 0,
@@ -306,13 +304,6 @@ router.post(
         item.descriptions.push((entry as ITimeEntry).description!);
       }
     }
-
-    const periodDurationSecondsTotal = filteredEntries.reduce(
-      (sum, e) => sum + ((e as ITimeEntry).duration || 0),
-      0
-    );
-    const periodHoursTotal =
-      Math.round((periodDurationSecondsTotal / 3600) * 100) / 100;
 
     // Round values
     const items = Array.from(lineItems.values()).map((item) => ({
@@ -385,6 +376,10 @@ router.post(
       (s, item) => s + item.earnedAmount,
       0
     );
+    const tmHoursUnrounded = Array.from(lineItems.values()).reduce(
+      (s, item) => s + item.hours,
+      0
+    );
 
     let allItems = [...items, ...fixedItems];
     let invoiceKind: 'HOURLY' | 'FIXED_PRICE' | 'RETAINER_REPORT' = 'HOURLY';
@@ -393,7 +388,7 @@ router.post(
       allItems.reduce((sum, item) => sum + item.amount, 0) * 100
     ) / 100;
 
-    let totalHours = periodHoursTotal;
+    let totalHours = Math.round(tmHoursUnrounded * 100) / 100;
 
     let totalEarned = Math.round(tmEarnedUnrounded * 100) / 100;
 
@@ -424,7 +419,7 @@ router.post(
       const feesTotal = projectFeeLines.reduce((s, x) => s + x.amount, 0);
       const fixedSum = fixedItems.reduce((s, x) => s + x.amount, 0);
       total = Math.round((feesTotal + fixedSum) * 100) / 100;
-      totalHours = periodHoursTotal;
+      totalHours = Math.round(tmHoursUnrounded * 100) / 100;
       totalEarned = Math.round(tmEarnedUnrounded * 100) / 100;
       totalMargin = Math.round((total - totalEarned) * 100) / 100;
     }
@@ -455,17 +450,15 @@ router.post(
       const consumedByProject = new Map<string, number>();
       for (const e of allTimeEntries) {
         const pid = e.projectId.toString();
-        consumedByProject.set(
-          pid,
-          (consumedByProject.get(pid) || 0) + (e.duration || 0)
-        );
+        const h = (e.duration || 0) / 3600;
+        consumedByProject.set(pid, (consumedByProject.get(pid) || 0) + h);
       }
 
       retainerSummary = {
         projects: selectedProjectDocs.map((p) => {
           const pid = (p._id as { toString(): string }).toString();
-          const consumedSec = consumedByProject.get(pid) || 0;
-          const consumed = Math.round((consumedSec / 3600) * 100) / 100;
+          const consumedRaw = consumedByProject.get(pid) || 0;
+          const consumed = Math.round(consumedRaw * 100) / 100;
           const adj = Number(p.retainerHoursAdjustment ?? 0);
           const pool = Number(p.retainerHoursTotal) + adj;
           const remaining = Math.round((pool - consumed) * 100) / 100;
@@ -510,7 +503,9 @@ router.post(
 
       allItems = [...retainerPeriodLines, ...fixedItems];
       const fixedSum = fixedItems.reduce((s, x) => s + x.amount, 0);
-      totalHours = periodHoursTotal;
+      total = Math.round(fixedSum * 100) / 100;
+      totalHours = Math.round(tmHoursUnrounded * 100) / 100;
+      totalEarned = Math.round(tmEarnedUnrounded * 100) / 100;
       totalMargin = Math.round((total - totalEarned) * 100) / 100;
     }
 

@@ -1,5 +1,5 @@
 {
-  "exportedAt": "2026-05-04T17:57:36.490Z",
+  "exportedAt": "2026-05-04T19:29:53.580Z",
   "workspaceOwnerId": "google-oauth2|115171302104519065685",
   "clients": [
     {
@@ -4811,7 +4811,7 @@
       "duration": 6300,
       "isRunning": false,
       "createdAt": "2026-03-08T14:53:30.897Z",
-      "updatedAt": "2026-05-04T17:57:06.440Z",
+      "updatedAt": "2026-05-04T18:58:44.961Z",
       "__v": 0
     },
     {
@@ -4826,7 +4826,7 @@
       "duration": 13500,
       "isRunning": false,
       "createdAt": "2026-03-08T14:54:09.707Z",
-      "updatedAt": "2026-05-04T17:57:06.440Z",
+      "updatedAt": "2026-05-04T18:58:44.961Z",
       "__v": 0
     },
     {
@@ -4841,7 +4841,7 @@
       "duration": 6300,
       "isRunning": false,
       "createdAt": "2026-04-06T19:51:53.409Z",
-      "updatedAt": "2026-05-04T17:57:06.440Z",
+      "updatedAt": "2026-05-04T18:58:44.961Z",
       "__v": 0,
       "endTime": "2026-04-06T15:45:00.000Z"
     },
@@ -4854,12 +4854,12 @@
       "invoiceId": null,
       "description": "White Label Team Roster Collection Form: Connect to Netlify and Airtable for production",
       "startTime": "2026-04-06T14:00:00.000Z",
-      "duration": 1200,
+      "duration": 4800,
       "isRunning": false,
       "createdAt": "2026-04-06T19:52:36.325Z",
-      "updatedAt": "2026-05-04T17:57:06.440Z",
+      "updatedAt": "2026-05-04T19:21:21.910Z",
       "__v": 0,
-      "endTime": "2026-04-06T14:20:00.000Z"
+      "endTime": "2026-04-06T15:20:00.000Z"
     },
     {
       "_id": "69d7c5293f5357079deeee8a",
@@ -4873,7 +4873,7 @@
       "duration": 600,
       "isRunning": false,
       "createdAt": "2026-04-09T15:26:33.903Z",
-      "updatedAt": "2026-05-04T17:57:06.440Z",
+      "updatedAt": "2026-05-04T18:58:44.961Z",
       "__v": 0
     },
     {
@@ -4888,7 +4888,7 @@
       "duration": 3600,
       "isRunning": false,
       "createdAt": "2026-04-09T16:09:51.953Z",
-      "updatedAt": "2026-05-04T17:57:06.440Z",
+      "updatedAt": "2026-05-04T18:58:44.961Z",
       "__v": 0,
       "endTime": "2026-04-09T15:00:00.000Z"
     },
@@ -4904,7 +4904,7 @@
       "duration": 1500,
       "isRunning": false,
       "createdAt": "2026-04-09T22:45:57.770Z",
-      "updatedAt": "2026-05-04T17:57:06.440Z",
+      "updatedAt": "2026-05-04T18:58:44.961Z",
       "__v": 0
     },
     {
@@ -4918,7 +4918,7 @@
       "duration": 900,
       "isRunning": false,
       "createdAt": "2026-04-21T18:28:45.241Z",
-      "updatedAt": "2026-05-04T17:57:06.440Z",
+      "updatedAt": "2026-05-04T18:58:44.961Z",
       "__v": 0,
       "endTime": "2026-04-21T14:15:00.000Z",
       "description": "Email exchange with Jono related to Google Ads on Battle Uniforms"
@@ -4934,7 +4934,7 @@
       "duration": 900,
       "isRunning": false,
       "createdAt": "2026-04-21T18:57:40.496Z",
-      "updatedAt": "2026-05-04T17:57:06.440Z",
+      "updatedAt": "2026-05-04T18:58:44.961Z",
       "__v": 0,
       "endTime": "2026-04-21T14:15:00.000Z"
     },
@@ -4950,7 +4950,7 @@
       "duration": 900,
       "isRunning": false,
       "createdAt": "2026-04-22T15:22:29.766Z",
-      "updatedAt": "2026-05-04T17:57:06.440Z",
+      "updatedAt": "2026-05-04T18:58:44.961Z",
       "__v": 0,
       "endTime": "2026-04-22T14:15:00.000Z"
     },
@@ -4967,7 +4967,7 @@
       "duration": 900,
       "isRunning": false,
       "createdAt": "2026-04-24T19:19:54.590Z",
-      "updatedAt": "2026-05-04T17:57:06.440Z",
+      "updatedAt": "2026-05-04T18:58:44.961Z",
       "__v": 0,
       "endTime": "2026-04-24T14:15:00.000Z"
     },
@@ -4983,7 +4983,7 @@
       "duration": 5400,
       "isRunning": false,
       "createdAt": "2026-05-01T14:17:25.864Z",
-      "updatedAt": "2026-05-04T17:56:55.937Z",
+      "updatedAt": "2026-05-04T18:58:44.961Z",
       "__v": 0,
       "endTime": "2026-05-01T15:30:00.000Z"
     },
@@ -7133,11 +7133,12 @@
       "invoiceId": null,
       "description": "April 2026 Invoicing",
       "startTime": "2026-05-04T17:28:26.686Z",
-      "duration": 0,
-      "isRunning": true,
+      "duration": 2682,
+      "isRunning": false,
       "createdAt": "2026-05-04T17:28:26.687Z",
-      "updatedAt": "2026-05-04T17:28:26.687Z",
-      "__v": 0
+      "updatedAt": "2026-05-04T18:13:09.374Z",
+      "__v": 0,
+      "endTime": "2026-05-04T18:13:09.368Z"
     },
     {
       "_id": "69ea993ad905b66aece73589",
@@ -7306,20 +7307,6 @@
       "updatedAt": "2026-03-05T05:27:27.090Z",
       "__v": 0,
       "invoiceId": "69a91439abebbf3a0a737375"
-    },
-    {
-      "_id": "69d41da8ec21900c93c97b36",
-      "userId": "google-oauth2|115171302104519065685",
-      "clientId": "6990d0fbc66136abdd334479",
-      "projectId": "69d40ea5ec21900c93c97a60",
-      "description": "Airtable (Database) Monthly Subscription - 1 Month",
-      "amount": 25.49,
-      "invoiceId": null,
-      "category": "Software / Plugin",
-      "date": "2026-04-06T05:00:00.000Z",
-      "createdAt": "2026-04-06T20:55:04.412Z",
-      "updatedAt": "2026-04-06T20:55:04.412Z",
-      "__v": 0
     }
   ]
 }
