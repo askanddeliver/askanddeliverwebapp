@@ -34,8 +34,9 @@ export function formatDuration(totalSeconds: number): string {
  * Format duration in seconds to a human-readable string (e.g., "2h 30m")
  */
 export function formatDurationHuman(totalSeconds: number): string {
-  const hrs = Math.floor(totalSeconds / 3600);
-  const mins = Math.floor((totalSeconds % 3600) / 60);
+  const rounded = Math.round(totalSeconds);
+  const hrs = Math.floor(rounded / 3600);
+  const mins = Math.floor((rounded % 3600) / 60);
   if (hrs === 0) return `${mins}m`;
   if (mins === 0) return `${hrs}h`;
   return `${hrs}h ${mins}m`;
