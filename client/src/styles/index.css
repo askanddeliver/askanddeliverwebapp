@@ -339,12 +339,34 @@
   body {
     @apply text-sm;
     overflow: visible !important;
+    height: auto !important;
   }
 
-  /* Prevent scrollbars + allow all content to print: layout uses overflow-auto/hidden which
-     clips content and limits PDF to visible viewport. Override so content flows to multiple pages. */
-  div[class*='overflow-auto'],
-  div[class*='overflow-hidden'] {
+  #root {
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  /* Unchain admin layout flex height so print/PDF spans all pages (post–design-system uses overflow-y-auto). */
+  [data-admin-theme] {
+    min-height: 0 !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  /*
+   * Prevent scrollbars + viewport clipping when saving PDF.
+   * Tailwind uses overflow-y-auto / overflow-x-auto — they do NOT contain the substring
+   * "overflow-auto", so the old rule only caught overflow-hidden and missed the main scrollport.
+   */
+  [class*='overflow-y-auto'],
+  [class*='overflow-x-auto'],
+  [class*='overflow-auto'],
+  [class*='overflow-hidden'],
+  [class*='overflow-y-scroll'],
+  [class*='overflow-x-scroll'],
+  [class*='overflow-x-clip'],
+  [class*='overflow-y-clip'] {
     overflow: visible !important;
     height: auto !important;
     max-height: none !important;
@@ -367,6 +389,12 @@
   main {
     @apply p-0 m-0 max-w-none;
     overflow: visible !important;
+    height: auto !important;
+  }
+
+  /* Layout content max-width wrapper shouldn’t constrain printable width */
+  main > div {
+    max-width: none !important;
   }
 
   .card {
@@ -422,6 +450,8 @@
     background-color: #ffffff !important;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
+    overflow: visible !important;
+    max-height: none !important;
   }
 
   #proposal-preview .proposal-print-color,
