@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth0 } from '@auth0/auth0-react';
-import { Clock, CalendarDays, FolderOpen, Inbox } from 'lucide-react';
 import { useUserRole } from '../contexts/UserContext';
 import { TimerDisplay } from '../components/timer/TimerDisplay';
 import { TimerControls } from '../components/timer/TimerControls';
@@ -9,6 +8,9 @@ import { QuickEntry } from '../components/timer/QuickEntry';
 import { StartTaskTimerModal } from '../components/timer/StartTaskTimerModal';
 import { DashboardTaskList } from '../components/dashboard/DashboardTaskList';
 import { InternalWorkspaceTodoCard } from '../components/dashboard/InternalWorkspaceTodoCard';
+import { AdminPageHeader } from '../components/admin/AdminPageHeader';
+import { AdminStatStrip } from '../components/admin/AdminStatStrip';
+import { AdminPanel } from '../components/admin/AdminPanel';
 import { EntryList } from '../components/entries/EntryList';
 import { EntryModal } from '../components/entries/EntryModal';
 import { timeEntriesApi, projectsApi, taskTypesApi, projectTasksApi, leadsApi } from '../services/api';
@@ -250,19 +252,34 @@ function Dashboard() {
     );
   }
 
+  const statItems = [
+    {
+      label: 'Today',
+      value: todaySeconds > 0 ? formatDurationHuman(todaySeconds) : '0h',
+    },
+    {
+      label: 'This week',
+      value: weekSeconds > 0 ? formatDurationHuman(weekSeconds) : '0h',
+    },
+    {
+      label: 'Active projects',
+      value: activeProjects,
+    },
+    ...(isAdmin
+      ? [{ label: 'Open leads', value: newLeads }]
+      : []),
+  ];
+
   return (
     <div className="w-full">
-      {/* Welcome Header */}
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-900">
-          Welcome back, {user?.given_name || user?.name || 'User'}
-        </h1>
-        <p className="text-gray-500 mt-1">
-          {todaySeconds > 0
-            ? `${formatDurationHuman(todaySeconds)} tracked today`
-            : "Let's get to work"}
-        </p>
-      </div>
+      <AdminPageHeader
+        title={`Welcome back, ${user?.given_name || user?.name || 'User'}`}
+        subtitle={
+          todaySeconds > 0
+            ? `${formatDurationHuman(todaySeconds)} tracked today · Use the timer or log entries below`
+            : "Let's get to work — start the timer or add time when you're done."
+        }
+      />
 
       {/* Error */}
       {error && (
@@ -274,58 +291,10 @@ function Dashboard() {
         </div>
       )}
 
-      {/* Summary stats — full width so values are not squeezed in the xl sidebar */}
-      <div
-        className={`grid grid-cols-2 gap-3 mb-6 ${isAdmin ? 'md:grid-cols-4' : 'md:grid-cols-3'}`}
-      >
-        <div className="card !p-4 flex items-center gap-3 min-w-0">
-          <div className="w-10 h-10 rounded-lg bg-primary-50 flex items-center justify-center flex-shrink-0">
-            <Clock className="w-5 h-5 text-primary-600" />
-          </div>
-          <div className="min-w-0 flex-1">
-            <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Today</p>
-            <p className="text-lg sm:text-xl font-bold text-gray-900 tabular-nums leading-tight">
-              {todaySeconds > 0 ? formatDurationHuman(todaySeconds) : '0h'}
-            </p>
-          </div>
-        </div>
+      <AdminStatStrip items={statItems} />
 
-        <div className="card !p-4 flex items-center gap-3 min-w-0">
-          <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0">
-            <CalendarDays className="w-5 h-5 text-blue-600" />
-          </div>
-          <div className="min-w-0 flex-1">
-            <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">This Week</p>
-            <p className="text-lg sm:text-xl font-bold text-gray-900 tabular-nums leading-tight">
-              {weekSeconds > 0 ? formatDurationHuman(weekSeconds) : '0h'}
-            </p>
-          </div>
-        </div>
-
-        <div className="card !p-4 flex items-center gap-3 min-w-0">
-          <div className="w-10 h-10 rounded-lg bg-green-50 flex items-center justify-center flex-shrink-0">
-            <FolderOpen className="w-5 h-5 text-green-600" />
-          </div>
-          <div className="min-w-0 flex-1">
-            <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Active Projects</p>
-            <p className="text-lg sm:text-xl font-bold text-gray-900 tabular-nums leading-tight">{activeProjects}</p>
-          </div>
-        </div>
-
-        {isAdmin && (
-        <div className="card !p-4 flex items-center gap-3 min-w-0">
-          <div className="w-10 h-10 rounded-lg bg-amber-50 flex items-center justify-center flex-shrink-0">
-            <Inbox className="w-5 h-5 text-amber-600" />
-          </div>
-          <div className="min-w-0 flex-1">
-            <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Open Leads</p>
-            <p className="text-lg sm:text-xl font-bold text-gray-900 tabular-nums leading-tight">{newLeads}</p>
-          </div>
-        </div>
-        )}
-      </div>
-
-      <div className="flex flex-col xl:grid xl:grid-cols-12 xl:gap-8 xl:items-start">
+      {/* Main workspace: handoff ~2-col (primary ~7 / side ~5); gap 16px */}
+      <div className="flex flex-col xl:grid xl:grid-cols-12 xl:items-start xl:gap-4">
       {/* Mobile order: timer stack first; xl: todo left (7), stack right (5) */}
       <div className="space-y-6 xl:col-span-5 xl:col-start-8 xl:row-start-1">
       {/* Setup Prompts (admin only - members can't configure task types) */}
@@ -365,7 +334,7 @@ function Dashboard() {
 
       {/* Timer Section */}
       {projects.length > 0 && taskTypes.length > 0 && (
-        <div className="card">
+        <AdminPanel title="Timer">
           <TimerDisplay
             startTime={activeTimer?.startTime}
             isRunning={activeTimer?.isRunning || false}
@@ -401,7 +370,7 @@ function Dashboard() {
             onStop={handleStop}
             showRate={isAdmin}
           />
-        </div>
+        </AdminPanel>
       )}
 
       {/* Quick Manual Entry */}
@@ -445,22 +414,23 @@ function Dashboard() {
 
       {/* Recent entries: full width — avoids narrow sidebar + viewport-xl EntryRow grid clash */}
       {recentEntries.length > 0 && (
-        <div className="card mt-6 xl:mt-8">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-bold text-gray-900">
-              Recent Entries
-            </h2>
-            <Link to="/entries" className="link text-sm">
-              View all
-            </Link>
-          </div>
-          <EntryList
-            entries={recentEntries}
-            onEdit={handleEditEntry}
-            onDelete={handleDeleteEntry}
-            onContinue={!activeTimer?.isRunning ? handleContinueEntry : undefined}
-            showAmount={isAdmin}
-          />
+        <div className="mt-6 xl:mt-8">
+          <AdminPanel
+            title="Recent entries"
+            headerActions={
+              <Link to="/entries" className="link text-sm font-medium">
+                View all
+              </Link>
+            }
+          >
+            <EntryList
+              entries={recentEntries}
+              onEdit={handleEditEntry}
+              onDelete={handleDeleteEntry}
+              onContinue={!activeTimer?.isRunning ? handleContinueEntry : undefined}
+              showAmount={isAdmin}
+            />
+          </AdminPanel>
         </div>
       )}
 
