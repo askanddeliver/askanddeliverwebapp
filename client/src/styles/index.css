@@ -401,6 +401,13 @@
     @apply shadow-none border-none p-0;
   }
 
+  /* [data-admin-theme] .card sets box-shadow — beats plain .card in cascade */
+  [data-admin-theme] .card,
+  .proposal-doc,
+  #proposal-preview {
+    box-shadow: none !important;
+  }
+
   #invoice-preview {
     @apply text-xs;
     background-color: #ffffff !important;
