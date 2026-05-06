@@ -20,6 +20,8 @@ import {
 import type { LucideIcon } from 'lucide-react';
 import { useUserRole } from '../contexts/UserContext';
 
+const RAIL_WIDTH = 56;
+
 interface NavItem {
   to: string;
   label: string;
@@ -79,12 +81,11 @@ const settingsSection: NavSection = {
 };
 
 interface SidebarProps {
-  collapsed: boolean;
   mobileOpen: boolean;
   onCloseMobile: () => void;
 }
 
-function Sidebar({ collapsed, mobileOpen, onCloseMobile }: SidebarProps) {
+function Sidebar({ mobileOpen, onCloseMobile }: SidebarProps) {
   const location = useLocation();
   const { isAdmin } = useUserRole();
 
@@ -100,7 +101,15 @@ function Sidebar({ collapsed, mobileOpen, onCloseMobile }: SidebarProps) {
     return { ...section, items: filtered };
   };
 
-  const renderNavItem = (item: NavItem) => {
+  const railItemClass = (active: boolean) =>
+    [
+      'relative flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition-all duration-150 ease-out',
+      active
+        ? 'bg-primary-50 text-primary-700 before:absolute before:left-[-10px] before:top-2 before:bottom-2 before:w-0.5 before:rounded-r before:bg-primary-600'
+        : 'text-[var(--admin-text-3)] hover:bg-[var(--admin-app-bg)] hover:text-[var(--admin-text)]',
+    ].join(' ');
+
+  const renderRailItem = (item: NavItem) => {
     const Icon = item.icon;
     const active = isActive(item.to);
 
@@ -109,111 +118,158 @@ function Sidebar({ collapsed, mobileOpen, onCloseMobile }: SidebarProps) {
         key={item.to}
         to={item.to}
         onClick={onCloseMobile}
-        title={collapsed ? item.label : undefined}
-        className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ${
-          active
-            ? 'bg-primary-600 text-white shadow-sm'
-            : 'text-gray-600 hover:bg-white/70 hover:text-gray-900'
-        } ${collapsed ? 'justify-center' : ''}`}
+        title={item.label}
+        aria-label={item.label}
+        className={railItemClass(active)}
       >
-        <Icon className="w-5 h-5 flex-shrink-0" />
-        {!collapsed && <span>{item.label}</span>}
+        <Icon className="h-[18px] w-[18px] shrink-0" strokeWidth={1.75} />
       </Link>
     );
   };
 
-  const renderSection = (section: NavSection) => {
-    const filtered = filterSection(section);
-    if (!filtered) return null;
+  const renderMobileRow = (item: NavItem) => {
+    const Icon = item.icon;
+    const active = isActive(item.to);
+
     return (
-      <div key={section.label}>
-        {!collapsed && (
-          <p className="px-3 mb-2 text-[11px] font-semibold uppercase tracking-wider text-gray-500">
-            {section.label}
-          </p>
-        )}
-        {collapsed && <div className="h-px bg-gray-200/80 mx-3 my-2" />}
-        <div className="space-y-1">
-          {filtered.items.map(renderNavItem)}
-        </div>
-      </div>
+      <Link
+        key={item.to}
+        to={item.to}
+        onClick={onCloseMobile}
+        className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-150 ${
+          active
+            ? 'bg-primary-50 text-primary-700'
+            : 'text-[var(--admin-text-2)] hover:bg-[var(--admin-app-bg)] hover:text-[var(--admin-text)]'
+        }`}
+      >
+        <Icon className="h-5 w-5 shrink-0" strokeWidth={1.75} />
+        <span>{item.label}</span>
+      </Link>
     );
   };
 
-  const sidebarContent = (
-    <div className="flex flex-col h-full">
-      {/* Main nav link */}
-      <div className="px-3 pt-5 pb-3">
-        {renderNavItem(mainLink)}
-      </div>
+  const RailDivider = () => (
+    <div
+      className="my-2 h-px w-6 shrink-0"
+      style={{ backgroundColor: 'var(--admin-border)' }}
+      aria-hidden
+    />
+  );
 
-      {/* Nav sections */}
-      <nav className="flex-1 px-3 space-y-5 overflow-y-auto py-2">
-        {navSections.map(renderSection).filter(Boolean)}
-      </nav>
+  const desktopRail = (
+    <div className="flex h-full flex-col items-center pt-2.5 pb-3">
+      <Link
+        to="/dashboard"
+        onClick={onCloseMobile}
+        className="mb-3 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-sm font-bold tracking-tight text-white transition-transform duration-150 hover:scale-[1.02]"
+        style={{ backgroundColor: 'var(--primary-600)' }}
+        title="Ask & Deliver — Dashboard"
+        aria-label="Go to dashboard"
+      >
+        A&amp;D
+      </Link>
 
-      {/* Settings section pinned to bottom */}
-      <div className="px-3 pb-5 mt-auto pt-2 border-t border-gray-200/60">
-        {renderSection(settingsSection)}
+      <div className="flex w-full flex-1 flex-col items-center gap-0.5 overflow-y-auto overflow-x-hidden px-2.5">
+        {renderRailItem(mainLink)}
+        <RailDivider />
+        {navSections.map((section) => {
+          const filtered = filterSection(section);
+          if (!filtered) return null;
+          return (
+            <div key={section.label} className="flex flex-col items-center gap-0.5">
+              {filtered.items.map(renderRailItem)}
+              <RailDivider />
+            </div>
+          );
+        })}
+        <div className="min-h-2 flex-1" aria-hidden />
+        {(filterSection(settingsSection)?.items ?? []).map(renderRailItem)}
       </div>
     </div>
   );
 
-  const sidebarBg = 'var(--admin-cream-dark, #EDE9E3)';
-  const sidebarBorder = 'color-mix(in srgb, var(--admin-charcoal, #2A2A2A) 10%, transparent)';
+  const mobileNav = (
+    <div className="flex h-full flex-col">
+      <div className="px-3 pt-5 pb-2">{renderMobileRow(mainLink)}</div>
+      <nav className="flex-1 space-y-5 overflow-y-auto px-3 py-2">
+        {navSections.map((section) => {
+          const filtered = filterSection(section);
+          if (!filtered) return null;
+          return (
+            <div key={section.label}>
+              <p className="mb-2 px-3 text-[11px] font-semibold uppercase tracking-wider text-[var(--admin-text-3)]">
+                {section.label}
+              </p>
+              <div className="space-y-1">{filtered.items.map(renderMobileRow)}</div>
+            </div>
+          );
+        })}
+      </nav>
+      <div className="mt-auto border-t pt-2 pb-5" style={{ borderColor: 'var(--admin-border)' }}>
+        <div className="px-3">
+          <p className="mb-2 px-3 text-[11px] font-semibold uppercase tracking-wider text-[var(--admin-text-3)]">
+            {settingsSection.label}
+          </p>
+          <div className="space-y-1">
+            {(filterSection(settingsSection)?.items ?? []).map(renderMobileRow)}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 
   return (
     <>
-      {/* Desktop sidebar */}
       <aside
-        className={`hidden lg:flex flex-col transition-all duration-200 ease-out print:hidden`}
+        className="hidden h-full shrink-0 flex-col border-r print:hidden lg:flex"
         style={{
-          width: collapsed ? 72 : 256,
-          backgroundColor: sidebarBg,
-          borderRight: `1px solid ${sidebarBorder}`,
+          width: RAIL_WIDTH,
+          backgroundColor: 'var(--admin-surface)',
+          borderColor: 'var(--admin-border)',
         }}
       >
-        {sidebarContent}
+        {desktopRail}
       </aside>
 
-      {/* Mobile overlay */}
       {mobileOpen && (
         <div className="fixed inset-0 z-40 lg:hidden">
-          {/* Backdrop */}
           <div
             className="fixed inset-0 bg-black/25 backdrop-blur-sm transition-opacity"
             onClick={onCloseMobile}
+            aria-hidden
           />
-          {/* Drawer */}
           <aside
-            className="fixed inset-y-0 left-0 w-72 flex flex-col animate-slide-in shadow-2xl z-50"
+            className="animate-slide-in fixed inset-y-0 left-0 z-50 flex w-72 max-w-[85vw] flex-col shadow-2xl"
             style={{
-              backgroundColor: sidebarBg,
-              borderRight: `1px solid ${sidebarBorder}`,
+              backgroundColor: 'var(--admin-surface)',
+              borderRight: '1px solid var(--admin-border)',
             }}
           >
             <div
-              className="flex items-center justify-between h-16 px-5 border-b"
-              style={{ borderColor: sidebarBorder }}
+              className="flex h-14 items-center justify-between border-b px-4"
+              style={{ borderColor: 'var(--admin-border)' }}
             >
-              <div className="flex items-center gap-3">
+              <div className="flex min-w-0 items-center gap-3">
                 <div
-                  className="w-9 h-9 rounded-xl flex items-center justify-center"
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-sm font-bold text-white"
                   style={{ backgroundColor: 'var(--primary-600)' }}
                 >
-                  <span className="text-white font-bold text-sm">A&D</span>
+                  A&amp;D
                 </div>
-                <span className="font-semibold text-gray-900">Ask &amp; Deliver</span>
+                <span className="truncate font-semibold text-[var(--admin-text)]">
+                  Ask &amp; Deliver
+                </span>
               </div>
               <button
+                type="button"
                 onClick={onCloseMobile}
-                className="p-2 rounded-xl text-gray-500 hover:text-gray-700 hover:bg-white/60 transition-colors"
+                className="rounded-lg p-2 text-[var(--admin-text-3)] transition-colors hover:bg-[var(--admin-app-bg)] hover:text-[var(--admin-text)]"
                 aria-label="Close menu"
               >
-                <X className="w-5 h-5" />
+                <X className="h-5 w-5" />
               </button>
             </div>
-            {sidebarContent}
+            {mobileNav}
           </aside>
         </div>
       )}

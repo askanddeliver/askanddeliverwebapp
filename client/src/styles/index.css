@@ -42,6 +42,22 @@
     --primary-700: var(--brand-sage-dark, #3D5446);
     --primary-800: #2d3f35;
     --primary-900: #1e2a22;
+
+    /* Admin shell — slate-tinted neutrals (design handoff; independent of brand swatches) */
+    --admin-app-bg: #f7f8f7;
+    --admin-surface: #ffffff;
+    --admin-surface-2: #fafbfa;
+    --admin-border: #e5e8e5;
+    --admin-border-strong: #d2d6d2;
+    --admin-text: #0f1a14;
+    --admin-text-2: #4a5550;
+    --admin-text-3: #7a847e;
+    --admin-text-4: #a8b0aa;
+    --admin-shadow-sm: 0 1px 2px rgba(15, 26, 20, 0.04);
+    --admin-shadow: 0 1px 3px rgba(15, 26, 20, 0.06), 0 1px 2px rgba(15, 26, 20, 0.04);
+    --admin-radius: 8px;
+    --admin-radius-sm: 6px;
+    --admin-radius-lg: 12px;
   }
 
   /* Display headings use Bitter Bold */
@@ -130,6 +146,86 @@
 
   .container-public {
     @apply container mx-auto px-6 lg:px-8 max-w-7xl;
+  }
+
+  /* Admin UI — aligned with design handoff (Bitter remains body font via theme.sans) */
+  [data-admin-theme] .btn-primary,
+  [data-admin-theme] .btn-secondary,
+  [data-admin-theme] .btn-outline {
+    @apply inline-flex items-center justify-center gap-1.5 min-h-[30px] py-0 px-3 text-[12.5px] font-medium rounded-md transition-all duration-150 ease-out;
+    box-shadow: none;
+    border-width: 1px;
+    border-style: solid;
+  }
+
+  [data-admin-theme] .btn {
+    @apply min-h-[30px] rounded-md transition-all duration-150 ease-out;
+    box-shadow: none;
+  }
+
+  [data-admin-theme] .btn-primary:focus-visible,
+  [data-admin-theme] .btn-secondary:focus-visible,
+  [data-admin-theme] .btn-outline:focus-visible,
+  [data-admin-theme] .btn:focus-visible {
+    @apply outline-none ring-2 ring-offset-2 ring-primary-500;
+  }
+
+  [data-admin-theme] .btn-secondary {
+    background-color: var(--admin-surface);
+    color: var(--admin-text);
+    border-color: var(--admin-border);
+  }
+
+  [data-admin-theme] .btn-secondary:hover {
+    background-color: var(--admin-app-bg);
+    border-color: var(--admin-border-strong);
+  }
+
+  [data-admin-theme] .btn-primary {
+    @apply bg-primary-600 text-white border-primary-600;
+  }
+
+  [data-admin-theme] .btn-primary:hover {
+    @apply bg-primary-700 border-primary-700;
+  }
+
+  [data-admin-theme] .btn-outline {
+    @apply bg-[var(--admin-surface)] text-primary-600 border-primary-600;
+  }
+
+  [data-admin-theme] .btn-outline:hover {
+    @apply bg-primary-50 border-primary-600;
+  }
+
+  [data-admin-theme] .card {
+    border-radius: var(--admin-radius-lg);
+    border: 1px solid var(--admin-border);
+    background-color: var(--admin-surface);
+    box-shadow: var(--admin-shadow);
+  }
+
+  [data-admin-theme] .input {
+    @apply min-h-[30px] rounded-md px-2.5 py-0 text-[12.5px];
+    border-color: var(--admin-border);
+    background-color: var(--admin-surface);
+    color: var(--admin-text);
+  }
+
+  [data-admin-theme] .input:focus {
+    @apply outline-none border-primary-500 ring-[3px];
+    --tw-ring-color: var(--primary-50);
+  }
+
+  [data-admin-theme] .input::placeholder {
+    color: var(--admin-text-4);
+  }
+
+  [data-admin-theme] .link {
+    @apply text-primary-600;
+  }
+
+  [data-admin-theme] .link:hover {
+    @apply text-primary-700;
   }
 }
 

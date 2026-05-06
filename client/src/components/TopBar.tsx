@@ -1,85 +1,109 @@
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { useAuth0 } from '@auth0/auth0-react';
-import { Menu, PanelLeftClose, PanelLeft } from 'lucide-react';
+import { Bell, Menu, Search } from 'lucide-react';
+import { adminCrumbForPath } from '../lib/adminBreadcrumbs';
 
 interface TopBarProps {
-  sidebarCollapsed: boolean;
-  onToggleSidebar: () => void;
   onToggleMobile: () => void;
 }
 
-function TopBar({ sidebarCollapsed, onToggleSidebar, onToggleMobile }: TopBarProps) {
+function TopBar({ onToggleMobile }: TopBarProps) {
   const { logout, user } = useAuth0();
+  const { pathname } = useLocation();
+  const current = adminCrumbForPath(pathname);
 
   return (
     <header
-      className="sticky top-0 z-50 print:hidden border-b transition-colors duration-200"
+      className="sticky top-0 z-50 shrink-0 border-b transition-colors duration-150 print:hidden"
       style={{
-        backgroundColor: 'var(--admin-cream, #F7F5F2)',
-        borderColor: 'color-mix(in srgb, var(--admin-charcoal, #2A2A2A) 8%, transparent)',
+        backgroundColor: 'var(--admin-surface)',
+        borderColor: 'var(--admin-border)',
       }}
     >
-      <div className="flex items-center justify-between h-16 px-5 lg:px-6">
-        {/* Left: Logo + sidebar toggle */}
-        <div className="flex items-center gap-4">
-          {/* Mobile hamburger */}
+      <div className="flex h-12 items-center justify-between gap-3 px-4 sm:px-5">
+        <div className="flex min-w-0 flex-1 items-center gap-3">
           <button
+            type="button"
             onClick={onToggleMobile}
-            className="lg:hidden p-2 -ml-1 rounded-xl text-gray-600 hover:text-gray-900 hover:bg-white/60 transition-colors"
-            aria-label="Toggle mobile menu"
+            className="-ml-1 rounded-md p-2 text-[var(--admin-text-2)] transition-colors duration-150 hover:bg-[var(--admin-app-bg)] hover:text-[var(--admin-text)] lg:hidden"
+            aria-label="Open menu"
           >
-            <Menu className="w-5 h-5" />
+            <Menu className="h-5 w-5" strokeWidth={1.75} />
           </button>
+          <span className="min-w-0 flex-1 truncate text-sm font-medium text-[var(--admin-text)] sm:hidden">
+            {current}
+          </span>
 
-          {/* Desktop sidebar toggle */}
-          <button
-            onClick={onToggleSidebar}
-            className="hidden lg:flex p-2 -ml-1 rounded-xl text-gray-600 hover:text-gray-900 hover:bg-white/60 transition-colors"
-            aria-label="Toggle sidebar"
+          <nav
+            className="hidden min-w-0 items-center gap-1.5 text-[12.5px] text-[var(--admin-text-3)] sm:flex"
+            aria-label="Breadcrumb"
           >
-            {sidebarCollapsed ? (
-              <PanelLeft className="w-5 h-5" />
-            ) : (
-              <PanelLeftClose className="w-5 h-5" />
-            )}
-          </button>
-
-          <Link
-            to="/dashboard"
-            className="flex items-center gap-3 group"
-          >
-            <div
-              className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 transition-transform group-hover:scale-[1.02]"
-              style={{ backgroundColor: 'var(--primary-600)' }}
+            <Link
+              to="/dashboard"
+              className="truncate font-medium text-[var(--admin-text-3)] transition-colors duration-150 hover:text-[var(--admin-text)]"
             >
-              <span className="text-white font-bold text-sm">A&D</span>
-            </div>
-            <span className="font-semibold text-gray-900 hidden sm:inline tracking-tight">
-              Ask &amp; Deliver
+              Workspace
+            </Link>
+            <span className="shrink-0 text-[var(--admin-text-4)]" aria-hidden>
+              /
             </span>
-          </Link>
+            <span className="truncate font-medium text-[var(--admin-text)]">{current}</span>
+          </nav>
         </div>
 
-        {/* Right: User info + logout */}
-        <div className="flex items-center gap-3">
-          <div className="hidden sm:flex items-center gap-3">
+        <div className="flex shrink-0 items-center gap-2">
+          <button
+            type="button"
+            className="hidden min-w-[220px] items-center gap-2 rounded-md border px-3 text-left text-[12.5px] text-[var(--admin-text-3)] transition-colors duration-150 hover:border-[var(--admin-border-strong)] md:inline-flex"
+            style={{
+              height: 30,
+              backgroundColor: 'var(--admin-app-bg)',
+              borderColor: 'var(--admin-border)',
+            }}
+            aria-label="Search (coming soon)"
+          >
+            <Search className="h-[13px] w-[13px] shrink-0" strokeWidth={2} />
+            <span className="truncate">Search or jump to…</span>
+            <kbd
+              className="ml-auto inline-flex items-center rounded border px-1.5 font-mono text-[10.5px] text-[var(--admin-text-3)]"
+              style={{
+                backgroundColor: 'var(--admin-surface)',
+                borderColor: 'var(--admin-border)',
+              }}
+            >
+              ⌘K
+            </kbd>
+          </button>
+
+          <button
+            type="button"
+            className="hidden h-[30px] w-[30px] items-center justify-center rounded-md text-[var(--admin-text-2)] transition-colors duration-150 hover:bg-[var(--admin-app-bg)] sm:inline-flex"
+            style={{ border: '1px solid transparent' }}
+            aria-label="Notifications"
+          >
+            <Bell className="h-3.5 w-3.5" strokeWidth={2} />
+          </button>
+
+          <div className="hidden items-center gap-2 sm:flex sm:gap-3">
             {user?.picture && (
               <img
                 src={user.picture}
                 alt={user.name || 'User'}
-                className="w-9 h-9 rounded-xl object-cover ring-1 ring-black/5"
+                className="h-8 w-8 rounded-full object-cover ring-1 ring-black/5"
                 referrerPolicy="no-referrer"
               />
             )}
-            <span className="text-sm font-medium text-gray-700 max-w-[140px] truncate">
+            <span className="max-w-[140px] truncate text-sm font-medium text-[var(--admin-text-2)]">
               {user?.name}
             </span>
           </div>
+
           <button
+            type="button"
             onClick={() =>
               logout({ logoutParams: { returnTo: window.location.origin } })
             }
-            className="btn-secondary text-sm !py-2 !px-4 rounded-xl"
+            className="btn-secondary text-sm !min-h-[30px] !rounded-md !px-3 !py-0"
           >
             Log Out
           </button>

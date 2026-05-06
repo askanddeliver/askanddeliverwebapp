@@ -1,0 +1,258 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Ask &amp; Deliver — Revised Admin</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;450;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #eef0ee;
+  --panel: #ffffff;
+  --border: #d8dcd8;
+  --text: #0f1a14;
+  --text-2: #4a5550;
+  --text-3: #7a847e;
+  --green: #4f8e1c;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body {
+  background: var(--bg);
+  font-family: 'Inter Tight', -apple-system, BlinkMacSystemFont, sans-serif;
+  color: var(--text);
+  overflow-y: auto;
+}
+.review {
+  max-width: 1480px;
+  margin: 0 auto;
+  padding: 32px 24px 80px;
+}
+.review-head {
+  display: flex; align-items: flex-end; justify-content: space-between;
+  padding: 0 4px 24px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 24px;
+  gap: 16px;
+}
+.review-head h1 {
+  margin: 0;
+  font-size: 22px; font-weight: 600;
+  letter-spacing: -0.02em;
+}
+.review-head p {
+  margin: 4px 0 0;
+  color: var(--text-3);
+  font-size: 13.5px;
+  max-width: 720px;
+}
+.toc {
+  display: flex; gap: 6px; flex-wrap: wrap;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+}
+.toc a {
+  text-decoration: none;
+  color: var(--text-2);
+  padding: 4px 9px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: white;
+  transition: all .12s ease;
+}
+.toc a:hover { border-color: var(--green); color: var(--green); }
+
+.section-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-3);
+  margin: 36px 4px 12px;
+  display: flex; align-items: center; gap: 10px;
+}
+.section-label::after {
+  content: ''; flex: 1; height: 1px; background: var(--border);
+}
+.section-label:first-child { margin-top: 0; }
+
+.frame {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(15,26,20,0.04), 0 4px 16px rgba(15,26,20,0.04);
+  margin-bottom: 24px;
+  scroll-margin-top: 24px;
+}
+.frame-bar {
+  height: 36px;
+  background: #f7f8f7;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center;
+  padding: 0 14px;
+  gap: 10px;
+  font-size: 12px;
+}
+.frame-bar .dots {
+  display: flex; gap: 5px;
+}
+.frame-bar .dots span {
+  width: 9px; height: 9px; border-radius: 50%;
+  background: #d2d6d2;
+}
+.frame-bar .dots span:nth-child(1) { background: #ed6b5e; }
+.frame-bar .dots span:nth-child(2) { background: #f5be4f; }
+.frame-bar .dots span:nth-child(3) { background: #61c554; }
+.frame-bar .url {
+  flex: 1;
+  padding: 4px 10px;
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10.5px;
+  color: var(--text-3);
+  text-align: center;
+}
+.frame-bar .label {
+  font-weight: 600;
+  font-size: 12px;
+  color: var(--text);
+}
+.frame-bar .meta {
+  font-size: 11px;
+  color: var(--text-3);
+}
+.frame-bar a {
+  font-size: 11px;
+  color: var(--text-3);
+  text-decoration: none;
+  padding: 3px 7px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: white;
+}
+.frame-bar a:hover { color: var(--green); border-color: var(--green); }
+iframe {
+  display: block;
+  width: 100%;
+  border: 0;
+  background: #f7f8f7;
+}
+</style>
+</head>
+<body>
+<div class="review">
+  <div class="review-head">
+    <div>
+      <h1>Ask &amp; Deliver — Revised Admin</h1>
+      <p>Eight key screens redesigned with a unified shell. Each panel below scrolls inside its own frame so you can review the full screen at native size. Click "Open" on any frame to view it standalone.</p>
+    </div>
+    <nav class="toc">
+      <a href="#dashboard">01 Dashboard</a>
+      <a href="#entries">02 Entries</a>
+      <a href="#block">03 Block Time</a>
+      <a href="#invoices">04 Invoices</a>
+      <a href="#team">05 Team</a>
+      <a href="#tasktypes">06 Task Types</a>
+      <a href="#siteconfig">07 Site Config</a>
+      <a href="#profile">08 Profile</a>
+    </nav>
+  </div>
+
+  <div class="section-label">Time Tracking</div>
+
+  <div class="frame" id="dashboard" data-screen-label="01 Dashboard">
+    <div class="frame-bar">
+      <div class="dots"><span></span><span></span><span></span></div>
+      <span class="label">Dashboard</span>
+      <span class="meta">· welcome, daily totals, today's blocks, active timer</span>
+      <div class="url">askanddeliver.com/dashboard</div>
+      <a href="screens/dashboard.html" target="_blank">Open ↗</a>
+    </div>
+    <iframe src="screens/dashboard.html" height="900" loading="lazy"></iframe>
+  </div>
+
+  <div class="frame" id="entries" data-screen-label="02 Time Entries">
+    <div class="frame-bar">
+      <div class="dots"><span></span><span></span><span></span></div>
+      <span class="label">Time Entries</span>
+      <span class="meta">· dense table, day-grouped, billable amounts</span>
+      <div class="url">askanddeliver.com/entries</div>
+      <a href="screens/entries.html" target="_blank">Open ↗</a>
+    </div>
+    <iframe src="screens/entries.html" height="900" loading="lazy"></iframe>
+  </div>
+
+  <div class="frame" id="block" data-screen-label="03 Block Time">
+    <div class="frame-bar">
+      <div class="dots"><span></span><span></span><span></span></div>
+      <span class="label">Block Time</span>
+      <span class="meta">· week calendar, utilization sidebar</span>
+      <div class="url">askanddeliver.com/block</div>
+      <a href="screens/block.html" target="_blank">Open ↗</a>
+    </div>
+    <iframe src="screens/block.html" height="780" loading="lazy"></iframe>
+  </div>
+
+  <div class="section-label">Invoicing</div>
+
+  <div class="frame" id="invoices" data-screen-label="04 Invoices">
+    <div class="frame-bar">
+      <div class="dots"><span></span><span></span><span></span></div>
+      <span class="label">Invoices</span>
+      <span class="meta">· outstanding, collected, status badges</span>
+      <div class="url">askanddeliver.com/invoices</div>
+      <a href="screens/invoices.html" target="_blank">Open ↗</a>
+    </div>
+    <iframe src="screens/invoices.html" height="900" loading="lazy"></iframe>
+  </div>
+
+  <div class="section-label">Settings</div>
+
+  <div class="frame" id="team" data-screen-label="05 Team">
+    <div class="frame-bar">
+      <div class="dots"><span></span><span></span><span></span></div>
+      <span class="label">Team</span>
+      <span class="meta">· members, roles, invite link</span>
+      <div class="url">askanddeliver.com/users</div>
+      <a href="screens/team.html" target="_blank">Open ↗</a>
+    </div>
+    <iframe src="screens/team.html" height="640" loading="lazy"></iframe>
+  </div>
+
+  <div class="frame" id="tasktypes" data-screen-label="06 Task Types">
+    <div class="frame-bar">
+      <div class="dots"><span></span><span></span><span></span></div>
+      <span class="label">Task Types</span>
+      <span class="meta">· categories, hourly rates, color tokens</span>
+      <div class="url">askanddeliver.com/task-types</div>
+      <a href="screens/tasktypes.html" target="_blank">Open ↗</a>
+    </div>
+    <iframe src="screens/tasktypes.html" height="780" loading="lazy"></iframe>
+  </div>
+
+  <div class="frame" id="siteconfig" data-screen-label="07 Site Config">
+    <div class="frame-bar">
+      <div class="dots"><span></span><span></span><span></span></div>
+      <span class="label">Site Configuration</span>
+      <span class="meta">· brand info, palette, live preview</span>
+      <div class="url">askanddeliver.com/site-config</div>
+      <a href="screens/siteconfig.html" target="_blank">Open ↗</a>
+    </div>
+    <iframe src="screens/siteconfig.html" height="780" loading="lazy"></iframe>
+  </div>
+
+  <div class="frame" id="profile" data-screen-label="08 Profile">
+    <div class="frame-bar">
+      <div class="dots"><span></span><span></span><span></span></div>
+      <span class="label">Profile</span>
+      <span class="meta">· user info, account, raw data</span>
+      <div class="url">askanddeliver.com/profile</div>
+      <a href="screens/profile.html" target="_blank">Open ↗</a>
+    </div>
+    <iframe src="screens/profile.html" height="780" loading="lazy"></iframe>
+  </div>
+</div>
+</body>
+</html>
