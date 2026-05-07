@@ -1,9 +1,10 @@
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { useAuth0 } from '@auth0/auth0-react';
 import { LogIn, LogOut, LayoutDashboard } from 'lucide-react';
 
 function PublicFooter() {
   const currentYear = new Date().getFullYear();
+  const location = useLocation();
   const { isAuthenticated, loginWithRedirect, logout, user } = useAuth0();
 
   return (
@@ -125,7 +126,12 @@ function PublicFooter() {
               </div>
             ) : (
               <button
-                onClick={() => loginWithRedirect({ authorizationParams: { screen_hint: 'login' } })}
+                onClick={() =>
+                  loginWithRedirect({
+                    appState: { returnTo: `${location.pathname}${location.search}` },
+                    authorizationParams: { screen_hint: 'login' },
+                  })
+                }
                 className="inline-flex items-center gap-1.5 text-neutral-500 hover:text-neutral-300 transition-colors text-xs"
               >
                 <LogIn className="w-3.5 h-3.5" />
