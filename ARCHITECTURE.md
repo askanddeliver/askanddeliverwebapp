@@ -532,7 +532,7 @@ DRAFT ──→ SENT ──→ PAID
 | Component | Type | Purpose |
 |-----------|------|---------|
 | SPA Application | Auth0 App | Frontend login/logout, access tokens |
-| API Identifier | Auth0 API | Backend JWT audience validation |
+| API Identifier | Auth0 API | Backend JWT audience validation (`AUTH0_AUDIENCE` / `VITE_AUTH0_AUDIENCE`; must match Auth0 → APIs → Identifier — independent of the live Railway or custom API hostname) |
 | M2M Application | Auth0 App | (Optional) Server-side user lookup for "Add by Email" |
 
 The M2M application requires the `read:users` scope on the Auth0 Management API. See `server/AUTH0_M2M_SETUP.md`.
@@ -580,14 +580,14 @@ askanddeliver.com (Vercel)  ──HTTPS──>  Railway (server)
      └── Auth0 Universal Login ────── Auth0 Tenant
 ```
 
-**Frontend**: Static build deployed to Vercel at `askanddeliver.com`. Domain managed via Network Solutions DNS (A record + CNAME). SPA routing via `client/vercel.json` rewrite rules. Security headers (X-Content-Type-Options, X-Frame-Options, Referrer-Policy) and long-term asset caching configured in `vercel.json`.
+**Frontend**: Static build deployed to Vercel at `askanddeliver.com` (GitHub: [askanddeliver/askanddeliverwebapp](https://github.com/askanddeliver/askanddeliverwebapp), Vercel **Ask and Deliver** team, root directory `client/`). Domain managed via Network Solutions DNS (A record + CNAME). SPA routing via `client/vercel.json` rewrite rules. Security headers (X-Content-Type-Options, X-Frame-Options, Referrer-Policy) and long-term asset caching configured in `vercel.json`.
 
-**Backend**: Node.js server deployed to Railway. CORS `CLIENT_URL` env var supports comma-separated origins (e.g., `https://askanddeliver.com,https://www.askanddeliver.com`).
+**Backend**: Node.js server deployed to Railway (askanddeliver workspace, root directory `server/`). CORS `CLIENT_URL` env var supports comma-separated origins (e.g., `https://askanddeliver.com,https://www.askanddeliver.com`).
 
 **Production checklist**:
 - Set `NODE_ENV=production` on Railway
 - Set `CLIENT_URL` to comma-separated production frontend origins on Railway
-- Update all `localhost` URLs to production domains in Vercel env vars
+- Update all `localhost` URLs to production domains in Vercel env vars (`VITE_API_URL` = live API host; `VITE_AUTH0_AUDIENCE` = Auth0 API identifier)
 - Configure Auth0 callback/logout/web origin URLs for production domains
 - Use production MongoDB connection string
 - Cloudinary credentials remain the same across environments

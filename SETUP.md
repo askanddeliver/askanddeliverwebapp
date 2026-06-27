@@ -29,7 +29,7 @@ git --version
 
 ```bash
 # Clone the repository
-git clone https://github.com/misterlinderman/askanddeliverwebapp.git
+git clone https://github.com/askanddeliver/askanddeliverwebapp.git
 cd askanddeliverwebapp
 
 # Install all dependencies (root, client, and server)
@@ -40,26 +40,15 @@ This runs `npm install` in the root, client, and server directories.
 
 ---
 
-## Step 3: Create a GitHub Repository (Optional)
+## Step 3: Repository Access
 
-If you want to push to your own repository:
+The canonical repository is **[github.com/askanddeliver/askanddeliverwebapp](https://github.com/askanddeliver/askanddeliverwebapp)**. Request collaborator access from the repo owner if you need to push changes.
 
-### Option A: GitHub Web Interface
-1. Go to https://github.com/new
-2. Name your repository (e.g., `ask-and-deliver`)
-3. Keep it private or public as preferred
-4. **Do NOT** initialize with README, .gitignore, or license (we have these)
-5. Click "Create repository"
+If you already cloned from an old remote, update it:
 
-### Option B: GitHub CLI
 ```bash
-gh repo create ask-and-deliver --private --source=. --remote=origin
-```
-
-### Connect and push:
-```bash
-git remote set-url origin https://github.com/YOUR_USERNAME/ask-and-deliver.git
-git push -u origin main
+git remote set-url origin https://github.com/askanddeliver/askanddeliverwebapp.git
+git fetch origin
 ```
 
 ---
@@ -268,26 +257,33 @@ The project includes a `.cursorrules` file that provides context to Cursor's AI 
 
 ## Production Deployment
 
-The application is deployed as two separate services with a custom domain.
+The application is deployed as two separate services with a custom domain. Production infrastructure uses dedicated **askanddeliver** accounts on GitHub, Vercel, and Railway (separate from personal developer accounts).
+
+| Service | Account / project | Source |
+|---------|-------------------|--------|
+| **GitHub** | [askanddeliver/askanddeliverwebapp](https://github.com/askanddeliver/askanddeliverwebapp) | Monorepo (`main` branch) |
+| **Vercel** | Ask and Deliver team | Root directory: `client/` |
+| **Railway** | askanddeliver workspace | Root directory: `server/` |
 
 ### Frontend — Vercel (askanddeliver.com)
 
-1. Import the GitHub repo at [vercel.com/new](https://vercel.com/new)
+1. Import [askanddeliver/askanddeliverwebapp](https://github.com/askanddeliver/askanddeliverwebapp) at [vercel.com/new](https://vercel.com/new) (Vercel GitHub App installed on the **askanddeliver** account)
 2. Set **Root Directory** to `client`
 3. Framework preset: **Vite** (auto-detected)
 4. Build command: `npm run build`, output directory: `dist`
 5. Add **Environment Variables**:
    ```env
-   VITE_API_URL=https://<your-railway-url>/api
+   VITE_API_URL=https://<your-railway-host>/api
    VITE_AUTH0_DOMAIN=your-tenant.auth0.com
    VITE_AUTH0_CLIENT_ID=your-production-client-id
-   VITE_AUTH0_AUDIENCE=https://<your-railway-url>/api
+   VITE_AUTH0_AUDIENCE=<auth0-api-identifier>
    ```
+   `VITE_API_URL` is where the browser calls the API (Railway hostname or a custom domain such as `https://api.askanddeliver.com/api`). `VITE_AUTH0_AUDIENCE` must match the **Identifier** in Auth0 → **APIs** exactly — it is a JWT label, not the live API URL.
 6. Go to **Settings → Domains**, add `askanddeliver.com` and `www.askanddeliver.com`
 
 ### Backend — Railway
 
-1. Connect GitHub repo at [railway.app](https://railway.app)
+1. Connect [askanddeliver/askanddeliverwebapp](https://github.com/askanddeliver/askanddeliverwebapp) at [railway.app](https://railway.app) (GitHub linked to the **askanddeliver** account)
 2. Set root directory to `server`
 3. Add **Environment Variables**:
    ```env
@@ -296,7 +292,7 @@ The application is deployed as two separate services with a custom domain.
    CLIENT_URL=https://askanddeliver.com,https://www.askanddeliver.com
    MONGODB_URI=<production connection string>
    AUTH0_DOMAIN=your-tenant.auth0.com
-   AUTH0_AUDIENCE=https://<your-railway-url>/api
+   AUTH0_AUDIENCE=<auth0-api-identifier>
    CLOUDINARY_CLOUD_NAME=your-cloud-name
    CLOUDINARY_API_KEY=your-api-key
    CLOUDINARY_API_SECRET=your-api-secret
@@ -305,7 +301,7 @@ The application is deployed as two separate services with a custom domain.
    STRIPE_WEBHOOK_SECRET=whsec_...
    FRONTEND_URL=https://www.askanddeliver.com
    ```
-   Add the Stripe webhook URL `https://<your-railway-host>/api/webhooks/stripe` in the Stripe Dashboard (event: `checkout.session.completed`).
+   `AUTH0_AUDIENCE` must match `VITE_AUTH0_AUDIENCE` on Vercel and the Auth0 API identifier. Add the Stripe webhook URL `https://<your-railway-host>/api/webhooks/stripe` in the Stripe Dashboard (event: `checkout.session.completed`).
 4. Railway auto-detects Node.js and runs `npm start`
 
 ### DNS — Network Solutions

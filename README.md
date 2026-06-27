@@ -267,7 +267,7 @@ askanddeliverwebapp/
 
 ```bash
 # Clone the repository
-git clone https://github.com/misterlinderman/askanddeliverwebapp.git
+git clone https://github.com/askanddeliver/askanddeliverwebapp.git
 cd askanddeliverwebapp
 
 # Install all dependencies (root, client, and server)
@@ -577,7 +577,13 @@ Per-user configuration. Stores `colors` (8 brand color values: brandSage, brandS
 
 ## Deployment
 
-The application is deployed as two separate services:
+The application is deployed as two separate services under dedicated **askanddeliver** accounts on GitHub, Vercel, and Railway.
+
+| Service | Account / project | Source |
+|---------|-------------------|--------|
+| **GitHub** | [askanddeliver/askanddeliverwebapp](https://github.com/askanddeliver/askanddeliverwebapp) | Monorepo (`main` branch) |
+| **Vercel** | Ask and Deliver team | Root directory: `client/` |
+| **Railway** | askanddeliver workspace | Root directory: `server/` |
 
 ### Frontend — Vercel
 - **Live at**: [https://www.askanddeliver.com](https://www.askanddeliver.com)
@@ -597,10 +603,10 @@ The application is deployed as two separate services:
 
 **Vercel (client)**:
 ```env
-VITE_API_URL=https://<your-railway-url>/api
+VITE_API_URL=https://<your-railway-host>/api
 VITE_AUTH0_DOMAIN=your-tenant.auth0.com
 VITE_AUTH0_CLIENT_ID=your-production-client-id
-VITE_AUTH0_AUDIENCE=https://<your-railway-url>/api
+VITE_AUTH0_AUDIENCE=<auth0-api-identifier>
 ```
 
 **Railway (server)**:
@@ -609,7 +615,7 @@ NODE_ENV=production
 CLIENT_URL=https://askanddeliver.com,https://www.askanddeliver.com
 MONGODB_URI=<production connection string>
 AUTH0_DOMAIN=your-tenant.auth0.com
-AUTH0_AUDIENCE=https://<your-railway-url>/api
+AUTH0_AUDIENCE=<auth0-api-identifier>
 CLOUDINARY_CLOUD_NAME=your-cloud-name
 CLOUDINARY_API_KEY=your-api-key
 CLOUDINARY_API_SECRET=your-api-secret
@@ -619,7 +625,9 @@ STRIPE_WEBHOOK_SECRET=whsec_...
 FRONTEND_URL=https://www.askanddeliver.com
 ```
 
-Configure the Stripe webhook endpoint URL to `https://<your-railway-url>/api/webhooks/stripe` and subscribe to `checkout.session.completed`. **Auth0** — Add production URLs to Allowed Callback URLs, Allowed Logout URLs, and Allowed Web Origins (keep `http://localhost:5173` for local dev).
+`VITE_API_URL` is the live API base URL (Railway hostname or custom domain). `AUTH0_AUDIENCE` / `VITE_AUTH0_AUDIENCE` must match the Auth0 API **Identifier** exactly on client, server, and in Auth0 → **APIs** — the identifier is a JWT label and does not need to match the Railway hostname. For a stable setup, use a custom API domain (e.g. `https://api.askanddeliver.com/api`) for both the identifier and `VITE_API_URL`.
+
+Configure the Stripe webhook endpoint URL to `https://<your-railway-host>/api/webhooks/stripe` and subscribe to `checkout.session.completed`. **Auth0** — Add production URLs to Allowed Callback URLs, Allowed Logout URLs, and Allowed Web Origins (keep `http://localhost:5173` for local dev).
 
 ### DNS (Network Solutions → Vercel)
 | Type | Host | Value |
