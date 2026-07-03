@@ -10,6 +10,7 @@ import {
 import { asyncHandler, createError } from '../middleware/errorHandler';
 import { Project, User, ProjectMessage } from '../models';
 import { findClientProject, requirePortalContext } from '../lib/portalScope';
+import { memberHasProjectAccess } from '../lib/memberProjects';
 import type { ProjectMessageAuthorRole } from '../models/ProjectMessage';
 
 const router = Router({ mergeParams: true });
@@ -35,6 +36,11 @@ async function loadWorkspaceProject(req: AuthRequest, projectId: string) {
 
   const user = await User.findOne({ auth0Id }).lean();
   if (!user) throw createError('User not found', 404);
+
+  if (user.role === 'member') {
+    const allowed = await memberHasProjectAccess(workspaceOwnerId, auth0Id, projectId);
+    if (!allowed) throw createError('Project not found', 404);
+  }
 
   return { auth0Id, workspaceOwnerId, user, project };
 }
@@ -67,7 +73,7 @@ router.post(
     const body = typeof req.body?.body === 'string' ? req.body.body.trim() : '';
     if (!body) throw createError('Message body is required', 400);
 
-    const clientVisible = Boolean(req.body?.clientVisible);
+    const clientVisible = user.role === 'member' ? false : Boolean(req.body?.clientVisible);
     const authorRole: ProjectMessageAuthorRole =
       user.role === 'admin' ? 'admin' : 'member';
 

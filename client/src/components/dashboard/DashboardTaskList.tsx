@@ -22,6 +22,8 @@ interface DashboardTaskListProps {
   hideOuterCard?: boolean;
   /** Override default "To-do" heading */
   title?: string;
+  /** Link for "Manage on Projects" (member hub uses /member/projects) */
+  projectsLink?: string;
 }
 
 const statusIcons: Record<string, React.ReactNode> = {
@@ -116,6 +118,7 @@ export function DashboardTaskList({
   onPlay,
   hideOuterCard = false,
   title = 'To-do',
+  projectsLink = '/projects',
 }: DashboardTaskListProps) {
   const groups = useMemo(
     () => buildGroups(projects, projectTasks),
@@ -155,7 +158,7 @@ export function DashboardTaskList({
           No open tasks for active projects. Add or reopen tasks on the Projects
           page.
         </p>
-        <Link to="/projects" className="btn-outline text-sm inline-flex">
+        <Link to={projectsLink} className="btn-outline text-sm inline-flex">
           Go to Projects
         </Link>
       </div>
@@ -173,7 +176,7 @@ export function DashboardTaskList({
             {totalOpen} open
           </span>
         </div>
-        <Link to="/projects" className="link text-sm">
+        <Link to={projectsLink} className="link text-sm">
           Manage on Projects
         </Link>
       </div>

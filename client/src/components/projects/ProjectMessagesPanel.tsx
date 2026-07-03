@@ -6,9 +6,10 @@ import type { ProjectMessage } from '../../types';
 
 interface ProjectMessagesPanelProps {
   projectId: string;
+  memberMode?: boolean;
 }
 
-function ProjectMessagesPanel({ projectId }: ProjectMessagesPanelProps) {
+function ProjectMessagesPanel({ projectId, memberMode = false }: ProjectMessagesPanelProps) {
   const [messages, setMessages] = useState<ProjectMessage[]>([]);
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState(false);
@@ -30,7 +31,10 @@ function ProjectMessagesPanel({ projectId }: ProjectMessagesPanelProps) {
   }, [expanded, loadMessages]);
 
   const handleSend = async (body: string, clientVisible: boolean) => {
-    const res = await projectMessagesApi.create(projectId, { body, clientVisible });
+    const res = await projectMessagesApi.create(projectId, {
+      body,
+      clientVisible: memberMode ? false : clientVisible,
+    });
     setMessages((prev) => [...prev, res.data]);
   };
 
@@ -55,7 +59,7 @@ function ProjectMessagesPanel({ projectId }: ProjectMessagesPanelProps) {
             loading={loading}
             onSend={handleSend}
             onRefresh={loadMessages}
-            showVisibilityToggle
+            showVisibilityToggle={!memberMode}
             emptyLabel="No messages on this project yet."
           />
         </div>

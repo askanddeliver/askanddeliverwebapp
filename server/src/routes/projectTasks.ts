@@ -49,6 +49,25 @@ router.get(
       }).distinct('_id');
     }
 
+    let memberProjectIds: mongoose.Types.ObjectId[] | undefined;
+    if (user?.role === 'member' && auth0Id) {
+      const memberFilter = await getMemberProjectFilter(workspaceOwnerId, auth0Id);
+      memberProjectIds = await Project.find(memberFilter).distinct('_id');
+    }
+
+    const resolveScopedIds = (): mongoose.Types.ObjectId[] | undefined => {
+      let ids = scopedProjectIds;
+      if (memberProjectIds !== undefined) {
+        if (ids !== undefined) {
+          const allowed = new Set(memberProjectIds.map((id) => id.toString()));
+          ids = ids.filter((id) => allowed.has(id.toString()));
+        } else {
+          ids = memberProjectIds;
+        }
+      }
+      return ids;
+    };
+
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const query: any = { userId: workspaceOwnerId };
     if (projectId) {
@@ -68,16 +87,15 @@ router.get(
         }
       }
       query.projectId = projectId;
-    } else if (scopedProjectIds !== undefined) {
-      if (scopedProjectIds.length === 0) {
-        res.json([]);
-        return;
+    } else {
+      const effectiveIds = resolveScopedIds();
+      if (effectiveIds !== undefined) {
+        if (effectiveIds.length === 0) {
+          res.json([]);
+          return;
+        }
+        query.projectId = { $in: effectiveIds };
       }
-      query.projectId = { $in: scopedProjectIds };
-    } else if (user?.role === 'member' && auth0Id) {
-      const memberFilter = await getMemberProjectFilter(workspaceOwnerId, auth0Id);
-      const memberProjectIds = await Project.find(memberFilter).distinct('_id');
-      query.projectId = { $in: memberProjectIds };
     }
 
     const tasks = await ProjectTask.find(query)
@@ -194,18 +212,36 @@ router.post(
   })
 );
 
-// PUT /api/project-tasks/reorder - Reorder tasks (admin only)
+// PUT /api/project-tasks/reorder - Reorder tasks (admin, or member on assigned project)
 router.put(
   '/reorder',
-  requireAdmin,
   asyncHandler(async (req: AuthRequest, res: Response) => {
     const workspaceOwnerId = await getWorkspaceOwnerId(req);
     if (!workspaceOwnerId) throw createError('Workspace access required', 403);
+
+    const auth0Id = extractUserId(req);
+    if (!auth0Id) throw createError('User ID not found in token', 401);
+
+    const user = await loadActiveUser(auth0Id);
+    if (!user) throw createError('User not found', 404);
+
+    const isAdmin = user.role === 'admin';
+    const isMember = user.role === 'member';
+    if (!isAdmin && !isMember) {
+      throw createError('Admin or member access required', 403);
+    }
 
     const { projectId, taskIds } = req.body;
 
     if (!projectId || !Array.isArray(taskIds)) {
       throw createError('projectId and taskIds array are required', 400);
+    }
+
+    if (isMember) {
+      const allowed = await memberHasProjectAccess(workspaceOwnerId, auth0Id, projectId);
+      if (!allowed) {
+        throw createError('You are not assigned to this project', 403);
+      }
     }
 
     const updates = taskIds.map((taskId: string, index: number) =>

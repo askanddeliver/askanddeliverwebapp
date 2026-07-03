@@ -96,6 +96,29 @@ function MemberProjects() {
     }
   };
 
+  const handleReorderTasks = async (projectId: string, taskIds: string[]) => {
+    try {
+      const res = await projectTasksApi.reorder(projectId, taskIds);
+      const proj = projects.find((p) => p._id === projectId);
+      const merged = (res.data || []).map((t: ProjectTask) => ({
+        ...t,
+        projectId: proj ?? t.projectId,
+      }));
+      setProjectTasks((prev) => {
+        const other = prev.filter((t) => {
+          const pid =
+            typeof t.projectId === 'object' ? t.projectId._id : t.projectId;
+          return pid !== projectId;
+        });
+        return sortProjectTasksByOrder([...other, ...merged]);
+      });
+      setError(null);
+    } catch (err) {
+      console.error('Failed to reorder tasks:', err);
+      setError('Failed to reorder tasks');
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex h-64 items-center justify-center">
@@ -131,6 +154,8 @@ function MemberProjects() {
         onUpdateTask={handleUpdateTask}
         onToggleTaskStatus={handleToggleTaskStatus}
         onDeleteTask={() => {}}
+        canReorder
+        onReorderTasks={handleReorderTasks}
       />
     </div>
   );

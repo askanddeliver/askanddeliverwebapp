@@ -222,7 +222,9 @@ export function ProjectCard({
         />
       </div>
 
-      {canEdit && <ProjectMessagesPanel projectId={project._id} />}
+      {manageTasks && (
+        <ProjectMessagesPanel projectId={project._id} memberMode={!canEdit} />
+      )}
     </div>
   );
 }

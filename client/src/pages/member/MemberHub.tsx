@@ -28,7 +28,6 @@ function MemberHub() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [taskTypes, setTaskTypes] = useState<TaskType[]>([]);
   const [projectTasks, setProjectTasks] = useState<ProjectTask[]>([]);
-  const [projectTasksClient, setProjectTasksClient] = useState<ProjectTask[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [editModalOpen, setEditModalOpen] = useState(false);
@@ -45,14 +44,13 @@ function MemberHub() {
   const loadData = async () => {
     try {
       setLoading(true);
-      const [dashboardRes, timerRes, entriesRes, projectsRes, taskTypesRes, clientTasksRes, allTasksRes] =
+      const [dashboardRes, timerRes, entriesRes, projectsRes, taskTypesRes, allTasksRes] =
         await Promise.all([
           memberApi.getDashboard(),
           timeEntriesApi.getActive(),
           timeEntriesApi.getAll(),
           memberApi.getProjects(),
           taskTypesApi.getAll(),
-          projectTasksApi.getAll({ scope: 'client-only' }),
           projectTasksApi.getAll(),
         ]);
 
@@ -62,7 +60,6 @@ function MemberHub() {
       setAllEntries(entries);
       setProjects(projectsRes.data || []);
       setTaskTypes(taskTypesRes.data || []);
-      setProjectTasksClient(clientTasksRes.data || []);
       setProjectTasks(allTasksRes.data || []);
       setError(null);
     } catch (err) {
@@ -292,10 +289,11 @@ function MemberHub() {
           {projects.length > 0 && (
             <DashboardTaskList
               projects={projects}
-              projectTasks={projectTasksClient}
+              projectTasks={projectTasks}
               isTimerRunning={Boolean(activeTimer?.isRunning)}
               hasTaskTypes={taskTypes.length > 0}
               onPlay={(project, task) => setStartTaskContext({ project, task })}
+              projectsLink="/member/projects"
             />
           )}
         </div>
