@@ -1,6 +1,7 @@
 import { ReactNode, useEffect } from 'react';
 import PublicNavbar from './PublicNavbar';
 import PublicFooter from './PublicFooter';
+import { PublicWorkspaceProvider } from '../../contexts/PublicWorkspaceContext';
 import { siteConfigPublicApi } from '../../services/api';
 import type { ThemeColors } from '../../types';
 
@@ -40,11 +41,13 @@ function PublicLayout({ children }: PublicLayoutProps) {
   }, []);
 
   return (
-    <div className="min-h-screen flex flex-col bg-brand-cream">
-      <PublicNavbar />
-      <main className="flex-1">{children}</main>
-      <PublicFooter />
-    </div>
+    <PublicWorkspaceProvider>
+      <div className="min-h-screen flex flex-col bg-brand-cream">
+        <PublicNavbar />
+        <main className="flex-1">{children}</main>
+        <PublicFooter />
+      </div>
+    </PublicWorkspaceProvider>
   );
 }
 

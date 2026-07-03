@@ -1,13 +1,14 @@
-import { Pencil, Trash2, Building2, Mail } from 'lucide-react';
+import { Pencil, Trash2, Building2, Mail, UserPlus } from 'lucide-react';
 import type { Client } from '../../types';
 
 interface ClientCardProps {
   client: Client;
   onEdit: (client: Client) => void;
   onDelete: (id: string) => void;
+  onInvitePortal: (client: Client) => void;
 }
 
-export function ClientCard({ client, onEdit, onDelete }: ClientCardProps) {
+export function ClientCard({ client, onEdit, onDelete, onInvitePortal }: ClientCardProps) {
   const discountCount = Object.values(client.taskDiscounts || {}).filter(
     (d) => d > 0
   ).length;
@@ -41,6 +42,15 @@ export function ClientCard({ client, onEdit, onDelete }: ClientCardProps) {
         </div>
 
         <div className="flex items-center gap-1 ml-4">
+          {!client.isInternal && (
+            <button
+              onClick={() => onInvitePortal(client)}
+              className="p-2 text-gray-400 hover:text-brand-sage hover:bg-brand-sage/10 rounded-lg transition-colors"
+              title="Invite to portal"
+            >
+              <UserPlus className="w-4 h-4" />
+            </button>
+          )}
           <button
             onClick={() => onEdit(client)}
             className="p-2 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"

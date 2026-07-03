@@ -19,7 +19,7 @@ import Contact from './pages/Contact';
 import InvoicePaid from './pages/InvoicePaid';
 
 // Admin Pages (Protected)
-import Dashboard from './pages/Dashboard';
+import DashboardEntry from './components/DashboardEntry';
 import Profile from './pages/Profile';
 import Leads from './pages/Leads';
 import Clients from './pages/Clients';
@@ -32,12 +32,24 @@ import Invoices from './pages/Invoices';
 import Proposals from './pages/Proposals';
 import PortfolioAdmin from './pages/PortfolioAdmin';
 import SiteConfig from './pages/SiteConfig';
+import IntakeConfig from './pages/IntakeConfig';
+import PortalHome from './pages/portal/PortalHome';
+import PortalProjects from './pages/portal/PortalProjects';
+import PortalProjectDetail from './pages/portal/PortalProjectDetail';
+import MemberHub from './pages/member/MemberHub';
+import MemberProjects from './pages/member/MemberProjects';
+import MemberEntries from './pages/member/MemberEntries';
+import MemberProfile from './pages/member/MemberProfile';
 import TimeBlocks from './pages/TimeBlocks';
 import InternalWorkspace from './pages/InternalWorkspace';
 
 // Components
 import ProtectedRoute from './components/ProtectedRoute';
 import AdminRoute from './components/AdminRoute';
+import ClientRoute from './components/ClientRoute';
+import MemberOrAdminRoute from './components/MemberOrAdminRoute';
+import PortalLayout from './components/portal/PortalLayout';
+import MemberLayout from './components/member/MemberLayout';
 import Loading from './components/Loading';
 
 function ScrollToTop() {
@@ -114,6 +126,43 @@ function App() {
       />
 
       {/* ============================================
+          PORTAL ROUTES — client role
+          ============================================ */}
+      <Route
+        path="/portal"
+        element={
+          <ProtectedRoute>
+            <ClientRoute>
+              <PortalLayout />
+            </ClientRoute>
+          </ProtectedRoute>
+        }
+      >
+        <Route index element={<PortalHome />} />
+        <Route path="projects" element={<PortalProjects />} />
+        <Route path="projects/:id" element={<PortalProjectDetail />} />
+      </Route>
+
+      {/* ============================================
+          MEMBER ROUTES — member + admin dogfooding
+          ============================================ */}
+      <Route
+        path="/member"
+        element={
+          <ProtectedRoute>
+            <MemberOrAdminRoute>
+              <MemberLayout />
+            </MemberOrAdminRoute>
+          </ProtectedRoute>
+        }
+      >
+        <Route index element={<MemberHub />} />
+        <Route path="projects" element={<MemberProjects />} />
+        <Route path="entries" element={<MemberEntries />} />
+        <Route path="profile" element={<MemberProfile />} />
+      </Route>
+
+      {/* ============================================
           ADMIN ROUTES — Admin Layout (protected)
           ============================================ */}
       <Route
@@ -121,7 +170,9 @@ function App() {
         element={
           <Layout>
             <ProtectedRoute>
-              <Dashboard />
+              <MemberOrAdminRoute>
+                <DashboardEntry />
+              </MemberOrAdminRoute>
             </ProtectedRoute>
           </Layout>
         }
@@ -259,6 +310,18 @@ function App() {
             <ProtectedRoute>
               <AdminRoute>
                 <PortfolioAdmin />
+              </AdminRoute>
+            </ProtectedRoute>
+          </Layout>
+        }
+      />
+      <Route
+        path="/intake-config"
+        element={
+          <Layout>
+            <ProtectedRoute>
+              <AdminRoute>
+                <IntakeConfig />
               </AdminRoute>
             </ProtectedRoute>
           </Layout>

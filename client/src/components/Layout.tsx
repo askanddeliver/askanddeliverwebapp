@@ -1,4 +1,5 @@
 import { ReactNode, useState, useCallback } from 'react';
+import { Navigate } from 'react-router-dom';
 import TopBar from './TopBar';
 import Sidebar from './Sidebar';
 import { useUserRole } from '../contexts/UserContext';
@@ -21,7 +22,11 @@ interface LayoutProps {
 function LayoutInner({ children }: LayoutProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [railExpanded, setRailExpanded] = useState(getInitialRailExpanded);
-  const { isPending, isLoading } = useUserRole();
+  const { isPending, isClient, isLoading, homeRoute } = useUserRole();
+
+  if (!isLoading && isClient) {
+    return <Navigate to={homeRoute} replace />;
+  }
 
   const toggleMobile = useCallback(() => setMobileOpen((p) => !p), []);
   const closeMobile = useCallback(() => setMobileOpen(false), []);

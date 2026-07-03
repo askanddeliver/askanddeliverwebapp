@@ -8,6 +8,7 @@ import {
 } from 'react';
 import { useAuth0 } from '@auth0/auth0-react';
 import { usersApi } from '../services/api';
+import { getHomeRoute } from '../lib/homeRoute';
 import type { User, UserRole } from '../types';
 
 interface UserContextValue {
@@ -15,7 +16,10 @@ interface UserContextValue {
   role: UserRole | null;
   isAdmin: boolean;
   isMember: boolean;
+  isClient: boolean;
   isPending: boolean;
+  homeRoute: string;
+  clientId: string | null;
   isLoading: boolean;
   error: string | null;
   refetch: () => Promise<void>;
@@ -59,7 +63,10 @@ export function UserProvider({ children }: { children: ReactNode }) {
     role,
     isAdmin: role === 'admin',
     isMember: role === 'member',
+    isClient: role === 'client',
     isPending: role === 'pending',
+    homeRoute: getHomeRoute(role),
+    clientId: user?.clientId ?? null,
     isLoading,
     error,
     refetch: fetchUser,

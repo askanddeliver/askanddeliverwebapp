@@ -2,7 +2,8 @@ import { useState, useEffect, useMemo } from 'react';
 import { Plus } from 'lucide-react';
 import { ClientList } from '../components/clients/ClientList';
 import { ClientModal } from '../components/clients/ClientModal';
-import { clientsApi, taskTypesApi } from '../services/api';
+import { InviteClientModal } from '../components/clients/InviteClientModal';
+import { clientsApi, taskTypesApi, usersApi } from '../services/api';
 import type { Client, TaskType } from '../types';
 
 function Clients() {
@@ -11,7 +12,9 @@ function Clients() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
+  const [inviteOpen, setInviteOpen] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
+  const [invitingClient, setInvitingClient] = useState<Client | null>(null);
   const [showInternal, setShowInternal] = useState(false);
 
   useEffect(() => {
@@ -86,6 +89,18 @@ function Clients() {
     setModalOpen(true);
   };
 
+  const handleInvitePortal = (client: Client) => {
+    setInvitingClient(client);
+    setInviteOpen(true);
+  };
+
+  const handleInviteSubmit = async (email: string, clientId: string) => {
+    await usersApi.inviteClient(email, clientId);
+    setInviteOpen(false);
+    setInvitingClient(null);
+    setError(null);
+  };
+
   const visibleClients = useMemo(
     () =>
       showInternal
@@ -141,6 +156,17 @@ function Clients() {
         clients={visibleClients}
         onEdit={handleEdit}
         onDelete={handleDelete}
+        onInvitePortal={handleInvitePortal}
+      />
+
+      <InviteClientModal
+        client={invitingClient}
+        isOpen={inviteOpen}
+        onClose={() => {
+          setInviteOpen(false);
+          setInvitingClient(null);
+        }}
+        onSubmit={handleInviteSubmit}
       />
 
       <ClientModal

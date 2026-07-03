@@ -101,7 +101,7 @@ router.post(
     const workspaceOwnerId = await getWorkspaceOwnerId(req);
     if (!workspaceOwnerId) throw createError('Workspace access required', 403);
 
-    const { projectId, title, description, status, estimatedHours } = req.body;
+    const { projectId, title, description, status, estimatedHours, clientVisible } = req.body;
 
     if (!projectId) {
       throw createError('Project is required', 400);
@@ -124,6 +124,7 @@ router.post(
       status: status || 'TODO',
       order: 0,
       estimatedHours,
+      clientVisible: Boolean(clientVisible),
     });
 
     await task.populate('projectId');
@@ -171,10 +172,10 @@ router.put(
   '/:id',
   requireAdmin,
   asyncHandler(async (req: AuthRequest, res: Response) => {
-    const userId = extractUserId(req);
-    if (!userId) throw createError('User ID not found in token', 401);
+    const workspaceOwnerId = await getWorkspaceOwnerId(req);
+    if (!workspaceOwnerId) throw createError('Workspace access required', 403);
 
-    const { title, description, status, order, estimatedHours } = req.body;
+    const { title, description, status, order, estimatedHours, clientVisible } = req.body;
 
     const update: Record<string, unknown> = {};
     if (title !== undefined) update.title = title.trim();
@@ -182,9 +183,10 @@ router.put(
     if (status !== undefined) update.status = status;
     if (order !== undefined) update.order = order;
     if (estimatedHours !== undefined) update.estimatedHours = estimatedHours;
+    if (clientVisible !== undefined) update.clientVisible = Boolean(clientVisible);
 
     const task = await ProjectTask.findOneAndUpdate(
-      { _id: req.params.id, userId },
+      { _id: req.params.id, userId: workspaceOwnerId },
       update,
       { new: true, runValidators: true }
     ).populate('projectId');

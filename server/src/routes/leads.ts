@@ -1,11 +1,61 @@
 import { Router, Request, Response } from 'express';
 import mongoose from 'mongoose';
-import { checkJwt, AuthRequest, extractUserId, requireAdmin } from '../middleware/auth';
+import multer from 'multer';
+import {
+  checkJwt,
+  AuthRequest,
+  extractUserId,
+  requireAdmin,
+  getWorkspaceOwnerId,
+} from '../middleware/auth';
 import { asyncHandler, createError } from '../middleware/errorHandler';
+import { buildLeadResponsesFromSubmit } from '../lib/leadResponses';
+import { validateIntakeSubmission } from '../lib/intakeValidation';
+import { resolvePublicWorkspace } from '../lib/workspaceResolver';
+import { uploadBufferToCloudinary } from '../lib/cloudinaryUpload';
 import { Lead, Client, Project } from '../models';
 import type { CreateLeadDto, ConvertLeadDto } from '../types';
 
 const router = Router();
+
+const INTAKE_ATTACHMENT_MAX_BYTES = 25 * 1024 * 1024;
+const INTAKE_ATTACHMENT_MAX_FILES = 5;
+const INTAKE_UPLOAD_WINDOW_MS = 60 * 60 * 1000;
+
+const INTAKE_ALLOWED_MIMES = new Set([
+  'application/pdf',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'image/png',
+  'image/jpeg',
+  'image/jpg',
+  'image/webp',
+  'application/zip',
+  'application/x-zip-compressed',
+]);
+
+const intakeAttachmentUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: INTAKE_ATTACHMENT_MAX_BYTES,
+    files: INTAKE_ATTACHMENT_MAX_FILES,
+  },
+  fileFilter: (_req, file, cb) => {
+    if (INTAKE_ALLOWED_MIMES.has(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error('File type not allowed for intake attachments'));
+    }
+  },
+});
+
+async function requireWorkspaceOwnerId(req: AuthRequest): Promise<string> {
+  const workspaceOwnerId = await getWorkspaceOwnerId(req);
+  if (!workspaceOwnerId) {
+    throw createError('No workspace found', 403);
+  }
+  return workspaceOwnerId;
+}
 
 // =============================================
 // PUBLIC ROUTES (no auth required)
@@ -15,6 +65,62 @@ const router = Router();
 router.post(
   '/public',
   asyncHandler(async (req: Request, res: Response) => {
+    const workspaceOwnerId = await resolvePublicWorkspace(req);
+    if (!workspaceOwnerId) {
+      throw createError(
+        'Public intake is not configured. Set DEFAULT_PUBLIC_WORKSPACE_OWNER_ID on the server.',
+        503
+      );
+    }
+
+    const body = req.body as CreateLeadDto & {
+      responses?: Record<string, unknown>;
+      intakeFormId?: string;
+      intakeFormVersion?: number;
+    };
+
+    if (body.intakeFormId) {
+      const validated = await validateIntakeSubmission(workspaceOwnerId, body);
+      const responses = buildLeadResponsesFromSubmit({
+        ...body,
+        confidence: validated.confidence,
+        projectType: validated.projectType,
+        description: validated.description,
+        budget: validated.budget,
+        timeline: validated.timeline,
+        name: validated.name,
+        email: validated.email,
+        company: validated.company,
+        message: validated.message,
+        responses: validated.responses,
+      });
+
+      const lead = await Lead.create({
+        userId: workspaceOwnerId,
+        confidence: validated.confidence,
+        projectType: validated.projectType,
+        description: validated.description,
+        budget: validated.budget,
+        timeline: validated.timeline,
+        name: validated.name,
+        email: validated.email,
+        company: validated.company,
+        message: validated.message,
+        responses,
+        source: 'public',
+        intakeFormId: new mongoose.Types.ObjectId(validated.intakeFormId),
+        intakeFormVersion: validated.intakeFormVersion,
+        status: 'NEW',
+        priority: 'MEDIUM',
+      });
+
+      res.status(201).json({
+        message: 'Thank you! Your inquiry has been received.',
+        leadId: lead._id,
+      });
+      return;
+    }
+
     const {
       confidence,
       projectType,
@@ -25,9 +131,10 @@ router.post(
       email,
       company,
       message,
-    } = req.body as CreateLeadDto;
+      intakeFormId,
+      intakeFormVersion,
+    } = body;
 
-    // Validate required fields
     if (!confidence || !['YES', 'MAYBE', 'UNSURE'].includes(confidence)) {
       throw createError('Valid confidence level is required', 400);
     }
@@ -38,7 +145,10 @@ router.post(
       throw createError('Email is required', 400);
     }
 
+    const responses = buildLeadResponsesFromSubmit(body);
+
     const lead = await Lead.create({
+      userId: workspaceOwnerId,
       confidence,
       projectType: projectType?.trim() || '',
       description: description?.trim() || '',
@@ -48,6 +158,12 @@ router.post(
       email: email.trim(),
       company: company?.trim() || '',
       message: message?.trim() || '',
+      responses,
+      source: 'public',
+      ...(intakeFormId && mongoose.Types.ObjectId.isValid(intakeFormId)
+        ? { intakeFormId: new mongoose.Types.ObjectId(intakeFormId) }
+        : {}),
+      ...(typeof intakeFormVersion === 'number' ? { intakeFormVersion } : {}),
       status: 'NEW',
       priority: 'MEDIUM',
     });
@@ -55,6 +171,76 @@ router.post(
     res.status(201).json({
       message: 'Thank you! Your inquiry has been received.',
       leadId: lead._id,
+    });
+  })
+);
+
+// POST /api/leads/public/:leadId/attachments - Upload intake files after submit
+router.post(
+  '/public/:leadId/attachments',
+  intakeAttachmentUpload.array('files', INTAKE_ATTACHMENT_MAX_FILES),
+  asyncHandler(async (req: Request, res: Response) => {
+    const workspaceOwnerId = await resolvePublicWorkspace(req);
+    if (!workspaceOwnerId) {
+      throw createError('Public intake is not configured', 503);
+    }
+
+    const { leadId } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(leadId)) {
+      throw createError('Invalid lead ID', 400);
+    }
+
+    const lead = await Lead.findOne({
+      _id: leadId,
+      userId: workspaceOwnerId,
+      source: 'public',
+    });
+
+    if (!lead) {
+      throw createError('Lead not found', 404);
+    }
+
+    const ageMs = Date.now() - lead.createdAt.getTime();
+    if (ageMs > INTAKE_UPLOAD_WINDOW_MS) {
+      throw createError('Attachment upload window has expired', 403);
+    }
+
+    const files = req.files as Express.Multer.File[];
+    if (!files || files.length === 0) {
+      throw createError('No files uploaded', 400);
+    }
+
+    const folder = `${workspaceOwnerId}/intake/${leadId}`;
+    const uploaded = await Promise.all(
+      files.map((file) =>
+        uploadBufferToCloudinary(file.buffer, {
+          folder,
+          originalName: file.originalname,
+          mimetype: file.mimetype,
+        })
+      )
+    );
+
+    const attachmentRecords = uploaded.map((u) => ({
+      url: u.url,
+      filename: u.filename,
+      mimeType: u.mimeType,
+      size: u.size,
+    }));
+
+    const existing = Array.isArray(lead.responses?.attachments)
+      ? (lead.responses.attachments as unknown[])
+      : [];
+
+    lead.responses = {
+      ...lead.responses,
+      attachments: [...existing, ...attachmentRecords],
+    };
+    await lead.save();
+
+    res.status(201).json({
+      message: `${attachmentRecords.length} file(s) uploaded`,
+      attachments: attachmentRecords,
     });
   })
 );
@@ -69,8 +255,11 @@ router.use(requireAdmin);
 // GET /api/leads/stats - Get lead counts by status
 router.get(
   '/stats',
-  asyncHandler(async (_req: AuthRequest, res: Response) => {
+  asyncHandler(async (req: AuthRequest, res: Response) => {
+    const workspaceOwnerId = await requireWorkspaceOwnerId(req);
+
     const pipeline = await Lead.aggregate([
+      { $match: { userId: workspaceOwnerId } },
       {
         $group: {
           _id: '$status',
@@ -102,10 +291,10 @@ router.get(
 router.get(
   '/',
   asyncHandler(async (req: AuthRequest, res: Response) => {
+    const workspaceOwnerId = await requireWorkspaceOwnerId(req);
     const { status, priority, search, sort } = req.query;
 
-    // Build query filter
-    const filter: Record<string, unknown> = {};
+    const filter: Record<string, unknown> = { userId: workspaceOwnerId };
 
     if (status && status !== 'ALL') {
       filter.status = status;
@@ -125,12 +314,10 @@ router.get(
       ];
     }
 
-    // Build sort
     let sortOption: Record<string, 1 | -1> = { createdAt: -1 };
     if (sort === 'oldest') {
       sortOption = { createdAt: 1 };
     } else if (sort === 'priority') {
-      // HIGH first, then MEDIUM, then LOW
       sortOption = { priority: -1, createdAt: -1 };
     }
 
@@ -144,7 +331,9 @@ router.get(
 router.get(
   '/:id',
   asyncHandler(async (req: AuthRequest, res: Response) => {
-    const lead = await Lead.findById(req.params.id)
+    const workspaceOwnerId = await requireWorkspaceOwnerId(req);
+
+    const lead = await Lead.findOne({ _id: req.params.id, userId: workspaceOwnerId })
       .populate('convertedClientId')
       .populate('convertedProjectId')
       .lean();
@@ -161,6 +350,8 @@ router.get(
 router.put(
   '/:id',
   asyncHandler(async (req: AuthRequest, res: Response) => {
+    const workspaceOwnerId = await requireWorkspaceOwnerId(req);
+
     const {
       status,
       priority,
@@ -186,10 +377,14 @@ router.put(
     if (company !== undefined) update.company = company?.trim();
     if (message !== undefined) update.message = message?.trim();
 
-    const lead = await Lead.findByIdAndUpdate(req.params.id, update, {
-      new: true,
-      runValidators: true,
-    });
+    const lead = await Lead.findOneAndUpdate(
+      { _id: req.params.id, userId: workspaceOwnerId },
+      update,
+      {
+        new: true,
+        runValidators: true,
+      }
+    );
 
     if (!lead) {
       throw createError('Lead not found', 404);
@@ -203,6 +398,7 @@ router.put(
 router.post(
   '/:id/notes',
   asyncHandler(async (req: AuthRequest, res: Response) => {
+    const workspaceOwnerId = await requireWorkspaceOwnerId(req);
     const userId = extractUserId(req);
     if (!userId) throw createError('User ID not found in token', 401);
 
@@ -212,8 +408,8 @@ router.post(
       throw createError('Note text is required', 400);
     }
 
-    const lead = await Lead.findByIdAndUpdate(
-      req.params.id,
+    const lead = await Lead.findOneAndUpdate(
+      { _id: req.params.id, userId: workspaceOwnerId },
       {
         $push: {
           notes: {
@@ -238,10 +434,9 @@ router.post(
 router.post(
   '/:id/convert',
   asyncHandler(async (req: AuthRequest, res: Response) => {
-    const userId = extractUserId(req);
-    if (!userId) throw createError('User ID not found in token', 401);
+    const workspaceOwnerId = await requireWorkspaceOwnerId(req);
 
-    const lead = await Lead.findById(req.params.id);
+    const lead = await Lead.findOne({ _id: req.params.id, userId: workspaceOwnerId });
 
     if (!lead) {
       throw createError('Lead not found', 404);
@@ -260,7 +455,6 @@ router.post(
       projectBudget,
     } = req.body as ConvertLeadDto;
 
-    // Validate required fields
     if (!clientName || !clientName.trim()) {
       throw createError('Client name is required', 400);
     }
@@ -268,18 +462,16 @@ router.post(
       throw createError('Project title is required', 400);
     }
 
-    // Create the Client
     const client = await Client.create({
-      userId,
+      userId: workspaceOwnerId,
       name: clientName.trim(),
       company: clientCompany?.trim() || '',
       email: clientEmail?.trim() || '',
       taskDiscounts: {},
     });
 
-    // Create the Project
     const project = await Project.create({
-      userId,
+      userId: workspaceOwnerId,
       clientId: client._id,
       title: projectTitle.trim(),
       description: projectDescription?.trim() || '',
@@ -287,7 +479,6 @@ router.post(
       budget: projectBudget || undefined,
     });
 
-    // Update the lead with conversion references
     lead.status = 'WON';
     lead.convertedClientId = client._id as mongoose.Types.ObjectId;
     lead.convertedProjectId = project._id as mongoose.Types.ObjectId;
@@ -306,7 +497,12 @@ router.post(
 router.delete(
   '/:id',
   asyncHandler(async (req: AuthRequest, res: Response) => {
-    const lead = await Lead.findByIdAndDelete(req.params.id);
+    const workspaceOwnerId = await requireWorkspaceOwnerId(req);
+
+    const lead = await Lead.findOneAndDelete({
+      _id: req.params.id,
+      userId: workspaceOwnerId,
+    });
 
     if (!lead) {
       throw createError('Lead not found', 404);

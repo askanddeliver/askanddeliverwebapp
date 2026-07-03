@@ -50,8 +50,22 @@ export async function getWorkspaceOwnerId(req: Request): Promise<string | null> 
   if (!user) return null;
 
   if (user.role === 'admin') return user.auth0Id;
-  if (user.role === 'member' && user.workspaceOwnerId) return user.workspaceOwnerId;
+  if ((user.role === 'member' || user.role === 'client') && user.workspaceOwnerId) {
+    return user.workspaceOwnerId;
+  }
   return null;
+}
+
+/**
+ * Returns the CRM clientId for portal users. 403 scope for non-clients handled by requireClient.
+ */
+export async function resolveClientScope(req: Request): Promise<string | null> {
+  const auth0Id = extractUserId(req);
+  if (!auth0Id) return null;
+
+  const user = await User.findOne({ auth0Id }).lean();
+  if (!user || user.role !== 'client' || !user.clientId) return null;
+  return String(user.clientId);
 }
 
 /**
@@ -82,6 +96,64 @@ export function requireAdmin(req: Request, res: Response, next: NextFunction): v
     .then((user) => {
       if (!user || user.role !== 'admin') {
         res.status(403).json({ error: 'Admin access required' });
+        return;
+      }
+      next();
+    })
+    .catch(() => {
+      res.status(500).json({ error: 'Failed to verify permissions' });
+    });
+}
+
+/**
+ * Middleware: require client portal role. Use after checkJwt.
+ */
+/**
+ * Middleware: require member or admin role. Use after checkJwt.
+ */
+export function requireMemberOrAdmin(req: Request, res: Response, next: NextFunction): void {
+  const auth0Id = extractUserId(req);
+  if (!auth0Id) {
+    res.status(401).json({ error: 'Authentication required' });
+    return;
+  }
+
+  User.findOne({ auth0Id })
+    .then((user) => {
+      if (
+        !user ||
+        user.status !== 'active' ||
+        (user.role !== 'admin' && user.role !== 'member')
+      ) {
+        res.status(403).json({ error: 'Member access required' });
+        return;
+      }
+      next();
+    })
+    .catch(() => {
+      res.status(500).json({ error: 'Failed to verify permissions' });
+    });
+}
+
+/**
+ * Middleware: require client portal role. Use after checkJwt.
+ */
+export function requireClient(req: Request, res: Response, next: NextFunction): void {
+  const auth0Id = extractUserId(req);
+  if (!auth0Id) {
+    res.status(401).json({ error: 'Authentication required' });
+    return;
+  }
+
+  User.findOne({ auth0Id })
+    .then((user) => {
+      if (
+        !user ||
+        user.role !== 'client' ||
+        user.status !== 'active' ||
+        !user.clientId
+      ) {
+        res.status(403).json({ error: 'Client portal access required' });
         return;
       }
       next();

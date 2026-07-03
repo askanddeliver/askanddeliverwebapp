@@ -9,6 +9,7 @@ import { AddByEmailModal } from '../components/users/AddByEmailModal';
 const ROLE_LABELS: Record<string, string> = {
   admin: 'Admin',
   member: 'Member',
+  client: 'Client portal',
   pending: 'Pending',
 };
 
@@ -115,7 +116,7 @@ function Users() {
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Team</h1>
           <p className="text-gray-500 mt-1">
-            Manage team members and their access
+            Manage team members, roles, and workspace access
           </p>
         </div>
         <div className="flex gap-2">
@@ -198,7 +199,9 @@ function Users() {
                         ? 'bg-primary-100 text-primary-800'
                         : user.role === 'member'
                           ? 'bg-blue-100 text-blue-800'
-                          : 'bg-amber-100 text-amber-800'
+                          : user.role === 'client'
+                            ? 'bg-teal-100 text-teal-800'
+                            : 'bg-amber-100 text-amber-800'
                     }`}
                   >
                     {ROLE_LABELS[user.role] || user.role}

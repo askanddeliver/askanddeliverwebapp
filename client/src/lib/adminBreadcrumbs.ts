@@ -1,6 +1,11 @@
 /** Labels for admin top bar breadcrumbs (pathname → segment title). */
 const ROUTE_CRUMB: Record<string, string> = {
   '/dashboard': 'Dashboard',
+  '/member': 'Member Hub',
+  '/member/projects': 'Member Projects',
+  '/member/entries': 'Member Entries',
+  '/member/profile': 'Member Profile',
+  '/portal': 'Client Portal',
   '/entries': 'Entries',
   '/time-blocks': 'Block Time',
   '/reports': 'Reports',

@@ -1,4 +1,5 @@
 import axios, { type AxiosError, type InternalAxiosRequestConfig } from 'axios';
+import { getPublicWorkspaceKey } from '../lib/publicWorkspace';
 import type {
   User,
   Client,
@@ -29,6 +30,16 @@ import type {
   LeadPriority,
   ConvertLeadPayload,
   SiteConfig,
+  IntakeForm,
+  PublicIntakeForm,
+  UpdateIntakeFormPayload,
+  IntakeAttachment,
+  DisciplineDefinition,
+  MemberDashboardResponse,
+  ProjectMessage,
+  PortalDashboardResponse,
+  PortalProjectsResponse,
+  PortalProjectDetailResponse,
 } from '../types';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
@@ -62,6 +73,22 @@ const api = axios.create({
     'Cache-Control': 'no-cache',
     'Pragma': 'no-cache',
   },
+});
+
+/** Unauthenticated public API — attaches X-Public-Workspace when set. */
+const publicApi = axios.create({
+  baseURL: API_URL,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
+
+publicApi.interceptors.request.use((config) => {
+  const key = getPublicWorkspaceKey();
+  if (key) {
+    config.headers['X-Public-Workspace'] = key;
+  }
+  return config;
 });
 
 api.interceptors.request.use(
@@ -115,12 +142,25 @@ api.interceptors.response.use(
 // Users (current user profile + role)
 export const usersApi = {
   getMe: () => api.get<User>('/users/me'),
-  updateMe: (data: Partial<Pick<User, 'name' | 'picture'>>) =>
-    api.put<User>('/users/me', data),
+  updateMe: (
+    data: Partial<
+      Pick<
+        User,
+        | 'name'
+        | 'picture'
+        | 'disciplines'
+        | 'disciplineTasks'
+        | 'availability'
+        | 'bio'
+      >
+    >
+  ) => api.put<User>('/users/me', data),
   // Admin only
   getAll: () => api.get<User[]>('/users'),
   addByEmail: (email: string) =>
     api.post<User>('/users/add-by-email', { email }),
+  inviteClient: (email: string, clientId: string) =>
+    api.post<User>('/users/invite-client', { email, clientId }),
   update: (id: string, data: Partial<Pick<User, 'role' | 'status' | 'earnedRates'>>) =>
     api.put<User>(`/users/${id}`, data),
   delete: (id: string) => api.delete<{ message: string }>(`/users/${id}`),
@@ -190,6 +230,7 @@ export const projectTasksApi = {
     description?: string;
     status?: string;
     estimatedHours?: number;
+    clientVisible?: boolean;
   }) => api.post<ProjectTask>('/project-tasks', data),
   update: (id: string, data: Partial<ProjectTask>) =>
     api.put<ProjectTask>(`/project-tasks/${id}`, data),
@@ -475,7 +516,7 @@ export const leadsApi = {
   delete: (id: string) => api.delete(`/leads/${id}`),
 };
 
-// Leads (public - unauthenticated, uses raw axios to skip auth header)
+// Leads (public - unauthenticated)
 export const leadsPublicApi = {
   submit: (data: {
     confidence: string;
@@ -487,12 +528,38 @@ export const leadsPublicApi = {
     email: string;
     company?: string;
     message?: string;
+    responses?: Record<string, unknown>;
+    intakeFormId?: string;
+    intakeFormVersion?: number;
   }) =>
-    axios.post<{ message: string; leadId: string }>(
-      `${API_URL}/leads/public`,
-      data,
-      { headers: { 'Content-Type': 'application/json' } }
-    ),
+    publicApi.post<{ message: string; leadId: string }>('/leads/public', data),
+  uploadAttachments: (leadId: string, files: File[]) => {
+    const formData = new FormData();
+    files.forEach((file) => formData.append('files', file));
+    return publicApi.post<{ message: string; attachments: IntakeAttachment[] }>(
+      `/leads/public/${leadId}/attachments`,
+      formData,
+      { headers: { 'Content-Type': 'multipart/form-data' } }
+    );
+  },
+};
+
+// Intake forms (admin)
+export const intakeFormsApi = {
+  getAll: () => api.get<IntakeForm[]>('/intake-forms'),
+  getDefault: () => api.get<IntakeForm>('/intake-forms/default'),
+  getOne: (id: string) => api.get<IntakeForm>(`/intake-forms/${id}`),
+  update: (id: string, data: UpdateIntakeFormPayload) =>
+    api.put<IntakeForm>(`/intake-forms/${id}`, data),
+  publish: (id: string) => api.post<IntakeForm>(`/intake-forms/${id}/publish`),
+};
+
+// Intake forms (public)
+export const intakeFormsPublicApi = {
+  getPublished: (slug = 'default') =>
+    publicApi.get<PublicIntakeForm>('/intake-forms/public', {
+      params: { slug },
+    }),
 };
 
 // Uploads
@@ -540,6 +607,8 @@ export const siteConfigApi = {
     companyPhone?: string;
     companyEmail?: string;
   }) => api.put<SiteConfig>('/site-config/company', data),
+  updateDisciplines: (disciplines: DisciplineDefinition[]) =>
+    api.put<SiteConfig>('/site-config/disciplines', { disciplines }),
   reset: () => api.put<SiteConfig>('/site-config/reset'),
   savePalette: (name: string, colors: ThemeColors) =>
     api.post<SiteConfig>('/site-config/palettes', { name, colors }),
@@ -547,6 +616,34 @@ export const siteConfigApi = {
     api.put<SiteConfig>(`/site-config/palettes/${paletteId}`, { name }),
   deletePalette: (paletteId: string) =>
     api.delete<SiteConfig>(`/site-config/palettes/${paletteId}`),
+};
+
+// Project messages (admin/member on Projects page)
+export const projectMessagesApi = {
+  list: (projectId: string) =>
+    api.get<ProjectMessage[]>(`/projects/${projectId}/messages`),
+  create: (projectId: string, data: { body: string; clientVisible?: boolean }) =>
+    api.post<ProjectMessage>(`/projects/${projectId}/messages`, data),
+};
+
+// Client portal
+export const portalApi = {
+  getDashboard: () => api.get<PortalDashboardResponse>('/portal/dashboard'),
+  getProjects: (params?: { status?: ProjectStatus | 'ALL' }) =>
+    api.get<PortalProjectsResponse>('/portal/projects', { params }),
+  getProject: (id: string) =>
+    api.get<PortalProjectDetailResponse>(`/portal/projects/${id}`),
+  getMessages: (projectId: string) =>
+    api.get<ProjectMessage[]>(`/portal/projects/${projectId}/messages`),
+  postMessage: (projectId: string, body: string) =>
+    api.post<ProjectMessage>(`/portal/projects/${projectId}/messages`, { body }),
+};
+
+// Member hub (member + admin dogfooding)
+export const memberApi = {
+  getDashboard: () => api.get<MemberDashboardResponse>('/member/dashboard'),
+  getProjects: () => api.get<Project[]>('/member/projects'),
+  getDisciplines: () => api.get<DisciplineDefinition[]>('/member/disciplines'),
 };
 
 // Site Config (public - unauthenticated)

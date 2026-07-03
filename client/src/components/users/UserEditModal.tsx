@@ -80,10 +80,12 @@ export function UserEditModal({
               >
                 <option value="admin">Admin</option>
                 <option value="member">Member</option>
+                <option value="client">Client portal</option>
                 <option value="pending">Pending</option>
               </select>
               <p className="text-xs text-gray-500 mt-1">
-                Admins have full access. Members can log time and view projects.
+                Admins have full access. Members log time and view projects.
+                Client portal users are invited from the Clients page.
               </p>
             </div>
 

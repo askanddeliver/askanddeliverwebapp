@@ -6,7 +6,12 @@ export interface ILeadNote {
   createdBy: string;
 }
 
+export type LeadSource = 'public' | 'manual' | 'referral';
+
 export interface ILead extends Document {
+  /** Workspace owner Auth0 sub (Pattern A scoping) */
+  userId: string;
+
   // Intake form data
   confidence: 'YES' | 'MAYBE' | 'UNSURE';
   projectType: string;
@@ -17,6 +22,13 @@ export interface ILead extends Document {
   email: string;
   company: string;
   message: string;
+
+  /** Dynamic intake answers (field key → value) */
+  responses: Record<string, unknown>;
+
+  intakeFormId?: mongoose.Types.ObjectId;
+  intakeFormVersion?: number;
+  source: LeadSource;
 
   // Pipeline management
   status: 'NEW' | 'CONTACTED' | 'QUALIFIED' | 'PROPOSAL' | 'WON' | 'LOST';
@@ -52,6 +64,12 @@ const LeadNoteSchema = new Schema<ILeadNote>(
 
 const LeadSchema = new Schema<ILead>(
   {
+    userId: {
+      type: String,
+      required: [true, 'Workspace userId is required'],
+      index: true,
+    },
+
     // Intake form data
     confidence: {
       type: String,
@@ -100,6 +118,24 @@ const LeadSchema = new Schema<ILead>(
       default: '',
     },
 
+    responses: {
+      type: Schema.Types.Mixed,
+      default: () => ({}),
+    },
+
+    intakeFormId: {
+      type: Schema.Types.ObjectId,
+      ref: 'IntakeForm',
+    },
+    intakeFormVersion: {
+      type: Number,
+    },
+    source: {
+      type: String,
+      enum: ['public', 'manual', 'referral'],
+      default: 'public',
+    },
+
     // Pipeline management
     status: {
       type: String,
@@ -131,7 +167,7 @@ const LeadSchema = new Schema<ILead>(
   }
 );
 
-// Indexes for efficient querying
+LeadSchema.index({ userId: 1, status: 1, createdAt: -1 });
 LeadSchema.index({ status: 1, createdAt: -1 });
 LeadSchema.index({ email: 1 });
 LeadSchema.index({ createdAt: -1 });

@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Save, RotateCcw, Palette, Trash2, Check, Plus, X, Building2 } from 'lucide-react';
 import { siteConfigApi } from '../services/api';
 import { useAdminTheme } from '../contexts/AdminThemeContext';
-import type { ThemeColors, ColorPalette } from '../types';
+import type { ThemeColors, ColorPalette, DisciplineDefinition } from '../types';
 
 const DEFAULT_COLORS: ThemeColors = {
   brandSage: '#5B7765',
@@ -234,6 +234,7 @@ function SiteConfigPage() {
   const [colors, setColors] = useState<ThemeColors>(DEFAULT_COLORS);
   const [savedColors, setSavedColors] = useState<ThemeColors>(DEFAULT_COLORS);
   const [palettes, setPalettes] = useState<ColorPalette[]>([]);
+  const [disciplines, setDisciplines] = useState<DisciplineDefinition[]>([]);
   const [companyName, setCompanyName] = useState('');
   const [companyAddress, setCompanyAddress] = useState('');
   const [companyPhone, setCompanyPhone] = useState('');
@@ -256,6 +257,7 @@ function SiteConfigPage() {
       setColors(loadedColors);
       setSavedColors(loadedColors);
       setPalettes(data.palettes || []);
+      setDisciplines(data.disciplines || []);
       setCompanyName(data.companyName || '');
       setCompanyAddress(data.companyAddress || '');
       setCompanyPhone(data.companyPhone || '');
@@ -659,6 +661,48 @@ function SiteConfigPage() {
             </div>
           </div>
         </div>
+      </div>
+
+      <div className="mt-8 card">
+        <h3 className="text-sm font-semibold text-gray-900 mb-1">Disciplines</h3>
+        <p className="text-sm text-gray-500 mb-4">
+          Workspace taxonomy for intake, projects, and member skills. Run{' '}
+          <code className="text-xs bg-gray-100 px-1 py-0.5 rounded">npm run seed:disciplines</code>{' '}
+          from the server to populate from Task Types.
+        </p>
+        {disciplines.length === 0 ? (
+          <p className="text-sm text-gray-400 italic">No disciplines configured yet.</p>
+        ) : (
+          <div className="space-y-3">
+            {[...disciplines]
+              .sort((a, b) => a.sortOrder - b.sortOrder)
+              .map((discipline) => (
+                <div
+                  key={discipline.id}
+                  className="rounded-lg border border-gray-200 p-3"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-sm font-medium text-gray-900">
+                      {discipline.name}
+                    </p>
+                    <span className="text-xs text-gray-400">{discipline.id}</span>
+                  </div>
+                  {discipline.description && (
+                    <p className="mt-1 text-xs text-gray-500">{discipline.description}</p>
+                  )}
+                  {discipline.tasks.length > 0 && (
+                    <p className="mt-2 text-xs text-gray-500">
+                      Tasks:{' '}
+                      {discipline.tasks
+                        .sort((a, b) => a.sortOrder - b.sortOrder)
+                        .map((t) => t.name)
+                        .join(' · ')}
+                    </p>
+                  )}
+                </div>
+              ))}
+          </div>
+        )}
       </div>
     </div>
   );

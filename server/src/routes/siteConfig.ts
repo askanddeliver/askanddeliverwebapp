@@ -47,6 +47,7 @@ router.get(
       res.json({
         colors: DEFAULT_COLORS,
         palettes: [],
+        disciplines: [],
       });
       return;
     }
@@ -112,6 +113,28 @@ router.put(
         },
       },
       { new: true, upsert: true }
+    );
+
+    res.json(config);
+  })
+);
+
+// PUT /api/site-config/disciplines - Update discipline taxonomy
+router.put(
+  '/disciplines',
+  asyncHandler(async (req: AuthRequest, res: Response) => {
+    const workspaceOwnerId = await getWorkspaceOwnerId(req);
+    if (!workspaceOwnerId) throw createError('Workspace access required', 403);
+
+    const { disciplines } = req.body;
+    if (!Array.isArray(disciplines)) {
+      throw createError('disciplines array is required', 400);
+    }
+
+    const config = await SiteConfig.findOneAndUpdate(
+      { userId: workspaceOwnerId },
+      { $set: { disciplines } },
+      { new: true, upsert: true, runValidators: true }
     );
 
     res.json(config);

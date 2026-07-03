@@ -8,6 +8,7 @@ import {
   Users,
   FolderOpen,
   Inbox,
+  ClipboardList,
   Image,
   Tag,
   UserCircle,
@@ -68,6 +69,7 @@ const navSections: NavSection[] = [
     adminOnly: true,
     items: [
       { to: '/leads', label: 'Leads', icon: Inbox },
+      { to: '/intake-config', label: 'Intake Form', icon: ClipboardList },
       { to: '/portfolio-admin', label: 'Portfolio', icon: Image },
     ],
   },
@@ -76,6 +78,7 @@ const navSections: NavSection[] = [
 const settingsSection: NavSection = {
   label: 'Settings',
   items: [
+    { to: '/member', label: 'Member hub', icon: UserCircle, adminOnly: true },
     { to: '/users', label: 'Team', icon: UserCog, adminOnly: true },
     { to: '/task-types', label: 'Task Types', icon: Tag, adminOnly: true },
     { to: '/site-config', label: 'Site Config', icon: Palette, adminOnly: true },

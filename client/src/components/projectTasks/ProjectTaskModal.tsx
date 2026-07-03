@@ -13,6 +13,7 @@ interface ProjectTaskModalProps {
     description?: string;
     status: 'TODO' | 'IN_PROGRESS' | 'COMPLETED';
     estimatedHours?: number;
+    clientVisible?: boolean;
   }) => void;
 }
 
@@ -27,6 +28,7 @@ export function ProjectTaskModal({
   const [description, setDescription] = useState('');
   const [status, setStatus] = useState<'TODO' | 'IN_PROGRESS' | 'COMPLETED'>('TODO');
   const [estimatedHours, setEstimatedHours] = useState('');
+  const [clientVisible, setClientVisible] = useState(false);
 
   useEffect(() => {
     if (task) {
@@ -34,11 +36,13 @@ export function ProjectTaskModal({
       setDescription(task.description || '');
       setStatus(task.status);
       setEstimatedHours(task.estimatedHours?.toString() || '');
+      setClientVisible(Boolean(task.clientVisible));
     } else {
       setTitle('');
       setDescription('');
       setStatus('TODO');
       setEstimatedHours('');
+      setClientVisible(false);
     }
   }, [task, isOpen]);
 
@@ -52,6 +56,7 @@ export function ProjectTaskModal({
       description: description.trim() || undefined,
       status,
       estimatedHours: estimatedHours ? parseFloat(estimatedHours) : undefined,
+      clientVisible,
     });
   };
 
@@ -133,6 +138,16 @@ export function ProjectTaskModal({
               />
             </div>
           </div>
+
+          <label className="flex cursor-pointer items-center gap-2 text-sm text-gray-700">
+            <input
+              type="checkbox"
+              checked={clientVisible}
+              onChange={(e) => setClientVisible(e.target.checked)}
+              className="rounded border-gray-300"
+            />
+            Visible to client portal
+          </label>
 
           <div className="flex gap-3 pt-2">
             <button type="submit" className="btn-primary flex-1">

@@ -14,7 +14,10 @@
     "install:all": "npm install && cd client && npm install && cd ../server && npm install",
     "lint": "cd client && npm run lint && cd ../server && npm run lint",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
-    "clean": "rm -rf client/dist server/dist client/node_modules server/node_modules node_modules"
+    "clean": "rm -rf client/dist server/dist client/node_modules server/node_modules node_modules",
+    "seed:disciplines": "cd server && npm run seed:disciplines",
+    "seed:intake-form": "cd server && npm run seed:intake-form",
+    "backfill:lead-userid": "cd server && npm run backfill:lead-userid"
   },
   "devDependencies": {
     "concurrently": "^8.2.2",

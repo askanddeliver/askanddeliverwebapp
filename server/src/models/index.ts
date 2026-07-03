@@ -6,10 +6,23 @@ export { TaskType, ITaskType } from './TaskType';
 export { TimeEntry, ITimeEntry } from './TimeEntry';
 export { TimeBlock, ITimeBlock, TimeBlockKind } from './TimeBlock';
 export { ProjectTask, IProjectTask } from './ProjectTask';
+export {
+  ProjectMessage,
+  IProjectMessage,
+  ProjectMessageAuthorRole,
+} from './ProjectMessage';
 export { PortfolioProject, IPortfolioProject } from './PortfolioProject';
 export { LineItem, ILineItem } from './LineItem';
 export { Lead, ILead, ILeadNote } from './Lead';
-export { SiteConfig, ISiteConfig, IThemeColors, IColorPalette } from './SiteConfig';
+export {
+  IntakeForm,
+  IIntakeForm,
+  IIntakeStep,
+  IIntakeField,
+  IntakeFormStatus,
+  IntakeFieldType,
+} from './IntakeForm';
+export { SiteConfig, ISiteConfig, IThemeColors, IColorPalette, IDisciplineDefinition, IDisciplineTask } from './SiteConfig';
 export {
   Invoice,
   IInvoice,

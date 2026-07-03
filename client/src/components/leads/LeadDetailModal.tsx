@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   X,
   Mail,
@@ -13,9 +13,10 @@ import {
   ArrowUpRight,
   ChevronDown,
   ExternalLink,
+  Paperclip,
 } from 'lucide-react';
-import { leadsApi } from '../../services/api';
-import type { Lead, LeadStatus, LeadPriority, Client, Project } from '../../types';
+import { leadsApi, siteConfigApi } from '../../services/api';
+import type { Lead, LeadStatus, LeadPriority, Client, Project, IntakeAttachment, DisciplineDefinition } from '../../types';
 
 interface LeadDetailModalProps {
   lead: Lead;
@@ -63,6 +64,43 @@ const CONFIDENCE_LABELS = {
   UNSURE: 'Still figuring it out',
 };
 
+const STANDARD_RESPONSE_KEYS = new Set([
+  'confidence',
+  'projectType',
+  'project_type',
+  'description',
+  'budget',
+  'timeline',
+  'name',
+  'email',
+  'company',
+  'message',
+  'disciplines_needed',
+  'attachments',
+]);
+
+function isIntakeAttachment(value: unknown): value is IntakeAttachment {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'url' in value &&
+    'filename' in value
+  );
+}
+
+function formatResponseLabel(key: string): string {
+  return key
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function formatResponseValue(value: unknown): string {
+  if (value === null || value === undefined) return '—';
+  if (Array.isArray(value)) return value.map(String).join(', ');
+  if (typeof value === 'object') return JSON.stringify(value, null, 2);
+  return String(value);
+}
+
 export function LeadDetailModal({
   lead,
   isOpen,
@@ -74,6 +112,15 @@ export function LeadDetailModal({
   const [addingNote, setAddingNote] = useState(false);
   const [statusOpen, setStatusOpen] = useState(false);
   const [priorityOpen, setPriorityOpen] = useState(false);
+  const [disciplines, setDisciplines] = useState<DisciplineDefinition[]>([]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    siteConfigApi
+      .get()
+      .then((res) => setDisciplines(res.data.disciplines ?? []))
+      .catch(() => setDisciplines([]));
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -133,6 +180,29 @@ export function LeadDetailModal({
     lead.convertedProjectId && typeof lead.convertedProjectId === 'object'
       ? (lead.convertedProjectId as Project)
       : null;
+
+  const extraResponses =
+    lead.responses && typeof lead.responses === 'object'
+      ? Object.entries(lead.responses).filter(
+          ([key, value]) =>
+            !STANDARD_RESPONSE_KEYS.has(key) &&
+            value !== null &&
+            value !== undefined &&
+            value !== ''
+        )
+      : [];
+
+  const disciplineIds = Array.isArray(lead.responses?.disciplines_needed)
+    ? (lead.responses.disciplines_needed as string[])
+    : [];
+
+  const disciplineLabels = disciplineIds.map(
+    (id) => disciplines.find((d) => d.id === id)?.name ?? formatResponseLabel(id)
+  );
+
+  const attachments = Array.isArray(lead.responses?.attachments)
+    ? (lead.responses.attachments as unknown[]).filter(isIntakeAttachment)
+    : [];
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
@@ -313,6 +383,24 @@ export function LeadDetailModal({
               </div>
             )}
 
+            {disciplineLabels.length > 0 && (
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1.5">
+                  Disciplines Needed
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {disciplineLabels.map((label) => (
+                    <span
+                      key={label}
+                      className="inline-flex rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-700"
+                    >
+                      {label}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {lead.description && (
               <div>
                 <label className="block text-xs font-medium text-gray-500 mb-0.5">
@@ -351,6 +439,50 @@ export function LeadDetailModal({
                 <p className="text-sm text-gray-800 whitespace-pre-wrap">
                   {lead.message}
                 </p>
+              </div>
+            )}
+
+            {attachments.length > 0 && (
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1.5">
+                  Attachments
+                </label>
+                <ul className="space-y-2">
+                  {attachments.map((file) => (
+                    <li key={file.url}>
+                      <a
+                        href={file.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-2 text-sm text-primary-600 hover:text-primary-800 underline"
+                      >
+                        <Paperclip className="h-3.5 w-3.5" />
+                        {file.filename}
+                        <span className="text-xs text-gray-400 no-underline">
+                          ({(file.size / 1024 / 1024).toFixed(1)} MB)
+                        </span>
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {extraResponses.length > 0 && (
+              <div className="pt-2 border-t border-gray-100 space-y-3">
+                <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider">
+                  Intake Responses
+                </h4>
+                {extraResponses.map(([key, value]) => (
+                  <div key={key}>
+                    <label className="block text-xs font-medium text-gray-500 mb-0.5">
+                      {formatResponseLabel(key)}
+                    </label>
+                    <p className="text-sm text-gray-800 whitespace-pre-wrap">
+                      {formatResponseValue(value)}
+                    </p>
+                  </div>
+                ))}
               </div>
             )}
           </div>

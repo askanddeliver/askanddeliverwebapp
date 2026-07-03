@@ -1,6 +1,19 @@
 // User types
-export type UserRole = 'admin' | 'member' | 'pending';
+export type UserRole = 'admin' | 'member' | 'client' | 'pending';
 export type UserStatus = 'active' | 'pending' | 'disabled';
+export type AvailabilityDay = 'mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat' | 'sun';
+
+export interface UserAvailability {
+  hoursPerWeek?: number;
+  preferredDays?: AvailabilityDay[];
+  timezone?: string;
+  notes?: string;
+  outOfOffice?: {
+    start: string;
+    end: string;
+    message?: string;
+  };
+}
 
 export interface User {
   _id: string;
@@ -10,11 +23,27 @@ export interface User {
   picture?: string;
   role: UserRole;
   workspaceOwnerId?: string;
+  clientId?: string;
+  disciplines?: string[];
+  disciplineTasks?: string[];
+  availability?: UserAvailability;
+  bio?: string;
   earnedRates?: Record<string, number>;
   status: UserStatus;
   invitedBy?: string;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface MemberDashboardStats {
+  todaySeconds: number;
+  weekSeconds: number;
+  myProjectCount: number;
+  openTaskCount: number;
+}
+
+export interface MemberDashboardResponse {
+  stats: MemberDashboardStats;
 }
 
 // Client types
@@ -108,8 +137,72 @@ export interface ProjectTask {
   status: 'TODO' | 'IN_PROGRESS' | 'COMPLETED';
   order: number;
   estimatedHours?: number;
+  clientVisible?: boolean;
   createdAt: string;
   updatedAt: string;
+}
+
+export type ProjectMessageAuthorRole = 'admin' | 'member' | 'client';
+
+export interface ProjectMessage {
+  _id: string;
+  userId: string;
+  projectId: string;
+  authorAuth0Id: string;
+  authorName: string;
+  authorRole: ProjectMessageAuthorRole;
+  body: string;
+  clientVisible: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PortalProjectSummary {
+  _id: string;
+  title: string;
+  excerpt?: string;
+  status: ProjectStatus;
+  updatedAt: string;
+  openTaskCount: number;
+}
+
+export interface PortalProjectDetail {
+  _id: string;
+  title: string;
+  excerpt?: string;
+  status: ProjectStatus;
+  brief?: string;
+  description?: string;
+  updatedAt: string;
+}
+
+export interface PortalProjectDetailResponse {
+  project: PortalProjectDetail;
+  tasks: Array<{
+    _id: string;
+    title: string;
+    description?: string;
+    status: 'TODO' | 'IN_PROGRESS' | 'COMPLETED';
+  }>;
+}
+
+export interface PortalDashboardResponse {
+  companyName?: string;
+  companyEmail?: string;
+  activeProjects: PortalProjectSummary[];
+  recentUpdates: Array<{
+    _id: string;
+    body: string;
+    authorName: string;
+    authorRole: ProjectMessageAuthorRole;
+    createdAt: string;
+    projectId: string;
+    projectTitle?: string;
+  }>;
+}
+
+export interface PortalProjectsResponse {
+  projects: PortalProjectSummary[];
 }
 
 export type TimeBlockKind = 'WORK' | 'PERSONAL' | 'DOWNTIME' | 'MEETING' | 'ADMIN';
@@ -410,6 +503,7 @@ export interface PortfolioProject {
 export type LeadStatus = 'NEW' | 'CONTACTED' | 'QUALIFIED' | 'PROPOSAL' | 'WON' | 'LOST';
 export type LeadPriority = 'LOW' | 'MEDIUM' | 'HIGH';
 export type ConfidenceLevel = 'YES' | 'MAYBE' | 'UNSURE';
+export type LeadSource = 'public' | 'manual' | 'referral';
 
 export interface LeadNote {
   _id: string;
@@ -420,6 +514,7 @@ export interface LeadNote {
 
 export interface Lead {
   _id: string;
+  userId: string;
   // Intake form data
   confidence: ConfidenceLevel;
   projectType: string;
@@ -430,6 +525,10 @@ export interface Lead {
   email: string;
   company: string;
   message: string;
+  responses?: Record<string, unknown>;
+  intakeFormId?: string;
+  intakeFormVersion?: number;
+  source?: LeadSource;
   // Pipeline management
   status: LeadStatus;
   priority: LeadPriority;
@@ -460,6 +559,135 @@ export interface ConvertLeadPayload {
   projectBudget?: number;
 }
 
+// Intake form types
+export type IntakeFieldType =
+  | 'text'
+  | 'email'
+  | 'textarea'
+  | 'phone'
+  | 'date'
+  | 'single_select'
+  | 'multi_select'
+  | 'disciplines_needed'
+  | 'file';
+
+export type IntakeFormStatus = 'DRAFT' | 'PUBLISHED';
+
+export interface IntakeFieldOption {
+  value: string;
+  label: string;
+  description?: string;
+}
+
+export interface IntakeDisciplineOption {
+  id: string;
+  label: string;
+}
+
+export interface IntakeFieldShowWhen {
+  fieldKey: string;
+  equals: string | string[];
+}
+
+export interface IntakeField {
+  key: string;
+  type: IntakeFieldType;
+  label: string;
+  helpText?: string;
+  required?: boolean;
+  placeholder?: string;
+  options?: IntakeFieldOption[];
+  disciplineOptionIds?: string[];
+  disciplineOptions?: IntakeDisciplineOption[];
+  mapsTo?: string;
+  showWhen?: IntakeFieldShowWhen;
+  labelVariants?: Record<string, string>;
+  placeholderVariants?: Record<string, string>;
+  uiVariant?: 'cards' | 'pills' | 'default';
+  accept?: string;
+  maxFiles?: number;
+}
+
+export interface IntakeStepCopyVariant {
+  title?: string;
+  description?: string;
+}
+
+export interface IntakeStep {
+  id: string;
+  title: string;
+  description?: string;
+  copyVariants?: Record<string, IntakeStepCopyVariant>;
+  fields: IntakeField[];
+}
+
+export interface IntakeForm {
+  _id: string;
+  userId: string;
+  slug: string;
+  status: IntakeFormStatus;
+  version: number;
+  publishedAt?: string;
+  title: string;
+  subtitle?: string;
+  successMessage?: string;
+  successCtaLabel?: string;
+  successCtaUrl?: string;
+  submitButtonLabel?: string;
+  steps: IntakeStep[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PublicIntakeForm {
+  _id: string;
+  slug: string;
+  version: number;
+  title: string;
+  subtitle?: string;
+  successMessage?: string;
+  successCtaLabel?: string;
+  successCtaUrl?: string;
+  submitButtonLabel?: string;
+  steps: IntakeStep[];
+  publishedAt?: string;
+}
+
+export interface UpdateIntakeFormPayload {
+  title?: string;
+  subtitle?: string;
+  successMessage?: string;
+  successCtaLabel?: string;
+  successCtaUrl?: string;
+  submitButtonLabel?: string;
+  steps?: IntakeStep[];
+}
+
+export interface IntakeAttachment {
+  url: string;
+  filename: string;
+  mimeType: string;
+  size: number;
+}
+
+export interface DisciplineTask {
+  id: string;
+  name: string;
+  taskTypeId: string;
+  assignableToMember: boolean;
+  sortOrder: number;
+}
+
+export interface DisciplineDefinition {
+  id: string;
+  name: string;
+  description?: string;
+  assignableToMember: boolean;
+  showOnProject: boolean;
+  sortOrder: number;
+  tasks: DisciplineTask[];
+}
+
 // Site Config types
 export interface ThemeColors {
   brandSage: string;
@@ -483,6 +711,7 @@ export interface SiteConfig {
   _id?: string;
   colors: ThemeColors;
   palettes: ColorPalette[];
+  disciplines?: DisciplineDefinition[];
   companyName?: string;
   companyAddress?: string;
   companyPhone?: string;

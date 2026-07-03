@@ -7,18 +7,16 @@ interface AdminRouteProps {
   children: ReactNode;
 }
 
-/**
- * Wraps admin-only routes. Redirects members and pending users to /dashboard.
- */
+/** Admin-only routes. Other roles redirect to their home route. */
 function AdminRoute({ children }: AdminRouteProps) {
-  const { isAdmin, isLoading } = useUserRole();
+  const { isAdmin, isLoading, homeRoute } = useUserRole();
 
   if (isLoading) {
     return <Loading />;
   }
 
   if (!isAdmin) {
-    return <Navigate to="/dashboard" replace />;
+    return <Navigate to={homeRoute} replace />;
   }
 
   return <>{children}</>;

@@ -46,6 +46,7 @@ interface ProjectTaskListProps {
     description?: string;
     status: 'TODO' | 'IN_PROGRESS' | 'COMPLETED';
     estimatedHours?: number;
+    clientVisible?: boolean;
   }) => void;
   onUpdateTask: (id: string, data: Partial<ProjectTask>) => void;
   onToggleStatus: (id: string, status: string) => void;
@@ -307,6 +308,7 @@ export function ProjectTaskList({
     description?: string;
     status: 'TODO' | 'IN_PROGRESS' | 'COMPLETED';
     estimatedHours?: number;
+    clientVisible?: boolean;
   }) => {
     if (editingTask) {
       onUpdateTask(editingTask._id, data);

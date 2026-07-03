@@ -17,11 +17,29 @@ export interface IThemeColors {
   accentCool: string;
 }
 
+export interface IDisciplineTask {
+  id: string;
+  name: string;
+  taskTypeId: string;
+  assignableToMember: boolean;
+  sortOrder: number;
+}
+
+export interface IDisciplineDefinition {
+  id: string;
+  name: string;
+  description?: string;
+  assignableToMember: boolean;
+  showOnProject: boolean;
+  sortOrder: number;
+  tasks: IDisciplineTask[];
+}
+
 export interface ISiteConfig extends Document {
   userId: string;
   colors: IThemeColors;
   palettes: IColorPalette[];
-  /** Company info for invoices (Ask and Deliver) */
+  disciplines: IDisciplineDefinition[];
   companyName?: string;
   companyAddress?: string;
   companyPhone?: string;
@@ -53,6 +71,30 @@ const ColorPaletteSchema = new Schema<IColorPalette>(
   { _id: true }
 );
 
+const DisciplineTaskSchema = new Schema<IDisciplineTask>(
+  {
+    id: { type: String, required: true, trim: true },
+    name: { type: String, required: true, trim: true },
+    taskTypeId: { type: String, required: true },
+    assignableToMember: { type: Boolean, default: true },
+    sortOrder: { type: Number, default: 0 },
+  },
+  { _id: false }
+);
+
+const DisciplineDefinitionSchema = new Schema<IDisciplineDefinition>(
+  {
+    id: { type: String, required: true, trim: true },
+    name: { type: String, required: true, trim: true },
+    description: { type: String, trim: true },
+    assignableToMember: { type: Boolean, default: true },
+    showOnProject: { type: Boolean, default: true },
+    sortOrder: { type: Number, default: 0 },
+    tasks: { type: [DisciplineTaskSchema], default: [] },
+  },
+  { _id: false }
+);
+
 const SiteConfigSchema = new Schema<ISiteConfig>(
   {
     userId: {
@@ -67,6 +109,10 @@ const SiteConfigSchema = new Schema<ISiteConfig>(
     },
     palettes: {
       type: [ColorPaletteSchema],
+      default: [],
+    },
+    disciplines: {
+      type: [DisciplineDefinitionSchema],
       default: [],
     },
     companyName: { type: String, trim: true },

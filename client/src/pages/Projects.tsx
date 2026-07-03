@@ -226,6 +226,7 @@ function Projects() {
     description?: string;
     status: 'TODO' | 'IN_PROGRESS' | 'COMPLETED';
     estimatedHours?: number;
+    clientVisible?: boolean;
   }) => {
     try {
       const res = await projectTasksApi.create(data);

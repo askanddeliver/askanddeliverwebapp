@@ -8,6 +8,8 @@ export interface IProjectTask extends Document {
   status: 'TODO' | 'IN_PROGRESS' | 'COMPLETED';
   order: number;
   estimatedHours?: number;
+  /** When true, task appears in client portal */
+  clientVisible?: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -45,6 +47,11 @@ const ProjectTaskSchema = new Schema<IProjectTask>(
     estimatedHours: {
       type: Number,
       min: 0,
+    },
+    clientVisible: {
+      type: Boolean,
+      default: false,
+      index: true,
     },
   },
   {

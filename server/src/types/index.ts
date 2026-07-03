@@ -81,6 +81,8 @@ export interface InvoiceRequest {
 }
 
 // Lead DTOs
+export type LeadSource = 'public' | 'manual' | 'referral';
+
 export interface CreateLeadDto {
   confidence: 'YES' | 'MAYBE' | 'UNSURE';
   projectType?: string;
@@ -91,6 +93,9 @@ export interface CreateLeadDto {
   email: string;
   company?: string;
   message?: string;
+  responses?: Record<string, unknown>;
+  intakeFormId?: string;
+  intakeFormVersion?: number;
 }
 
 export interface UpdateLeadDto {

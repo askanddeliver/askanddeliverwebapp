@@ -2,6 +2,7 @@ import { Pencil, Trash2, Archive } from 'lucide-react';
 import type { Project, Client, ProjectBudgetBurn, ProjectTask } from '../../types';
 import { formatCurrency } from '../../utils/calculations';
 import { ProjectTaskList } from '../projectTasks/ProjectTaskList';
+import ProjectMessagesPanel from './ProjectMessagesPanel';
 
 interface ProjectCardProps {
   project: Project;
@@ -20,6 +21,7 @@ interface ProjectCardProps {
     description?: string;
     status: 'TODO' | 'IN_PROGRESS' | 'COMPLETED';
     estimatedHours?: number;
+    clientVisible?: boolean;
   }) => void;
   onUpdateTask: (id: string, data: Partial<ProjectTask>) => void;
   onToggleTaskStatus: (id: string, status: string) => void;
@@ -209,6 +211,8 @@ export function ProjectCard({
           onReorderTasks={onReorderTasks}
         />
       </div>
+
+      {canEdit && <ProjectMessagesPanel projectId={project._id} />}
     </div>
   );
 }

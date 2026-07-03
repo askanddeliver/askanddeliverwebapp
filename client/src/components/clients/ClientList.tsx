@@ -6,9 +6,10 @@ interface ClientListProps {
   clients: Client[];
   onEdit: (client: Client) => void;
   onDelete: (id: string) => void;
+  onInvitePortal: (client: Client) => void;
 }
 
-export function ClientList({ clients, onEdit, onDelete }: ClientListProps) {
+export function ClientList({ clients, onEdit, onDelete, onInvitePortal }: ClientListProps) {
   if (clients.length === 0) {
     return (
       <div className="text-center py-12">
@@ -31,6 +32,7 @@ export function ClientList({ clients, onEdit, onDelete }: ClientListProps) {
           client={client}
           onEdit={onEdit}
           onDelete={onDelete}
+          onInvitePortal={onInvitePortal}
         />
       ))}
     </div>

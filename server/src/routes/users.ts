@@ -2,8 +2,10 @@ import { Router, Response } from 'express';
 import { checkJwt, AuthRequest, extractUserId, requireAdmin } from '../middleware/auth';
 import { asyncHandler, createError } from '../middleware/errorHandler';
 import { User } from '../models';
+import { Client } from '../models/Client';
 import type { UserRole, UserStatus } from '../models/User';
 import { getAuth0UsersByEmail } from '../lib/auth0Management';
+import { validateMemberProfileFields } from '../lib/userProfile';
 
 const router = Router();
 
@@ -169,6 +171,16 @@ router.put(
       workspaceOwnerId = assigned.workspaceOwnerId;
     }
 
+    const profileOwnerId =
+      role === 'admin' ? auth0Id : workspaceOwnerId || undefined;
+    const profileUpdate =
+      profileOwnerId && (req.body?.disciplines !== undefined ||
+        req.body?.disciplineTasks !== undefined ||
+        req.body?.availability !== undefined ||
+        req.body?.bio !== undefined)
+        ? await validateMemberProfileFields(profileOwnerId, req.body)
+        : {};
+
     const user = await User.findOneAndUpdate(
       { auth0Id },
       {
@@ -179,6 +191,7 @@ router.put(
         role,
         workspaceOwnerId,
         status: existing?.status ?? 'active',
+        ...profileUpdate,
       },
       {
         new: true,
@@ -308,6 +321,95 @@ router.post(
   })
 );
 
+// POST /api/users/invite-client - Grant portal access to a client contact (admin only)
+router.post(
+  '/invite-client',
+  requireAdmin,
+  asyncHandler(async (req: AuthRequest, res: Response) => {
+    const auth0Id = extractUserId(req);
+    if (!auth0Id) throw createError('User ID not found in token', 401);
+
+    const { email, clientId } = req.body;
+    if (!email || typeof email !== 'string') {
+      throw createError('Email is required', 400);
+    }
+    if (!clientId || typeof clientId !== 'string') {
+      throw createError('clientId is required', 400);
+    }
+
+    const client = await Client.findOne({ _id: clientId, userId: auth0Id });
+    if (!client) {
+      throw createError('Client not found in your workspace', 404);
+    }
+
+    const normalizedEmail = email.trim().toLowerCase();
+
+    let user = await User.findOne({ email: normalizedEmail });
+
+    if (!user) {
+      try {
+        const auth0Users = await getAuth0UsersByEmail(normalizedEmail);
+        if (auth0Users.length > 0) {
+          const au = auth0Users[0];
+          user = await User.findOne({ auth0Id: au.user_id });
+          if (!user) {
+            user = await User.create({
+              auth0Id: au.user_id,
+              email: (au.email || normalizedEmail).toLowerCase(),
+              name: au.name || 'User',
+              nickname: au.nickname ? au.nickname.toLowerCase() : undefined,
+              picture: au.picture,
+              role: 'pending',
+              status: 'active',
+            });
+          }
+        }
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : 'Auth0 lookup failed';
+        throw createError(
+          `Could not look up user: ${msg}. Ensure AUTH0_M2M credentials are set.`,
+          502
+        );
+      }
+    }
+
+    if (!user) {
+      throw createError(
+        'No user found with that email. They must sign up first — share the site login link, then invite them to the portal.',
+        404
+      );
+    }
+
+    if (user.auth0Id === auth0Id) {
+      throw createError('You cannot invite yourself', 400);
+    }
+
+    const isStandaloneAdmin =
+      user.role === 'admin' && user.workspaceOwnerId === user.auth0Id;
+    if (
+      user.workspaceOwnerId &&
+      user.workspaceOwnerId !== auth0Id &&
+      !isStandaloneAdmin
+    ) {
+      throw createError('User is already linked to another workspace', 400);
+    }
+
+    const updated = await User.findOneAndUpdate(
+      { _id: user._id },
+      {
+        role: 'client' as UserRole,
+        workspaceOwnerId: auth0Id,
+        clientId: client._id,
+        status: 'active' as UserStatus,
+        invitedBy: auth0Id,
+      },
+      { new: true }
+    );
+
+    res.json(updated);
+  })
+);
+
 // PUT /api/users/:id - Update user in workspace (admin only)
 router.put(
   '/:id',
@@ -331,7 +433,7 @@ router.put(
     const update: Record<string, unknown> = {};
 
     if (role !== undefined) {
-      if (!['admin', 'member', 'pending'].includes(role)) {
+      if (!['admin', 'member', 'client', 'pending'].includes(role)) {
         throw createError('Invalid role', 400);
       }
       if (targetUser.auth0Id === auth0Id && role !== 'admin') {
