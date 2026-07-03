@@ -56,6 +56,17 @@ export async function findMemberProjects(
     .lean();
 }
 
+/** True when the member may view and manage tasks on this project. */
+export async function memberHasProjectAccess(
+  workspaceOwnerId: string,
+  memberAuth0Id: string,
+  projectId: string
+): Promise<boolean> {
+  const filter = await getMemberProjectFilter(workspaceOwnerId, memberAuth0Id);
+  const project = await Project.findOne({ ...filter, _id: projectId }).select('_id').lean();
+  return Boolean(project);
+}
+
 /** Remove billing fields before returning projects to member routes. */
 export function stripProjectFinancials<T extends Record<string, unknown>>(project: T) {
   const {

@@ -32,12 +32,15 @@ import type { ProjectTask, User } from '../../types';
 import { ProjectTaskModal } from './ProjectTaskModal';
 import { usersApi } from '../../services/api';
 import { sortProjectTasksByOrder } from '../../utils/projectTasks';
+import { useUserRole } from '../../contexts/UserContext';
 
 interface ProjectTaskListProps {
   tasks: ProjectTask[];
   projectId: string;
   projectTitle: string;
   canEdit?: boolean;
+  canDelete?: boolean;
+  memberMode?: boolean;
   /** Admin-only: drag to set priority (persisted via reorder API). */
   canReorder?: boolean;
   onReorderTasks?: (projectId: string, taskIds: string[]) => void | Promise<void>;
@@ -69,14 +72,18 @@ const statusLabels: Record<string, string> = {
 
 function SortableTaskRow({
   task,
-  canEdit,
+  canToggleStatus,
+  canEditTask,
+  canDeleteTask,
   canReorder,
   onCycleStatus,
   onEdit,
   onDelete,
 }: {
   task: ProjectTask;
-  canEdit: boolean;
+  canToggleStatus: boolean;
+  canEditTask: boolean;
+  canDeleteTask: boolean;
   canReorder: boolean;
   onCycleStatus: (task: ProjectTask) => void;
   onEdit: (task: ProjectTask) => void;
@@ -116,7 +123,7 @@ function SortableTaskRow({
         </button>
       )}
 
-      {canEdit ? (
+      {canToggleStatus ? (
         <button
           type="button"
           onClick={() => onCycleStatus(task)}
@@ -149,28 +156,32 @@ function SortableTaskRow({
         )}
       </div>
 
-      {canEdit && (
+      {(canEditTask || canDeleteTask) && (
         <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
-          <button
-            type="button"
-            onClick={() => onEdit(task)}
-            className="p-1 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded transition-colors"
-            title="Edit task"
-          >
-            <Pencil className="w-3.5 h-3.5" />
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              if (window.confirm(`Delete task "${task.title}"?`)) {
-                onDelete(task);
-              }
-            }}
-            className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
-            title="Delete task"
-          >
-            <Trash2 className="w-3.5 h-3.5" />
-          </button>
+          {canEditTask && (
+            <button
+              type="button"
+              onClick={() => onEdit(task)}
+              className="p-1 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded transition-colors"
+              title="Edit task"
+            >
+              <Pencil className="w-3.5 h-3.5" />
+            </button>
+          )}
+          {canDeleteTask && (
+            <button
+              type="button"
+              onClick={() => {
+                if (window.confirm(`Delete task "${task.title}"?`)) {
+                  onDelete(task);
+                }
+              }}
+              className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+              title="Delete task"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+            </button>
+          )}
         </div>
       )}
     </div>
@@ -179,13 +190,17 @@ function SortableTaskRow({
 
 function StaticTaskRow({
   task,
-  canEdit,
+  canToggleStatus,
+  canEditTask,
+  canDeleteTask,
   onCycleStatus,
   onEdit,
   onDelete,
 }: {
   task: ProjectTask;
-  canEdit: boolean;
+  canToggleStatus: boolean;
+  canEditTask: boolean;
+  canDeleteTask: boolean;
   onCycleStatus: (task: ProjectTask) => void;
   onEdit: (task: ProjectTask) => void;
   onDelete: (task: ProjectTask) => void;
@@ -196,7 +211,7 @@ function StaticTaskRow({
         task.status === 'COMPLETED' ? 'opacity-60' : ''
       }`}
     >
-      {canEdit ? (
+      {canToggleStatus ? (
         <button
           type="button"
           onClick={() => onCycleStatus(task)}
@@ -229,28 +244,32 @@ function StaticTaskRow({
         )}
       </div>
 
-      {canEdit && (
+      {(canEditTask || canDeleteTask) && (
         <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
-          <button
-            type="button"
-            onClick={() => onEdit(task)}
-            className="p-1 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded transition-colors"
-            title="Edit task"
-          >
-            <Pencil className="w-3.5 h-3.5" />
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              if (window.confirm(`Delete task "${task.title}"?`)) {
-                onDelete(task);
-              }
-            }}
-            className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
-            title="Delete task"
-          >
-            <Trash2 className="w-3.5 h-3.5" />
-          </button>
+          {canEditTask && (
+            <button
+              type="button"
+              onClick={() => onEdit(task)}
+              className="p-1 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded transition-colors"
+              title="Edit task"
+            >
+              <Pencil className="w-3.5 h-3.5" />
+            </button>
+          )}
+          {canDeleteTask && (
+            <button
+              type="button"
+              onClick={() => {
+                if (window.confirm(`Delete task "${task.title}"?`)) {
+                  onDelete(task);
+                }
+              }}
+              className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+              title="Delete task"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+            </button>
+          )}
         </div>
       )}
     </div>
@@ -262,6 +281,8 @@ export function ProjectTaskList({
   projectId,
   projectTitle: _projectTitle,
   canEdit = true,
+  canDelete,
+  memberMode = false,
   canReorder = false,
   onReorderTasks,
   onCreateTask,
@@ -269,20 +290,34 @@ export function ProjectTaskList({
   onToggleStatus,
   onDeleteTask,
 }: ProjectTaskListProps) {
+  const { user } = useUserRole();
+  const memberAuth0Id = user?.auth0Id;
+  const deleteTasks = canDelete ?? canEdit;
   const [modalOpen, setModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<ProjectTask | null>(null);
   const [expanded, setExpanded] = useState(true);
   const [teamMembers, setTeamMembers] = useState<User[]>([]);
 
   useEffect(() => {
-    if (!canEdit) return;
+    if (!canEdit || memberMode) return;
     usersApi
       .getAll()
       .then((res) =>
         setTeamMembers((res.data || []).filter((u) => u.role === 'member' && u.status === 'active'))
       )
       .catch(() => setTeamMembers([]));
-  }, [canEdit]);
+  }, [canEdit, memberMode]);
+
+  const canMemberEditTask = (task: ProjectTask) => {
+    if (!memberAuth0Id) return false;
+    return !task.assigneeAuth0Id || task.assigneeAuth0Id === memberAuth0Id;
+  };
+
+  const taskCanEdit = (task: ProjectTask) =>
+    memberMode ? canMemberEditTask(task) : canEdit;
+
+  const taskCanDelete = (_task: ProjectTask) =>
+    deleteTasks && !memberMode;
 
   const sortedFromProps = useMemo(() => sortProjectTasksByOrder(tasks), [tasks]);
   const [items, setItems] = useState<ProjectTask[]>(sortedFromProps);
@@ -362,7 +397,9 @@ export function ProjectTaskList({
             <SortableTaskRow
               key={task._id}
               task={task}
-              canEdit={canEdit}
+              canToggleStatus={canEdit}
+              canEditTask={taskCanEdit(task)}
+              canDeleteTask={taskCanDelete(task)}
               canReorder
               onCycleStatus={cycleStatus}
               onEdit={handleEdit}
@@ -378,7 +415,9 @@ export function ProjectTaskList({
         <StaticTaskRow
           key={task._id}
           task={task}
-          canEdit={canEdit}
+          canToggleStatus={canEdit}
+          canEditTask={taskCanEdit(task)}
+          canDeleteTask={taskCanDelete(task)}
           onCycleStatus={cycleStatus}
           onEdit={handleEdit}
           onDelete={(t) => onDeleteTask(t._id)}
@@ -455,6 +494,7 @@ export function ProjectTaskList({
         task={editingTask}
         projectId={projectId}
         members={teamMembers}
+        memberMode={memberMode}
         isOpen={modalOpen}
         onClose={() => {
           setModalOpen(false);

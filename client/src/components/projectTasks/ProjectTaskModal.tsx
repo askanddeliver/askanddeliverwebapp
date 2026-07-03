@@ -6,6 +6,7 @@ interface ProjectTaskModalProps {
   task?: ProjectTask | null;
   projectId: string;
   members: User[];
+  memberMode?: boolean;
   isOpen: boolean;
   onClose: () => void;
   onSave: (data: {
@@ -23,6 +24,7 @@ export function ProjectTaskModal({
   task,
   projectId,
   members,
+  memberMode = false,
   isOpen,
   onClose,
   onSave,
@@ -62,8 +64,12 @@ export function ProjectTaskModal({
       description: description.trim() || undefined,
       status,
       estimatedHours: estimatedHours ? parseFloat(estimatedHours) : undefined,
-      clientVisible,
-      assigneeAuth0Id: assigneeAuth0Id || undefined,
+      ...(memberMode
+        ? {}
+        : {
+            clientVisible,
+            assigneeAuth0Id: assigneeAuth0Id || undefined,
+          }),
     });
   };
 
@@ -112,7 +118,7 @@ export function ProjectTaskModal({
             />
           </div>
 
-          {members.length > 0 && (
+          {members.length > 0 && !memberMode && (
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Assignee
@@ -166,6 +172,7 @@ export function ProjectTaskModal({
             </div>
           </div>
 
+          {!memberMode && (
           <label className="flex cursor-pointer items-center gap-2 text-sm text-gray-700">
             <input
               type="checkbox"
@@ -175,6 +182,7 @@ export function ProjectTaskModal({
             />
             Visible to client portal
           </label>
+          )}
 
           <div className="flex justify-end gap-3 pt-2">
             <button type="button" onClick={onClose} className="btn-outline">

@@ -10,6 +10,8 @@ interface ProjectListProps {
   budgetBurnPeriodLabel?: string;
   showBudget?: boolean;
   canEdit?: boolean;
+  canManageTasks?: boolean;
+  canDeleteTasks?: boolean;
   onEdit: (project: Project) => void;
   onDelete: (id: string) => void;
   onArchive: (id: string) => void;
@@ -34,6 +36,8 @@ export function ProjectList({
   budgetBurnPeriodLabel,
   showBudget = true,
   canEdit = true,
+  canManageTasks,
+  canDeleteTasks,
   onEdit,
   onDelete,
   onArchive,
@@ -76,6 +80,8 @@ export function ProjectList({
           onDeleteTask={onDeleteTask}
           showBudget={showBudget}
           canEdit={canEdit}
+          canManageTasks={canManageTasks}
+          canDeleteTasks={canDeleteTasks}
           canReorder={canReorder}
           onReorderTasks={onReorderTasks}
         />

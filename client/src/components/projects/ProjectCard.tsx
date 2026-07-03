@@ -15,6 +15,10 @@ interface ProjectCardProps {
   onArchive: (id: string) => void;
   showBudget?: boolean;
   canEdit?: boolean;
+  /** Task create/edit on project cards (members: true without canEdit) */
+  canManageTasks?: boolean;
+  /** Allow deleting tasks (admin only) */
+  canDeleteTasks?: boolean;
   onCreateTask: (data: {
     projectId: string;
     title: string;
@@ -76,7 +80,11 @@ export function ProjectCard({
   onReorderTasks,
   showBudget = true,
   canEdit = true,
+  canManageTasks,
+  canDeleteTasks,
 }: ProjectCardProps) {
+  const manageTasks = canManageTasks ?? canEdit;
+  const deleteTasks = canDeleteTasks ?? canEdit;
   const client =
     typeof project.clientId === 'object'
       ? (project.clientId as Client)
@@ -206,9 +214,11 @@ export function ProjectCard({
           onUpdateTask={onUpdateTask}
           onToggleStatus={onToggleTaskStatus}
           onDeleteTask={onDeleteTask}
-          canEdit={canEdit}
+          canEdit={manageTasks}
+          canDelete={deleteTasks}
           canReorder={canReorder}
           onReorderTasks={onReorderTasks}
+          memberMode={manageTasks && !canEdit}
         />
       </div>
 

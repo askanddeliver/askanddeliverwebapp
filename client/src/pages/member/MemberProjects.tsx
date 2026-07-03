@@ -47,6 +47,55 @@ function MemberProjects() {
     return map;
   }, [projectTasks]);
 
+  const handleCreateTask = async (data: {
+    projectId: string;
+    title: string;
+    description?: string;
+    status: 'TODO' | 'IN_PROGRESS' | 'COMPLETED';
+    estimatedHours?: number;
+  }) => {
+    try {
+      const res = await projectTasksApi.create(data);
+      const pid = data.projectId;
+      setProjectTasks((prev) => {
+        const bumped = prev.map((t) => {
+          const tPid =
+            typeof t.projectId === 'object' ? t.projectId._id : t.projectId;
+          return tPid === pid ? { ...t, order: (t.order ?? 0) + 1 } : t;
+        });
+        return sortProjectTasksByOrder([res.data, ...bumped]);
+      });
+      setError(null);
+    } catch (err) {
+      console.error('Failed to create task:', err);
+      setError('Failed to create task');
+    }
+  };
+
+  const handleUpdateTask = async (id: string, data: Partial<ProjectTask>) => {
+    try {
+      const res = await projectTasksApi.update(id, data);
+      setProjectTasks((prev) =>
+        prev.map((t) => (t._id === id ? res.data : t))
+      );
+      setError(null);
+    } catch (err) {
+      console.error('Failed to update task:', err);
+      setError('Failed to update task');
+    }
+  };
+
+  const handleToggleTaskStatus = async (id: string, status: string) => {
+    try {
+      const res = await projectTasksApi.updateStatus(id, status);
+      setProjectTasks((prev) =>
+        prev.map((t) => (t._id === id ? res.data : t))
+      );
+    } catch (err) {
+      console.error('Failed to toggle task status:', err);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex h-64 items-center justify-center">
@@ -73,12 +122,14 @@ function MemberProjects() {
         tasksByProject={tasksByProject}
         showBudget={false}
         canEdit={false}
+        canManageTasks
+        canDeleteTasks={false}
         onEdit={() => {}}
         onDelete={() => {}}
         onArchive={() => {}}
-        onCreateTask={() => {}}
-        onUpdateTask={() => {}}
-        onToggleTaskStatus={() => {}}
+        onCreateTask={handleCreateTask}
+        onUpdateTask={handleUpdateTask}
+        onToggleTaskStatus={handleToggleTaskStatus}
         onDeleteTask={() => {}}
       />
     </div>

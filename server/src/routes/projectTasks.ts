@@ -2,15 +2,17 @@ import { Router, Response } from 'express';
 import { checkJwt, AuthRequest, extractUserId, getWorkspaceOwnerId, requireAdmin } from '../middleware/auth';
 import { asyncHandler, createError } from '../middleware/errorHandler';
 import mongoose from 'mongoose';
-import { ProjectTask, Client, Project } from '../models';
-import {
-  validateOptionalWorkspaceMemberAuth0Id,
-} from '../lib/memberValidation';
+import { ProjectTask, Client, Project, User } from '../models';
+import { validateOptionalWorkspaceMemberAuth0Id } from '../lib/memberValidation';
+import { memberHasProjectAccess, getMemberProjectFilter } from '../lib/memberProjects';
 
 const router = Router();
 
-// All routes require authentication
 router.use(checkJwt);
+
+async function loadActiveUser(auth0Id: string) {
+  return User.findOne({ auth0Id, status: 'active' }).lean();
+}
 
 // GET /api/project-tasks?projectId=xxx - Get tasks for a project (admin + member)
 router.get(
@@ -18,6 +20,9 @@ router.get(
   asyncHandler(async (req: AuthRequest, res: Response) => {
     const workspaceOwnerId = await getWorkspaceOwnerId(req);
     if (!workspaceOwnerId) throw createError('Workspace access required', 403);
+
+    const auth0Id = extractUserId(req);
+    const user = auth0Id ? await loadActiveUser(auth0Id) : null;
 
     const { projectId, scope } = req.query;
     const scopeVal =
@@ -48,6 +53,13 @@ router.get(
     const query: any = { userId: workspaceOwnerId };
     if (projectId) {
       const pid = projectId as string;
+      if (user?.role === 'member' && auth0Id) {
+        const allowed = await memberHasProjectAccess(workspaceOwnerId, auth0Id, pid);
+        if (!allowed) {
+          res.json([]);
+          return;
+        }
+      }
       if (scopedProjectIds !== undefined) {
         const allowed = scopedProjectIds.some((id) => id.toString() === pid);
         if (!allowed) {
@@ -62,6 +74,10 @@ router.get(
         return;
       }
       query.projectId = { $in: scopedProjectIds };
+    } else if (user?.role === 'member' && auth0Id) {
+      const memberFilter = await getMemberProjectFilter(workspaceOwnerId, auth0Id);
+      const memberProjectIds = await Project.find(memberFilter).distinct('_id');
+      query.projectId = { $in: memberProjectIds };
     }
 
     const tasks = await ProjectTask.find(query)
@@ -91,18 +107,40 @@ router.get(
       throw createError('Project task not found', 404);
     }
 
+    const auth0Id = extractUserId(req);
+    const user = auth0Id ? await loadActiveUser(auth0Id) : null;
+    if (user?.role === 'member' && auth0Id) {
+      const pid =
+        typeof task.projectId === 'object' && task.projectId && '_id' in task.projectId
+          ? String(task.projectId._id)
+          : String(task.projectId);
+      const allowed = await memberHasProjectAccess(workspaceOwnerId, auth0Id, pid);
+      if (!allowed) throw createError('Project task not found', 404);
+    }
+
     res.json(task);
   })
 );
 
-// POST /api/project-tasks - Create a project task (admin only)
+// POST /api/project-tasks - Create task (admin, or member on assigned project)
 router.post(
   '/',
-  requireAdmin,
   asyncHandler(async (req: AuthRequest, res: Response) => {
-    // Match GET /project-tasks: tasks are keyed by workspace owner, not raw JWT sub
     const workspaceOwnerId = await getWorkspaceOwnerId(req);
     if (!workspaceOwnerId) throw createError('Workspace access required', 403);
+
+    const auth0Id = extractUserId(req);
+    if (!auth0Id) throw createError('User ID not found in token', 401);
+
+    const user = await loadActiveUser(auth0Id);
+    if (!user) throw createError('User not found', 404);
+
+    const isAdmin = user.role === 'admin';
+    const isMember = user.role === 'member';
+
+    if (!isAdmin && !isMember) {
+      throw createError('Admin or member access required', 403);
+    }
 
     const { projectId, title, description, status, estimatedHours, clientVisible, assigneeAuth0Id } =
       req.body;
@@ -114,16 +152,30 @@ router.post(
       throw createError('Task title is required', 400);
     }
 
-    // Place new task at the top: shift existing orders so reorder (0,1,2,…) stays consistent
+    if (isMember) {
+      const allowed = await memberHasProjectAccess(workspaceOwnerId, auth0Id, projectId);
+      if (!allowed) {
+        throw createError('You are not assigned to this project', 403);
+      }
+    }
+
     await ProjectTask.updateMany(
       { userId: workspaceOwnerId, projectId },
       { $inc: { order: 1 } }
     );
 
-    const validatedAssignee = await validateOptionalWorkspaceMemberAuth0Id(
-      workspaceOwnerId,
-      assigneeAuth0Id
-    );
+    let validatedAssignee: string | undefined;
+    let taskClientVisible = false;
+
+    if (isAdmin) {
+      validatedAssignee = await validateOptionalWorkspaceMemberAuth0Id(
+        workspaceOwnerId,
+        assigneeAuth0Id
+      );
+      taskClientVisible = Boolean(clientVisible);
+    } else {
+      validatedAssignee = auth0Id;
+    }
 
     const task = await ProjectTask.create({
       userId: workspaceOwnerId,
@@ -133,7 +185,7 @@ router.post(
       status: status || 'TODO',
       order: 0,
       estimatedHours,
-      clientVisible: Boolean(clientVisible),
+      clientVisible: taskClientVisible,
       assigneeAuth0Id: validatedAssignee,
     });
 
@@ -143,13 +195,12 @@ router.post(
 );
 
 // PUT /api/project-tasks/reorder - Reorder tasks (admin only)
-// NOTE: Must be defined BEFORE /:id to avoid "reorder" being treated as an ID
 router.put(
   '/reorder',
   requireAdmin,
   asyncHandler(async (req: AuthRequest, res: Response) => {
-    const userId = extractUserId(req);
-    if (!userId) throw createError('User ID not found in token', 401);
+    const workspaceOwnerId = await getWorkspaceOwnerId(req);
+    if (!workspaceOwnerId) throw createError('Workspace access required', 403);
 
     const { projectId, taskIds } = req.body;
 
@@ -157,10 +208,9 @@ router.put(
       throw createError('projectId and taskIds array are required', 400);
     }
 
-    // Update order for each task
     const updates = taskIds.map((taskId: string, index: number) =>
       ProjectTask.findOneAndUpdate(
-        { _id: taskId, userId, projectId },
+        { _id: taskId, userId: workspaceOwnerId, projectId },
         { order: index },
         { new: true }
       )
@@ -168,8 +218,7 @@ router.put(
 
     await Promise.all(updates);
 
-    // Return updated list
-    const tasks = await ProjectTask.find({ userId, projectId })
+    const tasks = await ProjectTask.find({ userId: workspaceOwnerId, projectId })
       .sort({ order: 1 })
       .lean();
 
@@ -177,13 +226,48 @@ router.put(
   })
 );
 
-// PUT /api/project-tasks/:id - Update a project task (admin only)
+// PUT /api/project-tasks/:id - Update task (admin, or member on own assigned task)
 router.put(
   '/:id',
-  requireAdmin,
   asyncHandler(async (req: AuthRequest, res: Response) => {
     const workspaceOwnerId = await getWorkspaceOwnerId(req);
     if (!workspaceOwnerId) throw createError('Workspace access required', 403);
+
+    const auth0Id = extractUserId(req);
+    if (!auth0Id) throw createError('User ID not found in token', 401);
+
+    const user = await loadActiveUser(auth0Id);
+    if (!user) throw createError('User not found', 404);
+
+    const isAdmin = user.role === 'admin';
+    const isMember = user.role === 'member';
+
+    if (!isAdmin && !isMember) {
+      throw createError('Admin or member access required', 403);
+    }
+
+    const existing = await ProjectTask.findOne({
+      _id: req.params.id,
+      userId: workspaceOwnerId,
+    });
+
+    if (!existing) {
+      throw createError('Project task not found', 404);
+    }
+
+    if (isMember) {
+      const allowed = await memberHasProjectAccess(
+        workspaceOwnerId,
+        auth0Id,
+        existing.projectId.toString()
+      );
+      if (!allowed) {
+        throw createError('Project task not found', 404);
+      }
+      if (existing.assigneeAuth0Id && existing.assigneeAuth0Id !== auth0Id) {
+        throw createError('You can only edit tasks assigned to you', 403);
+      }
+    }
 
     const { title, description, status, order, estimatedHours, clientVisible, assigneeAuth0Id } =
       req.body;
@@ -192,14 +276,17 @@ router.put(
     if (title !== undefined) update.title = title.trim();
     if (description !== undefined) update.description = description?.trim();
     if (status !== undefined) update.status = status;
-    if (order !== undefined) update.order = order;
     if (estimatedHours !== undefined) update.estimatedHours = estimatedHours;
-    if (clientVisible !== undefined) update.clientVisible = Boolean(clientVisible);
-    if (assigneeAuth0Id !== undefined) {
-      update.assigneeAuth0Id = await validateOptionalWorkspaceMemberAuth0Id(
-        workspaceOwnerId,
-        assigneeAuth0Id
-      );
+
+    if (isAdmin) {
+      if (order !== undefined) update.order = order;
+      if (clientVisible !== undefined) update.clientVisible = Boolean(clientVisible);
+      if (assigneeAuth0Id !== undefined) {
+        update.assigneeAuth0Id = await validateOptionalWorkspaceMemberAuth0Id(
+          workspaceOwnerId,
+          assigneeAuth0Id
+        );
+      }
     }
 
     const task = await ProjectTask.findOneAndUpdate(
@@ -216,13 +303,25 @@ router.put(
   })
 );
 
-// PATCH /api/project-tasks/:id/status - Toggle task status (admin only)
+// PATCH /api/project-tasks/:id/status - Toggle task status
 router.patch(
   '/:id/status',
-  requireAdmin,
   asyncHandler(async (req: AuthRequest, res: Response) => {
-    const userId = extractUserId(req);
-    if (!userId) throw createError('User ID not found in token', 401);
+    const workspaceOwnerId = await getWorkspaceOwnerId(req);
+    if (!workspaceOwnerId) throw createError('Workspace access required', 403);
+
+    const auth0Id = extractUserId(req);
+    if (!auth0Id) throw createError('User ID not found in token', 401);
+
+    const user = await loadActiveUser(auth0Id);
+    if (!user) throw createError('User not found', 404);
+
+    const isAdmin = user.role === 'admin';
+    const isMember = user.role === 'member';
+
+    if (!isAdmin && !isMember) {
+      throw createError('Admin or member access required', 403);
+    }
 
     const { status } = req.body;
 
@@ -230,8 +329,28 @@ router.patch(
       throw createError('Valid status is required (TODO, IN_PROGRESS, COMPLETED)', 400);
     }
 
+    const existing = await ProjectTask.findOne({
+      _id: req.params.id,
+      userId: workspaceOwnerId,
+    });
+
+    if (!existing) {
+      throw createError('Project task not found', 404);
+    }
+
+    if (isMember) {
+      const allowed = await memberHasProjectAccess(
+        workspaceOwnerId,
+        auth0Id,
+        existing.projectId.toString()
+      );
+      if (!allowed) {
+        throw createError('Project task not found', 404);
+      }
+    }
+
     const task = await ProjectTask.findOneAndUpdate(
-      { _id: req.params.id, userId },
+      { _id: req.params.id, userId: workspaceOwnerId },
       { status },
       { new: true, runValidators: true }
     ).populate('projectId');
@@ -249,12 +368,12 @@ router.delete(
   '/:id',
   requireAdmin,
   asyncHandler(async (req: AuthRequest, res: Response) => {
-    const userId = extractUserId(req);
-    if (!userId) throw createError('User ID not found in token', 401);
+    const workspaceOwnerId = await getWorkspaceOwnerId(req);
+    if (!workspaceOwnerId) throw createError('Workspace access required', 403);
 
     const task = await ProjectTask.findOneAndDelete({
       _id: req.params.id,
-      userId,
+      userId: workspaceOwnerId,
     });
 
     if (!task) {
