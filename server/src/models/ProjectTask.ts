@@ -10,6 +10,8 @@ export interface IProjectTask extends Document {
   estimatedHours?: number;
   /** When true, task appears in client portal */
   clientVisible?: boolean;
+  /** Assigned member (Auth0 sub) */
+  assigneeAuth0Id?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -52,6 +54,10 @@ const ProjectTaskSchema = new Schema<IProjectTask>(
       type: Boolean,
       default: false,
       index: true,
+    },
+    assigneeAuth0Id: {
+      type: String,
+      trim: true,
     },
   },
   {

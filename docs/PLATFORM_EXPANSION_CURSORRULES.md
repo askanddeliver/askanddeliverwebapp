@@ -1,7 +1,6 @@
 # Platform Expansion — Cursor Rules Additions
 
-**Status:** Planning (June 2026)  
-**Parent:** [PLATFORM_EXPANSION_BUILD_PLAN.md](./PLATFORM_EXPANSION_BUILD_PLAN.md)
+**Status:** Merged into `askanddeliverwebapp/.cursorrules` (July 2026, Phase 11). Keep this file as historical reference; **use `.cursorrules` for active IDE guidance.**
 
 Merge these sections into `askanddeliverwebapp/.cursorrules` **when implementation begins** (Phase 1+). Until then, reference this file in planning sessions.
 

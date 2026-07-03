@@ -206,7 +206,7 @@ Use these prompts **sequentially** — one phase per Cursor session or PR unless
 
 **Prompt:**
 
-> Implement Phase 10:
+> Implement Phase 9 — member assignment & capacity:
 >
 > 1. Add `Project.assignedMemberIds`, `ProjectTask.assigneeAuth0Id`.
 > 2. Admin UI: assign members on project modal; assignee on task modal.
@@ -268,3 +268,4 @@ Do not commit unless asked.
 | Date | Change |
 |------|--------|
 | 2026-07-03 | Locked decisions reflected: `/member`, client invite UI, discipline taxonomy, intake v1 |
+| 2026-07-03 | Phase 11: documentation sync — `.cursorrules` merge, ARCHITECTURE/README/SETUP updates |

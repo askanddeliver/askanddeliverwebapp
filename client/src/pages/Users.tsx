@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { UserPlus, Pencil, Trash2, Copy, Check } from 'lucide-react';
-import { usersApi, taskTypesApi } from '../services/api';
-import type { User, TaskType } from '../types';
+import { usersApi, taskTypesApi, siteConfigApi } from '../services/api';
+import type { User, TaskType, DisciplineDefinition } from '../types';
 import { useUserRole } from '../contexts/UserContext';
 import { UserEditModal } from '../components/users/UserEditModal';
 import { AddByEmailModal } from '../components/users/AddByEmailModal';
@@ -19,10 +19,39 @@ const STATUS_LABELS: Record<string, string> = {
   disabled: 'Disabled',
 };
 
+const DAY_LABELS: Record<string, string> = {
+  mon: 'Mon',
+  tue: 'Tue',
+  wed: 'Wed',
+  thu: 'Thu',
+  fri: 'Fri',
+  sat: 'Sat',
+  sun: 'Sun',
+};
+
+function formatDisciplines(ids: string[] | undefined, catalog: DisciplineDefinition[]) {
+  if (!ids?.length) return '—';
+  const byId = new Map(catalog.map((d) => [d.id, d.name]));
+  return ids.map((id) => byId.get(id) || id).join(', ');
+}
+
+function formatAvailability(user: User) {
+  const avail = user.availability;
+  if (!avail) return '—';
+  const parts: string[] = [];
+  if (avail.hoursPerWeek != null) parts.push(`${avail.hoursPerWeek} hrs/wk`);
+  if (avail.preferredDays?.length) {
+    parts.push(avail.preferredDays.map((d) => DAY_LABELS[d] || d).join(', '));
+  }
+  if (avail.outOfOffice) parts.push('OOO');
+  return parts.length > 0 ? parts.join(' · ') : '—';
+}
+
 function Users() {
   const { user: currentUser } = useUserRole();
   const [users, setUsers] = useState<User[]>([]);
   const [taskTypes, setTaskTypes] = useState<TaskType[]>([]);
+  const [disciplines, setDisciplines] = useState<DisciplineDefinition[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [editModalOpen, setEditModalOpen] = useState(false);
@@ -39,12 +68,14 @@ function Users() {
   const loadData = async () => {
     try {
       setLoading(true);
-      const [usersRes, taskTypesRes] = await Promise.all([
+      const [usersRes, taskTypesRes, configRes] = await Promise.all([
         usersApi.getAll(),
         taskTypesApi.getAll(),
+        siteConfigApi.get().catch(() => ({ data: { disciplines: [] } })),
       ]);
       setUsers(usersRes.data || []);
       setTaskTypes(taskTypesRes.data || []);
+      setDisciplines(configRes.data.disciplines ?? []);
       setError(null);
     } catch (err) {
       console.error('Failed to load users:', err);
@@ -174,70 +205,96 @@ function Users() {
             </p>
           </div>
         ) : (
-          <div className="divide-y divide-gray-100">
-            {users.map((user) => (
-              <div
-                key={user._id}
-                className="flex items-center gap-4 py-4 px-4 hover:bg-gray-50 rounded-lg transition-colors"
-              >
-                {user.picture && (
-                  <img
-                    src={user.picture}
-                    alt={user.name}
-                    className="w-10 h-10 rounded-full shrink-0"
-                    referrerPolicy="no-referrer"
-                  />
-                )}
-                <div className="flex-1 min-w-0">
-                  <div className="font-bold text-gray-900">{user.name}</div>
-                  <div className="text-sm text-gray-500">{user.email}</div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <span
-                    className={`text-xs font-medium px-2.5 py-1 rounded-full ${
-                      user.role === 'admin'
-                        ? 'bg-primary-100 text-primary-800'
-                        : user.role === 'member'
-                          ? 'bg-blue-100 text-blue-800'
-                          : user.role === 'client'
-                            ? 'bg-teal-100 text-teal-800'
-                            : 'bg-amber-100 text-amber-800'
-                    }`}
-                  >
-                    {ROLE_LABELS[user.role] || user.role}
-                  </span>
-                  <span
-                    className={`text-xs font-medium px-2.5 py-1 rounded-full ${
-                      user.status === 'active'
-                        ? 'bg-green-100 text-green-800'
-                        : user.status === 'disabled'
-                          ? 'bg-gray-100 text-gray-600'
-                          : 'bg-amber-100 text-amber-800'
-                    }`}
-                  >
-                    {STATUS_LABELS[user.status] || user.status}
-                  </span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <button
-                    onClick={() => handleEdit(user)}
-                    className="p-2 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
-                    title="Edit user"
-                  >
-                    <Pencil className="w-4 h-4" />
-                  </button>
-                  {currentUser?._id !== user._id && (
-                    <button
-                      onClick={() => handleRemove(user)}
-                      className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                      title="Remove from team"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  )}
-                </div>
-              </div>
-            ))}
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[720px] text-left text-sm">
+              <thead>
+                <tr className="border-b border-gray-100 text-xs font-medium uppercase tracking-wide text-gray-500">
+                  <th className="px-4 py-3">Member</th>
+                  <th className="px-4 py-3">Role</th>
+                  <th className="px-4 py-3">Disciplines</th>
+                  <th className="px-4 py-3">Availability</th>
+                  <th className="px-4 py-3 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {users.map((user) => (
+                  <tr key={user._id} className="hover:bg-gray-50">
+                    <td className="px-4 py-4">
+                      <div className="flex items-center gap-3">
+                        {user.picture && (
+                          <img
+                            src={user.picture}
+                            alt={user.name}
+                            className="h-10 w-10 shrink-0 rounded-full"
+                            referrerPolicy="no-referrer"
+                          />
+                        )}
+                        <div className="min-w-0">
+                          <div className="font-bold text-gray-900">{user.name}</div>
+                          <div className="text-sm text-gray-500">{user.email}</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-4 py-4">
+                      <div className="flex flex-wrap gap-2">
+                        <span
+                          className={`rounded-full px-2.5 py-1 text-xs font-medium ${
+                            user.role === 'admin'
+                              ? 'bg-primary-100 text-primary-800'
+                              : user.role === 'member'
+                                ? 'bg-blue-100 text-blue-800'
+                                : user.role === 'client'
+                                  ? 'bg-teal-100 text-teal-800'
+                                  : 'bg-amber-100 text-amber-800'
+                          }`}
+                        >
+                          {ROLE_LABELS[user.role] || user.role}
+                        </span>
+                        <span
+                          className={`rounded-full px-2.5 py-1 text-xs font-medium ${
+                            user.status === 'active'
+                              ? 'bg-green-100 text-green-800'
+                              : user.status === 'disabled'
+                                ? 'bg-gray-100 text-gray-600'
+                                : 'bg-amber-100 text-amber-800'
+                          }`}
+                        >
+                          {STATUS_LABELS[user.status] || user.status}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="max-w-[200px] px-4 py-4 text-gray-600">
+                      {user.role === 'member'
+                        ? formatDisciplines(user.disciplines, disciplines)
+                        : '—'}
+                    </td>
+                    <td className="max-w-[180px] px-4 py-4 text-gray-600">
+                      {user.role === 'member' ? formatAvailability(user) : '—'}
+                    </td>
+                    <td className="px-4 py-4">
+                      <div className="flex items-center justify-end gap-1">
+                        <button
+                          onClick={() => handleEdit(user)}
+                          className="rounded-lg p-2 text-gray-400 transition-colors hover:bg-primary-50 hover:text-primary-600"
+                          title="Edit user"
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </button>
+                        {currentUser?._id !== user._id && (
+                          <button
+                            onClick={() => handleRemove(user)}
+                            className="rounded-lg p-2 text-gray-400 transition-colors hover:bg-red-50 hover:text-red-600"
+                            title="Remove from team"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
       </div>

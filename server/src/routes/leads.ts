@@ -15,6 +15,7 @@ import { resolvePublicWorkspace } from '../lib/workspaceResolver';
 import { uploadBufferToCloudinary } from '../lib/cloudinaryUpload';
 import { Lead, Client, Project } from '../models';
 import type { CreateLeadDto, ConvertLeadDto } from '../types';
+import { validateOptionalWorkspaceMemberAuth0Id } from '../lib/memberValidation';
 
 const router = Router();
 
@@ -363,6 +364,7 @@ router.put(
       email,
       company,
       message,
+      suggestedMemberAuth0Id,
     } = req.body;
 
     const update: Record<string, unknown> = {};
@@ -377,6 +379,22 @@ router.put(
     if (company !== undefined) update.company = company?.trim();
     if (message !== undefined) update.message = message?.trim();
 
+    const existingLead = await Lead.findOne({
+      _id: req.params.id,
+      userId: workspaceOwnerId,
+    });
+    if (!existingLead) {
+      throw createError('Lead not found', 404);
+    }
+
+    if (suggestedMemberAuth0Id !== undefined) {
+      const validated = await validateOptionalWorkspaceMemberAuth0Id(
+        workspaceOwnerId,
+        suggestedMemberAuth0Id
+      );
+      update.suggestedMemberAuth0Id = validated;
+    }
+
     const lead = await Lead.findOneAndUpdate(
       { _id: req.params.id, userId: workspaceOwnerId },
       update,
@@ -388,6 +406,16 @@ router.put(
 
     if (!lead) {
       throw createError('Lead not found', 404);
+    }
+
+    if (suggestedMemberAuth0Id !== undefined && lead.convertedProjectId) {
+      const assignee = lead.suggestedMemberAuth0Id;
+      if (assignee) {
+        await Project.findOneAndUpdate(
+          { _id: lead.convertedProjectId, userId: workspaceOwnerId },
+          { $addToSet: { assignedMemberIds: assignee } }
+        );
+      }
     }
 
     res.json(lead);
@@ -477,6 +505,9 @@ router.post(
       description: projectDescription?.trim() || '',
       status: 'ACTIVE',
       budget: projectBudget || undefined,
+      assignedMemberIds: lead.suggestedMemberAuth0Id
+        ? [lead.suggestedMemberAuth0Id]
+        : [],
     });
 
     lead.status = 'WON';

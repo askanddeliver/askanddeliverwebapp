@@ -29,6 +29,8 @@ export interface IProject extends Document {
   retainerHoursAdjustment?: number;
   /** Optional line label on fixed-price invoices */
   fixedPriceInvoiceLabel?: string;
+  /** Assigned creative team members (Auth0 subs) */
+  assignedMemberIds?: string[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -116,6 +118,10 @@ const ProjectSchema = new Schema<IProject>(
       type: String,
       trim: true,
     },
+    assignedMemberIds: {
+      type: [String],
+      default: [],
+    },
   },
   {
     timestamps: true,
@@ -125,5 +131,6 @@ const ProjectSchema = new Schema<IProject>(
 ProjectSchema.index({ userId: 1, status: 1 });
 ProjectSchema.index({ userId: 1, clientId: 1, status: 1 });
 ProjectSchema.index({ clientId: 1 });
+ProjectSchema.index({ userId: 1, assignedMemberIds: 1 });
 
 export const Project = mongoose.model<IProject>('Project', ProjectSchema);

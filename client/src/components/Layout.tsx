@@ -2,6 +2,7 @@ import { ReactNode, useState, useCallback } from 'react';
 import { Navigate } from 'react-router-dom';
 import TopBar from './TopBar';
 import Sidebar from './Sidebar';
+import { CommandPaletteProvider } from './CommandPalette';
 import { useUserRole } from '../contexts/UserContext';
 import { AdminThemeProvider } from '../contexts/AdminThemeContext';
 
@@ -95,7 +96,9 @@ function LayoutInner({ children }: LayoutProps) {
 function Layout({ children }: LayoutProps) {
   return (
     <AdminThemeProvider>
-      <LayoutInner>{children}</LayoutInner>
+      <CommandPaletteProvider>
+        <LayoutInner>{children}</LayoutInner>
+      </CommandPaletteProvider>
     </AdminThemeProvider>
   );
 }

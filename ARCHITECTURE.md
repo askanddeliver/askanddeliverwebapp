@@ -2,15 +2,16 @@
 
 This document provides a comprehensive technical reference for the Ask And Deliver application. It is intended for future development context, onboarding, and AI-assisted coding sessions.
 
-## Current capabilities snapshot *(April 2026)*
+## Current capabilities snapshot *(July 2026)*
 
-**Baseline:** Production MERN app with Auth0 multi-tenant workspaces (admin / member / pending), MongoDB persistence, and Vercel + Railway split deployment.
+**Baseline:** Production MERN app with Auth0 multi-tenant workspaces (admin / member / client / pending), MongoDB persistence, and Vercel + Railway split deployment.
 
 - **Time & projects** — Live/resume timer, manual entries, project tasks, dashboard to-dos; workspace-scoped data with role-based visibility (members hide financials).
-- **Billing** — Reports-driven preview; persistent `Invoice` records (`documentKind`: **INVOICE** or **RETAINER_REPORT**) with DRAFT → SENT → PAID; **project billing modes** (HOURLY, FIXED_PRICE, HOUR_RETAINER) drive `POST /api/reports/generate-invoice`; optional **Stripe Payment Links** (blocked for retainer reports); optional **HOURLY budget burn** via `GET /api/projects/budget-burn`; CSV export and full JSON backup. See [docs/PROJECT_BILLING_MODES_BUILD_PLAN.md](docs/PROJECT_BILLING_MODES_BUILD_PLAN.md).
-- **Commercial** — Client proposals (`Proposal` model) with phases, investment totals, and DRAFT / FINALIZED status; lead pipeline with public intake → conversion.
-- **Public site** — Portfolio (case studies, media, themes), marketing pages, post-checkout `/invoices/paid` for Stripe returns.
-- **Ops** — Site config (company + theme), Cloudinary uploads, optional Auth0 M2M for add-by-email.
+- **Billing** — Reports-driven preview; persistent `Invoice` records (`documentKind`: **INVOICE** or **RETAINER_REPORT**) with DRAFT → SENT → PAID; **project billing modes** (HOURLY, FIXED_PRICE, HOUR_RETAINER); optional **Stripe Payment Links**; optional **HOURLY budget burn** via `GET /api/projects/budget-burn`; CSV export and full JSON backup.
+- **Commercial** — Client proposals (`Proposal` model); **workspace-scoped lead pipeline** with configurable intake forms, dynamic public renderer, and conversion to client + project.
+- **Platform expansion (Phases 1–9)** — **Member hub** (`/member/*`) with profile, disciplines, availability; **client portal** (`/portal/*`) with project briefs, client-visible tasks, per-project messaging; **admin command center** (pipeline, WIP, capacity widgets); **member assignment** on projects/tasks/leads; team capacity dashboard.
+- **Public site** — Portfolio (case studies, media, themes), marketing pages, dynamic or legacy contact intake, post-checkout `/invoices/paid` for Stripe returns.
+- **Ops** — Site config (company + theme + discipline taxonomy), Cloudinary uploads, optional Auth0 M2M for add-by-email, time blocks (calendar scheduling).
 
 When this doc or the product diverges, bump the **snapshot** date or add a short changelog note under this subsection.
 
@@ -20,8 +21,10 @@ When this doc or the product diverges, bump the **snapshot** date or add a short
 
 Ask And Deliver is a MERN stack application (MongoDB, Express, React, Node.js) with TypeScript throughout. It serves two audiences from a single deployment:
 
-1. **Public visitors** — View portfolio, read about the business, submit project inquiries via a contact form
-2. **Authenticated users** — Track time, manage clients/projects, generate invoices, manage leads, configure the site
+1. **Public visitors** — View portfolio, read about the business, submit project inquiries via configurable intake (or legacy contact form)
+2. **Authenticated admins** — Command center at `/dashboard`: CRM, billing, leads, team, capacity
+3. **Authenticated members** — Creative hub at `/member`: timer, assigned projects, profile, disciplines
+4. **Authenticated clients** — Portal at `/portal`: their projects, briefs, client-visible tasks, messaging
 
 The application supports multi-user workspaces with role-based access control, allowing a team to share projects and time data while maintaining data isolation between workspaces.
 
@@ -112,6 +115,8 @@ Browser                    Auth0                    Express Server
 | `checkJwt` | Validates Auth0 JWT via RS256 + JWKS | All protected routes |
 | `extractUserId(req)` | Returns `req.auth.payload.sub` (Auth0 user ID) | Inside route handlers |
 | `requireAdmin` | Loads user from DB, checks `role === 'admin'`, returns 403 if not | Admin-only routes |
+| `requireMemberOrAdmin` | Creative + admin shared routes (member hub APIs) | `/api/member/*` |
+| `requireClient` | role === `client`, active, clientId present | `/api/portal/*` |
 | `getWorkspaceOwnerId(req)` | Resolves workspace owner: admin→self, member→their admin | Workspace-scoped queries |
 | `optionalAuth` | Non-blocking auth — passes through without token | Exported but unused |
 | `loadUser` | Loads full User document, attaches to `req.user` | Exported but unused |
@@ -128,23 +133,26 @@ On `GET /api/users/me` (first login auto-creates user):
 
 ### Permission Matrix
 
-| Feature | Admin | Member | Pending |
-|---------|-------|--------|---------|
-| Dashboard + Timer | Full (with rates) | Time only (no rates) | Blocked |
-| Time Entries | All workspace entries | Own entries only | Blocked |
-| Projects | Full CRUD | Read only | Blocked |
-| Clients | Full CRUD | No access | Blocked |
-| Task Types | Full CRUD + seed | Read only | Blocked |
-| Reports/Invoice | Full access | No access | Blocked |
-| Invoices | Full CRUD + status + payment links | No access | Blocked |
-| Proposals | Full CRUD + finalize | No access | Blocked |
-| Export (CSV/Backup) | Full access | No access | Blocked |
-| Line Items | Full CRUD | No access | Blocked |
-| Leads | Full access | No access | Blocked |
-| Portfolio | Full CRUD | No access | Blocked |
-| Site Config | Full access | No access | Blocked |
-| Team Management | Full access | No access | Blocked |
-| Profile | Own profile | Own profile | Blocked |
+| Feature | Admin | Member | Client | Pending |
+|---------|-------|--------|--------|---------|
+| Admin dashboard (`/dashboard`) | Full (with rates) | Redirect to `/member` | Redirect to `/portal` | Blocked |
+| Member hub (`/member`) | Yes (dogfood) | Full (no rates) | No access | Blocked |
+| Client portal (`/portal`) | No | No | Own projects only | Blocked |
+| Time Entries | All workspace | Own only | No access | Blocked |
+| Projects | Full CRUD + assign | Assigned + time-entry fallback | Read own (portal) | Blocked |
+| Clients | Full CRUD + invite | No access | No access | Blocked |
+| Task Types | Full CRUD + seed | Read only | No access | Blocked |
+| Reports/Invoice | Full access | No access | No access | Blocked |
+| Invoices | Full CRUD + payment links | No access | No access (v1) | Blocked |
+| Proposals | Full CRUD | No access | No access | Blocked |
+| Export (CSV/Backup) | Full access | No access | No access | Blocked |
+| Line Items | Full CRUD | No access | No access | Blocked |
+| Leads | Full access (workspace) | No access | No access | Blocked |
+| Intake config | Full access | No access | No access | Blocked |
+| Portfolio | Full CRUD | No access | No access | Blocked |
+| Site Config | Full access | No access | No access | Blocked |
+| Team Management | Full access | Own profile only | No access | Blocked |
+| Project messages | Compose (visibility toggle) | Compose on assigned work | Read/reply (client-visible) | Blocked |
 
 ---
 
@@ -177,22 +185,35 @@ The application uses a workspace-based multi-tenancy model where all data is sco
 │  ┌────────────────────────────────┐      │
 │  │    Admin-Only Data (Pattern A) │      │
 │  │  Clients, LineItems, Portfolio,│      │
-│  │  SiteConfig, Uploads           │      │
+│  │  SiteConfig, Uploads, IntakeForm│     │
 │  │  (userId = extractUserId)      │      │
 │  └────────────────────────────────┘      │
 │                                         │
 │  ┌────────────────────────────────┐      │
-│  │    Global Data (No scoping)    │      │
-│  │  Leads (public intake form)    │      │
+│  │  Workspace Data incl. Leads    │      │
+│  │  Leads (userId = workspace owner)│    │
+│  │  POST /leads/public → resolver │      │
+│  └────────────────────────────────┘      │
+│                                         │
+│  ┌────────────────────────────────┐      │
+│  │  Client Portal (Pattern C)     │      │
+│  │  Projects/Tasks/Messages       │      │
+│  │  scoped by user.clientId       │      │
 │  └────────────────────────────────┘      │
 └─────────────────────────────────────────┘
 ```
 
 **Pattern A — Direct userId scoping**: `userId = extractUserId(req)`. Admin-only data where members have no access. Entity's `userId` matches the authenticated user's Auth0 sub.
 
-**Pattern B — Workspace scoping**: `userId = await getWorkspaceOwnerId(req)`. Shared data that both admin and members can read. For admins, returns their own auth0Id. For members, returns their `workspaceOwnerId` (the admin's auth0Id). This means all workspace data is stored under the admin's userId, and members access it through the workspace owner resolution.
+**Pattern B — Workspace scoping**: `userId = await getWorkspaceOwnerId(req)`. Shared data that both admin and members can read. Used for Projects, TaskTypes, ProjectTasks, TimeEntries, Reports, Export, **Leads**, Dashboard aggregates, ProjectMessages.
 
-**Time entry dual scoping**: Admin sees all workspace entries (queried via workspace owner). Member sees only entries where `userId` matches their own auth0Id. Members create entries with their own userId, but those entries are linked to workspace-owned projects.
+**Pattern C — Client portal scoping**: Every portal API uses `requireClient` and queries `{ userId: workspaceOwnerId, clientId: user.clientId }`. Never accept clientId from request body.
+
+**Pattern D — Public workspace resolution**: `resolvePublicWorkspace(req)` for public intake, portfolio, and site-config. Frontend sends `X-Public-Workspace` header; legacy fallback via `DEFAULT_PUBLIC_WORKSPACE_OWNER_ID`.
+
+**Time entry dual scoping**: Admin sees all workspace entries (queried via workspace owner). Member sees only entries where `userId` matches their own auth0Id.
+
+**Member project visibility**: Explicit `Project.assignedMemberIds` preferred; fallback to projects with member time entries. If no project in the workspace uses assignments yet, all active/paused projects remain visible (legacy onboarding).
 
 ### Entity Relationship Diagram
 
@@ -262,13 +283,12 @@ User (auth0Id)
  │     ├── palettes (named presets)
  │     └── companyName, companyAddress, companyPhone, companyEmail
  │
- └──> Lead (NO userId — global)
-       ├── confidence: YES | MAYBE | UNSURE
-       ├── projectType, description, budget, timeline
+ └──> Lead (userId = workspace owner)
+       ├── responses: Record<fieldKey, unknown> (dynamic intake)
+       ├── confidence, projectType, description, budget, timeline
        ├── name, email, company, message
-       ├── status: NEW | CONTACTED | QUALIFIED | PROPOSAL | WON | LOST
-       ├── priority: LOW | MEDIUM | HIGH
-       ├── notes: [{ text, createdAt, createdBy }]
+       ├── status, priority, notes
+       ├── suggestedMemberAuth0Id? (creative assignment)
        └── convertedClientId?, convertedProjectId?
 ```
 
@@ -281,9 +301,14 @@ email: string (unique, lowercase)
 name: string
 nickname?: string (lowercase, used for add-by-email)
 picture?: string
-role: 'admin' | 'member' | 'pending'
+role: 'admin' | 'member' | 'client' | 'pending'
 status: 'active' | 'pending' | 'disabled'
 workspaceOwnerId?: string (indexed — admin's auth0Id for members)
+clientId?: string (indexed — CRM Client for portal users)
+disciplines?: string[]
+disciplineTasks?: string[] (composite keys disciplineId:taskId)
+availability?: { hoursPerWeek, preferredDays, timezone, outOfOffice?, notes? }
+bio?: string
 earnedRates?: Record<string, number> (taskTypeId → earned hourly rate)
 invitedBy?: string
 ```
@@ -345,19 +370,26 @@ notes?: string
 ```
 Auth0Provider
   └── ApiAuthProvider (token lifecycle, tokenReady flag)
-       └── UserProvider (user role, workspace)
-            └── Routes
-                 ├── PublicLayout (no auth required)
-                 │    └── Home, Work, WorkDetail, About, Contact
-                 │
-                 └── ProtectedRoute (requires tokenReady)
-                      └── AdminThemeProvider (dynamic CSS variables)
-                           └── Layout (sidebar + topbar)
-                                ├── Dashboard, Entries, Projects, Profile
-                                └── AdminRoute (requires isAdmin)
-                                     └── Clients, TaskTypes, Reports,
-                                         Invoices, Proposals, Leads,
-                                         PortfolioAdmin, SiteConfig, Users
+       └── UserProvider (user role, workspace, homeRoute)
+            └── PublicWorkspaceProvider (public intake workspace key)
+                 └── Routes
+                      ├── PublicLayout (no auth)
+                      │    └── Home, Work, About, Contact (dynamic intake)
+                      │
+                      ├── PostAuthRedirect (role → /dashboard | /member | /portal)
+                      │
+                      ├── ClientRoute → ClientPortalLayout (/portal/*)
+                      │
+                      ├── MemberOrAdminRoute → MemberLayout (/member/*)
+                      │
+                      └── ProtectedRoute + AdminThemeProvider
+                           └── AdminLayout (sidebar + topbar)
+                                ├── Dashboard (admin command center)
+                                ├── Entries, Projects (admin view)
+                                └── AdminRoute
+                                     └── Clients, Leads, IntakeConfig, Reports,
+                                         Invoices, Proposals, PortfolioAdmin,
+                                         SiteConfig, Users
 ```
 
 ### API Service Layer
@@ -609,17 +641,18 @@ askanddeliver.com (Vercel)  ──HTTPS──>  Railway (server)
 
 ## File Index
 
-### Server Routes (17 + webhook)
+### Server Routes (22 + webhook)
 
 | File | Mount | Auth Pattern |
 |------|-------|-------------|
 | `routes/health.ts` | `/api/health` | None |
-| `routes/users.ts` | `/api/users` | checkJwt; requireAdmin on admin endpoints |
+| `routes/users.ts` | `/api/users` | checkJwt; requireAdmin on admin endpoints; invite-client |
 | `routes/clients.ts` | `/api/clients` | checkJwt + requireAdmin |
 | `routes/projects.ts` | `/api/projects` | checkJwt; requireAdmin on writes |
 | `routes/taskTypes.ts` | `/api/task-types` | checkJwt; requireAdmin on writes |
 | `routes/timeEntries.ts` | `/api/time-entries` | checkJwt (internal admin check for scoping) |
 | `routes/projectTasks.ts` | `/api/project-tasks` | checkJwt; requireAdmin on writes |
+| `routes/timeBlocks.ts` | `/api/time-blocks` | checkJwt |
 | `routes/reports.ts` | `/api/reports` | checkJwt + requireAdmin |
 | `routes/invoices.ts` | `/api/invoices` | checkJwt + requireAdmin |
 | `routes/proposals.ts` | `/api/proposals` | checkJwt + requireAdmin |
@@ -627,8 +660,13 @@ askanddeliver.com (Vercel)  ──HTTPS──>  Railway (server)
 | `routes/lineItems.ts` | `/api/line-items` | checkJwt + requireAdmin |
 | `routes/portfolio.ts` | `/api/portfolio` | Mixed (3 public, rest checkJwt + requireAdmin) |
 | `routes/uploads.ts` | `/api/uploads` | checkJwt + requireAdmin |
-| `routes/leads.ts` | `/api/leads` | Mixed (1 public, rest checkJwt + requireAdmin) |
+| `routes/leads.ts` | `/api/leads` | Mixed (1 public, rest workspace-scoped admin) |
+| `routes/intakeForms.ts` | `/api/intake-forms` | Mixed (1 public, rest admin) |
 | `routes/siteConfig.ts` | `/api/site-config` | Mixed (1 public, rest checkJwt + requireAdmin) |
+| `routes/member.ts` | `/api/member` | requireMemberOrAdmin |
+| `routes/portal.ts` | `/api/portal` | requireClient |
+| `routes/dashboard.ts` | `/api/dashboard` | checkJwt + admin |
+| `routes/projectMessages.ts` | `/api/projects/:projectId/messages` | checkJwt |
 | `routes/webhooks.ts` | `/api/webhooks/stripe` | Stripe signature (no JWT; raw body) |
 
 ### Server Models (12 active)
@@ -665,9 +703,17 @@ askanddeliver.com (Vercel)  ──HTTPS──>  Railway (server)
 | Work | `/work` | Public | Portfolio listing |
 | WorkDetail | `/work/:slug` | Public | Portfolio detail with lightbox |
 | About | `/about` | Public | About page |
-| Contact | `/contact` | Public | Lead intake form |
+| Contact | `/contact` | Public | Dynamic intake form (or legacy static) |
+| IntakeConfig | `/intake-config` | Admin | Intake form builder |
+| MemberDashboard | `/member` | Member/Admin | Member hub with timer |
+| MemberProjects | `/member/projects` | Member/Admin | Assigned projects |
+| MemberEntries | `/member/entries` | Member/Admin | Own time entries |
+| MemberProfile | `/member/profile` | Member/Admin | Disciplines, availability, bio |
+| PortalHome | `/portal` | Client | Client portal home |
+| PortalProjects | `/portal/projects` | Client | Client project list |
+| PortalProjectDetail | `/portal/projects/:id` | Client | Brief, tasks, messages |
 | InvoicePaid | `/invoices/paid` | Public | Post–Stripe-checkout confirmation |
-| Dashboard | `/dashboard` | Auth | Timer, quick entry, recent entries, dashboard to-dos |
+| Dashboard | `/dashboard` | Admin | Command center: timer, pipeline, capacity, todos |
 | TimeEntries | `/entries` | Auth | Entry list with filters, CRUD |
 | Projects | `/projects` | Auth | Project list with status tabs, tasks, rich-text briefs |
 | Profile | `/profile` | Auth | User profile management |
@@ -679,7 +725,7 @@ askanddeliver.com (Vercel)  ──HTTPS──>  Railway (server)
 | Leads | `/leads` | Admin | Lead pipeline, conversion |
 | PortfolioAdmin | `/portfolio-admin` | Admin | Portfolio CRUD, media uploads, video embeds |
 | SiteConfig | `/site-config` | Admin | Theme colors, palettes, company info |
-| Users | `/users` | Admin | Team management, add-by-email |
+| Users | `/users` | Admin | Team management, disciplines + availability columns |
 
 ---
 
@@ -726,6 +772,6 @@ askanddeliver.com (Vercel)  ──HTTPS──>  Railway (server)
 1. ~~**Discount calculation duplication**~~ — Addressed: `getDiscountPercent` and `getEffectiveRate` in `server/src/utils/calculations.ts` are used by `reports.ts` and `export.ts`.
 2. **Unused middleware exports** — `optionalAuth` and `loadUser` are exported from `auth.ts` but not used in any route.
 3. **Legacy model** — `models/Item.ts` is a leftover from the MERN starter template.
-4. **Lead scoping** — Leads have no `userId` field, making them visible to all admins across workspaces. This works for single-workspace deployments but would need scoping for multi-workspace.
+4. **Lead scoping** — ~~Leads have no `userId` field~~ **Addressed:** Leads include required `userId` (workspace owner). Public intake uses `resolvePublicWorkspace`. Run `npm run backfill:lead-userid` for legacy data.
 5. ~~**Token in localStorage**~~ — Addressed: axios uses `registerAccessTokenGetter` + `getAccessTokenSilently()` per request; `Auth0Provider` uses `useRefreshTokens` and `cacheLocation="memory"`. Legacy `auth0_token` key is removed on load.
 6. **`qs` array limit on GET query params** — Express uses the `qs` library for query string parsing, which has a default `arrayLimit` of 20. When a GET request sends more than 20 array items (e.g. `projectIds[]=...`), `qs` silently converts the parsed result from an array to a plain object (`{ '0': 'val', '1': 'val', ... }`). All GET routes that accept array query parameters must normalize the value by checking `Array.isArray()`, `typeof === 'string'`, and `typeof === 'object'` (using `Object.values()`). This pattern is implemented in `timeEntries.ts` and `lineItems.ts`. POST routes sending JSON bodies are not affected.

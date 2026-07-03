@@ -15,8 +15,8 @@ import {
   ExternalLink,
   Paperclip,
 } from 'lucide-react';
-import { leadsApi, siteConfigApi } from '../../services/api';
-import type { Lead, LeadStatus, LeadPriority, Client, Project, IntakeAttachment, DisciplineDefinition } from '../../types';
+import { leadsApi, siteConfigApi, usersApi } from '../../services/api';
+import type { Lead, LeadStatus, LeadPriority, Client, Project, IntakeAttachment, DisciplineDefinition, User } from '../../types';
 
 interface LeadDetailModalProps {
   lead: Lead;
@@ -113,6 +113,8 @@ export function LeadDetailModal({
   const [statusOpen, setStatusOpen] = useState(false);
   const [priorityOpen, setPriorityOpen] = useState(false);
   const [disciplines, setDisciplines] = useState<DisciplineDefinition[]>([]);
+  const [teamMembers, setTeamMembers] = useState<User[]>([]);
+  const [savingCreative, setSavingCreative] = useState(false);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -120,12 +122,33 @@ export function LeadDetailModal({
       .get()
       .then((res) => setDisciplines(res.data.disciplines ?? []))
       .catch(() => setDisciplines([]));
+    usersApi
+      .getAll()
+      .then((res) =>
+        setTeamMembers((res.data || []).filter((u) => u.role === 'member' && u.status === 'active'))
+      )
+      .catch(() => setTeamMembers([]));
   }, [isOpen]);
 
   if (!isOpen) return null;
 
   const ConfidenceIcon = CONFIDENCE_ICONS[lead.confidence];
   const isConverted = !!lead.convertedClientId;
+  const showAssignCreative = !['NEW', 'CONTACTED', 'LOST'].includes(lead.status);
+
+  const handleSuggestedMemberChange = async (auth0Id: string) => {
+    setSavingCreative(true);
+    try {
+      const res = await leadsApi.update(lead._id, {
+        suggestedMemberAuth0Id: auth0Id || undefined,
+      });
+      onLeadUpdated(res.data);
+    } catch (err) {
+      console.error('Failed to assign creative:', err);
+    } finally {
+      setSavingCreative(false);
+    }
+  };
 
   const handleStatusChange = async (newStatus: LeadStatus) => {
     try {
@@ -328,6 +351,32 @@ export function LeadDetailModal({
               </span>
             </div>
           </div>
+
+          {showAssignCreative && teamMembers.length > 0 && (
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">
+                Assign creative
+              </label>
+              <select
+                value={lead.suggestedMemberAuth0Id || ''}
+                onChange={(e) => handleSuggestedMemberChange(e.target.value)}
+                disabled={savingCreative}
+                className="input max-w-sm"
+              >
+                <option value="">Select a team member…</option>
+                {teamMembers.map((member) => (
+                  <option key={member.auth0Id} value={member.auth0Id}>
+                    {member.name || member.email}
+                  </option>
+                ))}
+              </select>
+              <p className="mt-1 text-xs text-gray-500">
+                {isConverted
+                  ? 'Updates the converted project assignment.'
+                  : 'Applied when this lead is converted to a project.'}
+              </p>
+            </div>
+          )}
 
           {/* Conversion Banner */}
           {isConverted && (

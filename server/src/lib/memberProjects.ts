@@ -1,6 +1,9 @@
 import { Project, TimeEntry } from '../models';
 
-/** Projects visible to a member: active/paused workspace projects + any they have logged time on. */
+/**
+ * Projects visible to a member: explicit assignment + time-entry fallback.
+ * When no project in the workspace uses assignments yet, falls back to all active/paused.
+ */
 export async function getMemberProjectFilter(
   workspaceOwnerId: string,
   memberAuth0Id: string
@@ -9,8 +12,27 @@ export async function getMemberProjectFilter(
     userId: memberAuth0Id,
   });
 
+  const hasAnyAssignments = await Project.exists({
+    userId: workspaceOwnerId,
+    assignedMemberIds: { $exists: true, $not: { $size: 0 } },
+  });
+
+  if (!hasAnyAssignments) {
+    const orConditions: Record<string, unknown>[] = [
+      { status: { $in: ['ACTIVE', 'PAUSED'] } },
+    ];
+    if (entryProjectIds.length > 0) {
+      orConditions.push({ _id: { $in: entryProjectIds } });
+    }
+    return {
+      userId: workspaceOwnerId,
+      status: { $ne: 'ARCHIVED' },
+      $or: orConditions,
+    };
+  }
+
   const orConditions: Record<string, unknown>[] = [
-    { status: { $in: ['ACTIVE', 'PAUSED'] } },
+    { assignedMemberIds: memberAuth0Id },
   ];
   if (entryProjectIds.length > 0) {
     orConditions.push({ _id: { $in: entryProjectIds } });
@@ -18,7 +40,7 @@ export async function getMemberProjectFilter(
 
   return {
     userId: workspaceOwnerId,
-    status: { $ne: 'ARCHIVED' },
+    status: { $in: ['ACTIVE', 'PAUSED'] },
     $or: orConditions,
   };
 }

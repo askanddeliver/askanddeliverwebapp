@@ -3,6 +3,9 @@ import { checkJwt, AuthRequest, extractUserId, getWorkspaceOwnerId, requireAdmin
 import { asyncHandler, createError } from '../middleware/errorHandler';
 import mongoose from 'mongoose';
 import { ProjectTask, Client, Project } from '../models';
+import {
+  validateOptionalWorkspaceMemberAuth0Id,
+} from '../lib/memberValidation';
 
 const router = Router();
 
@@ -101,7 +104,8 @@ router.post(
     const workspaceOwnerId = await getWorkspaceOwnerId(req);
     if (!workspaceOwnerId) throw createError('Workspace access required', 403);
 
-    const { projectId, title, description, status, estimatedHours, clientVisible } = req.body;
+    const { projectId, title, description, status, estimatedHours, clientVisible, assigneeAuth0Id } =
+      req.body;
 
     if (!projectId) {
       throw createError('Project is required', 400);
@@ -116,6 +120,11 @@ router.post(
       { $inc: { order: 1 } }
     );
 
+    const validatedAssignee = await validateOptionalWorkspaceMemberAuth0Id(
+      workspaceOwnerId,
+      assigneeAuth0Id
+    );
+
     const task = await ProjectTask.create({
       userId: workspaceOwnerId,
       projectId,
@@ -125,6 +134,7 @@ router.post(
       order: 0,
       estimatedHours,
       clientVisible: Boolean(clientVisible),
+      assigneeAuth0Id: validatedAssignee,
     });
 
     await task.populate('projectId');
@@ -175,7 +185,8 @@ router.put(
     const workspaceOwnerId = await getWorkspaceOwnerId(req);
     if (!workspaceOwnerId) throw createError('Workspace access required', 403);
 
-    const { title, description, status, order, estimatedHours, clientVisible } = req.body;
+    const { title, description, status, order, estimatedHours, clientVisible, assigneeAuth0Id } =
+      req.body;
 
     const update: Record<string, unknown> = {};
     if (title !== undefined) update.title = title.trim();
@@ -184,6 +195,12 @@ router.put(
     if (order !== undefined) update.order = order;
     if (estimatedHours !== undefined) update.estimatedHours = estimatedHours;
     if (clientVisible !== undefined) update.clientVisible = Boolean(clientVisible);
+    if (assigneeAuth0Id !== undefined) {
+      update.assigneeAuth0Id = await validateOptionalWorkspaceMemberAuth0Id(
+        workspaceOwnerId,
+        assigneeAuth0Id
+      );
+    }
 
     const task = await ProjectTask.findOneAndUpdate(
       { _id: req.params.id, userId: workspaceOwnerId },

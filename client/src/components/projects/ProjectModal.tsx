@@ -1,6 +1,7 @@
 import { useState, useEffect, FormEvent } from 'react';
 import { X, Plus, Trash2 } from 'lucide-react';
-import type { Client, Project, ProjectBillingMode, ProjectStatus } from '../../types';
+import type { Client, Project, ProjectBillingMode, ProjectStatus, User } from '../../types';
+import { usersApi } from '../../services/api';
 import { BriefEditor } from './BriefEditor';
 
 interface ProjectModalProps {
@@ -30,6 +31,7 @@ export interface ProjectModalSaveData {
   retainerHoursTotal?: number;
   retainerHoursAdjustment?: number;
   fixedPriceInvoiceLabel?: string;
+  assignedMemberIds?: string[];
 }
 
 const defaultCategories = [
@@ -67,8 +69,20 @@ export function ProjectModal({
   const [retainerHoursTotal, setRetainerHoursTotal] = useState('');
   const [retainerHoursAdjustment, setRetainerHoursAdjustment] = useState('');
   const [fixedPriceInvoiceLabel, setFixedPriceInvoiceLabel] = useState('');
+  const [assignedMemberIds, setAssignedMemberIds] = useState<string[]>([]);
+  const [teamMembers, setTeamMembers] = useState<User[]>([]);
   const [billingError, setBillingError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'basic' | 'brief'>('basic');
+
+  useEffect(() => {
+    if (!isOpen) return;
+    usersApi
+      .getAll()
+      .then((res) =>
+        setTeamMembers((res.data || []).filter((u) => u.role === 'member' && u.status === 'active'))
+      )
+      .catch(() => setTeamMembers([]));
+  }, [isOpen]);
 
   useEffect(() => {
     if (project) {
@@ -107,6 +121,7 @@ export function ProjectModal({
           : ''
       );
       setFixedPriceInvoiceLabel(project.fixedPriceInvoiceLabel || '');
+      setAssignedMemberIds(project.assignedMemberIds || []);
     } else {
       setClientId('');
       setTitle('');
@@ -126,6 +141,7 @@ export function ProjectModal({
       setRetainerHoursTotal('');
       setRetainerHoursAdjustment('');
       setFixedPriceInvoiceLabel('');
+      setAssignedMemberIds([]);
     }
     setBillingError(null);
     setActiveTab('basic');
@@ -164,6 +180,12 @@ export function ProjectModal({
 
   const removeResult = (index: number) => {
     setResults(results.filter((_, i) => i !== index));
+  };
+
+  const toggleAssignedMember = (auth0Id: string) => {
+    setAssignedMemberIds((prev) =>
+      prev.includes(auth0Id) ? prev.filter((id) => id !== auth0Id) : [...prev, auth0Id]
+    );
   };
 
   const handleSubmit = (e: FormEvent) => {
@@ -221,6 +243,7 @@ export function ProjectModal({
         billingMode === 'FIXED_PRICE' && fixedPriceInvoiceLabel.trim()
           ? fixedPriceInvoiceLabel.trim()
           : undefined,
+      assignedMemberIds,
     });
   };
 
@@ -352,6 +375,37 @@ export function ProjectModal({
                     </div>
                   )}
                 </div>
+
+                {teamMembers.length > 0 && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Assigned team
+                    </label>
+                    <p className="text-xs text-gray-500 mb-2">
+                      Members see this project in their hub when assigned.
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {teamMembers.map((member) => (
+                        <label
+                          key={member.auth0Id}
+                          className={`inline-flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm transition-colors ${
+                            assignedMemberIds.includes(member.auth0Id)
+                              ? 'border-primary-300 bg-primary-50 text-primary-800'
+                              : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50'
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={assignedMemberIds.includes(member.auth0Id)}
+                            onChange={() => toggleAssignedMember(member.auth0Id)}
+                            className="rounded border-gray-300"
+                          />
+                          {member.name || member.email}
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">

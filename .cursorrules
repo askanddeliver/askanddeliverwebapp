@@ -107,13 +107,18 @@ Two data scoping patterns coexist:
 
 **Pattern A — Direct userId scoping**: The entity's `userId` field equals `extractUserId(req)`. Used for: Clients, Portfolio, Uploads, Line Items, SiteConfig (most endpoints).
 
-**Pattern B — Workspace-scoped via `getWorkspaceOwnerId`**: Resolves the workspace owner (admin = self, member = their admin's auth0Id), then queries `{ userId: workspaceOwnerId }`. Allows members to access shared data. Used for: Projects, Task Types, Project Tasks, Time Entries, Reports, Export.
+**Pattern B — Workspace-scoped via `getWorkspaceOwnerId`**: Resolves the workspace owner (admin = self, member = their admin's auth0Id), then queries `{ userId: workspaceOwnerId }`. Allows members to access shared data. Used for: Projects, Task Types, Project Tasks, Time Entries, Reports, Export, Leads, IntakeForms, Dashboard aggregates, ProjectMessages.
+
+**Pattern C — Client portal scoping**: `requireClient` + `user.clientId` from DB (never from request body). Portal queries: `{ userId: workspaceOwnerId, clientId }`.
+
+**Pattern D — Public with workspace resolution**: `resolvePublicWorkspace(req)` for intake-forms/public, leads/public, portfolio/public, site-config/public. Public axios sends `X-Public-Workspace` header.
 
 **Time entries have dual scoping**: Admin sees all workspace entries; Member sees only their own (filtered by `userId` on the entry).
 
 ### Role System
-- **admin**: Full access to all features. Owns the workspace.
-- **member**: Can track time, view projects, manage own entries. Cannot see rates/amounts, manage clients, leads, reports, portfolio, task types, or team.
+- **admin**: Full access to all features. Owns the workspace. Default route: `/dashboard`.
+- **member**: Creative/team user at `/member/*`. Can track time, view assigned projects, manage own entries and profile. Cannot see rates/amounts, manage clients, leads, reports, portfolio, task types, or team billing.
+- **client**: Client portal user at `/portal/*`. Must have `clientId` linked to a CRM Client. Sees only their projects, client-visible tasks, briefs, and messages — never rates, margins, or other clients' data.
 - **pending**: Sees "Account Pending Approval" message. Cannot access any features until an admin adds them.
 
 Role assignment on first login (`GET /api/users/me`):
@@ -122,6 +127,8 @@ Role assignment on first login (`GET /api/users/me`):
 3. Legacy user with no role → admin
 4. First user in the database → admin
 5. All other new signups → pending
+
+Load role from MongoDB via `GET /api/users/me` — **never** from JWT custom claims alone. Use `homeRoute` from `UserContext` for logo/home redirects.
 
 ## Code Conventions
 
@@ -290,35 +297,39 @@ NewModelSchema.index({ userId: 1, createdAt: -1 });
 export const NewModel = mongoose.model<INewModel>('NewModel', NewModelSchema);
 ```
 
-## Models (12 active; Item.ts is an unexported starter stub)
+## Models (16 active; Item.ts is an unexported starter stub)
 
 | Model | Key Fields | Scoping |
 |-------|-----------|---------|
-| User | auth0Id, email, name, role, workspaceOwnerId, earnedRates, status | By auth0Id |
-| Client | name, company, email, businessEntity, address, paymentPreference, taskDiscounts | userId (Pattern A) |
-| Project | clientId, title, description, status, budget | userId (Pattern B) |
+| User | auth0Id, email, name, role, workspaceOwnerId, clientId, disciplines, availability, earnedRates, status | By auth0Id |
+| Client | name, company, email, isInternal, businessEntity, address, paymentPreference, taskDiscounts | userId (Pattern A) |
+| Project | clientId, title, status, budget, billingMode, assignedMemberIds | userId (Pattern B) |
 | TaskType | name, rate, color | userId (Pattern B) |
 | TimeEntry | projectId, taskTypeId, projectTaskId, startTime, endTime, duration, isRunning, invoiceId | userId (Pattern B, dual) |
-| ProjectTask | projectId, title, status, order, estimatedHours | userId (Pattern B) |
+| ProjectTask | projectId, title, status, order, estimatedHours, clientVisible, assigneeAuth0Id | userId (Pattern B) |
+| ProjectMessage | projectId, authorAuth0Id, body, clientVisible | userId (Pattern B) |
+| TimeBlock | startTime, endTime, kind, projectId, recurrenceRule | userId (Pattern A) |
 | LineItem | clientId, projectId, description, amount, category, date, invoiceId | userId (Pattern A) |
-| Invoice | invoiceNumber, status, clientId, projectIds, items, totals, timeEntryIds, lineItemIds, paymentLinkUrl | userId (workspace owner; Pattern A) |
-| Proposal | proposalNumber, title, clientId, projectId, status, phases, investment, snapshots | userId (Pattern A) |
-| Lead | confidence, projectType, budget, timeline, name, email, status, priority, notes | No userId (global) |
+| Invoice | invoiceNumber, status, clientId, projectIds, items, totals, documentKind, paymentLinkUrl | userId (Pattern A) |
+| Proposal | proposalNumber, title, clientId, projectId, status, phases, investment | userId (Pattern A) |
+| Lead | userId, responses, status, priority, notes, suggestedMemberAuth0Id, convertedClientId | userId (Pattern B) |
+| IntakeForm | slug, steps, fields, version, status (DRAFT/PUBLISHED) | userId (Pattern A) |
 | PortfolioProject | slug, title, client, categories, disciplines, images, published, featured, order | userId (Pattern A) |
-| SiteConfig | colors, palettes, companyName, companyAddress, companyPhone, companyEmail | userId (Pattern A) |
+| SiteConfig | colors, palettes, disciplines, companyName, companyAddress | userId (Pattern A) |
 | *(Item.ts)* | — | Not in `models/index` exports — remove or ignore; MERN-starter stub |
 
-## Routes (17 modules + webhook)
+## Routes (22 modules + webhook)
 
 | Mount Path | Module | Auth | Key Features |
 |-----------|--------|------|-------------|
 | `/api/health` | health.ts | None | Health check + detailed MongoDB/memory status |
-| `/api/users` | users.ts | checkJwt; requireAdmin on admin endpoints | Profile, team, add-by-email, earned rates, account deletion |
+| `/api/users` | users.ts | checkJwt; requireAdmin on admin endpoints | Profile, team, add-by-email, invite-client, earned rates, account deletion |
 | `/api/clients` | clients.ts | checkJwt + requireAdmin | CRUD with business entity, address, payment pref, task discounts |
-| `/api/projects` | projects.ts | checkJwt; requireAdmin on writes | CRUD, archive, status counts, filter/search/sort |
+| `/api/projects` | projects.ts | checkJwt; requireAdmin on writes | CRUD, archive, status counts, assignedMemberIds |
 | `/api/task-types` | taskTypes.ts | checkJwt; requireAdmin on writes | CRUD + seed defaults |
 | `/api/time-entries` | timeEntries.ts | checkJwt | Timer start/stop/continue, manual entry, workspace-scoped reads |
-| `/api/project-tasks` | projectTasks.ts | checkJwt; requireAdmin on writes | CRUD + drag-and-drop reorder + status toggle |
+| `/api/project-tasks` | projectTasks.ts | checkJwt; requireAdmin on writes | CRUD + reorder + assigneeAuth0Id |
+| `/api/time-blocks` | timeBlocks.ts | checkJwt | Calendar blocks, recurrence, launch-to-timer |
 | `/api/reports` | reports.ts | checkJwt + requireAdmin | Invoice preview data (discount + margin), summary stats |
 | `/api/invoices` | invoices.ts | checkJwt + requireAdmin | Invoice CRUD, status transitions, Stripe Payment Links |
 | `/api/proposals` | proposals.ts | checkJwt + requireAdmin | Proposal CRUD, DRAFT/FINALIZED |
@@ -326,8 +337,13 @@ export const NewModel = mongoose.model<INewModel>('NewModel', NewModelSchema);
 | `/api/line-items` | lineItems.ts | checkJwt + requireAdmin | Fixed-cost item CRUD with date/project filtering |
 | `/api/portfolio` | portfolio.ts | Mixed (3 public, rest admin) | CRUD, publish/feature toggle, reorder, seed, slug routing |
 | `/api/uploads` | uploads.ts | checkJwt + requireAdmin | Cloudinary image + video upload/list/delete |
-| `/api/leads` | leads.ts | Mixed (1 public, rest admin) | Pipeline management, notes, conversion to client+project |
-| `/api/site-config` | siteConfig.ts | Mixed (1 public, rest admin) | Theme colors, palettes, company info |
+| `/api/leads` | leads.ts | Mixed (1 public, rest admin) | Workspace-scoped pipeline, notes, conversion, suggestedMember |
+| `/api/intake-forms` | intakeForms.ts | Mixed (1 public, rest admin) | Admin builder + published schema for public renderer |
+| `/api/site-config` | siteConfig.ts | Mixed (1 public, rest admin) | Theme colors, palettes, disciplines, company info |
+| `/api/member` | member.ts | requireMemberOrAdmin | Member dashboard, projects, disciplines |
+| `/api/portal` | portal.ts | requireClient | Client portal projects, tasks, messages |
+| `/api/dashboard` | dashboard.ts | checkJwt + admin | admin-summary, pipeline, capacity |
+| `/api/projects/:projectId/messages` | projectMessages.ts | checkJwt | Admin/member project messaging |
 | `/api/webhooks/stripe` | webhooks.ts | Stripe signature (raw body) | `checkout.session.completed` → mark invoice PAID |
 
 ## Common Tasks
@@ -381,7 +397,58 @@ export const NewModel = mongoose.model<INewModel>('NewModel', NewModelSchema);
 5. **Discount formula**: `effectiveRate = baseRate * (1 - clamp(discount, 0, 100) / 100)`
 6. **Timer auto-stops** — Starting a new timer automatically stops any running one (accumulating its duration).
 7. **Timer duration accumulates** — The `duration` field on TimeEntry stores accumulated seconds across pause/resume cycles.
-8. **Leads have no userId** — Lead intake is public; leads are visible to all admins (not workspace-scoped).
+8. **Leads are workspace-scoped** — `Lead.userId` is the workspace owner Auth0 sub. `POST /api/leads/public` sets userId from `resolvePublicWorkspace(req)` — never from client body. Admin lead routes filter by workspace owner.
 9. **Portfolio has dual access** — Public routes serve published projects (no auth); admin routes require `checkJwt` + `requireAdmin`.
 10. **CSS theme variables** — AdminThemeContext generates `--primary-50` through `--primary-900` from `brandSage`. Use `bg-primary-600`, `text-primary-50`, etc. in Tailwind classes.
 11. **Timezone-aware date filtering** — The server runs in UTC (Railway). Date range filters must reflect the user's local timezone, not server UTC. The frontend converts YYYY-MM-DD picker values to UTC ISO strings using `toUTCStartOfDay()`/`toUTCEndOfDay()` (from `client/src/utils/calculations.ts`) before sending to the API. The server parses these with `parseDateStart()`/`parseDateEnd()` (from `server/src/utils/calculations.ts`), which accept both full ISO strings and bare YYYY-MM-DD (falling back to UTC for bare dates). Date-only fields (e.g. LineItem `date`) should also be stored via `parseDateStart()` so they align with query boundaries. Never use `new Date(dateStr + 'T00:00:00')` directly in route handlers.
+
+---
+
+## Platform Expansion (merged from docs/PLATFORM_EXPANSION_CURSORRULES.md)
+
+Ask And Deliver is **Tenant #1** of a reusable creative agency platform. Never add tenant-specific `if (email === '...')` branches — use workspace/tenant resolution only.
+
+**Planning docs:** `docs/PLATFORM_EXPANSION_BUILD_PLAN.md`, `PLATFORM_EXPANSION_ARCHITECTURE.md`, `PLATFORM_EXPANSION_CONTEXTS.md`, `PLATFORM_EXPANSION_PROMPTS.md`, `SAAS_CONVERSION_BUILD_PLAN.md`
+
+### Layouts & default routes
+
+| Role | Shell | Default route |
+|------|-------|---------------|
+| `admin` | AdminLayout (`/dashboard`, CRM, billing) | `/dashboard` |
+| `member` | MemberLayout (`/member/*`) | `/member` |
+| `client` | ClientPortalLayout (`/portal/*`) | `/portal` |
+| `pending` | Pending gate | `/pending` |
+
+Three authenticated shells — do not put portal pages in admin Sidebar. Route guards: `AdminRoute`, `MemberOrAdminRoute`, `ClientRoute`, `PostAuthRedirect`.
+
+**Server middleware:** `requireClient`, `requireMemberOrAdmin`, `resolveClientScope(req)` for portal queries.
+
+### Intake & leads
+
+- **`IntakeForm`** — workspace-scoped form definition; admin builder at `/intake-config`; publish increments `version`.
+- **`Lead.responses`** — dynamic answers; validate server-side against published schema.
+- Public renderer: `GET /api/intake-forms/public?slug=default` with `X-Public-Workspace` header. Feature flag: `VITE_DYNAMIC_INTAKE`.
+- File uploads: `{workspaceOwnerId}/intake/{leadId}/…` on Cloudinary.
+
+### Disciplines & member profile
+
+- **`SiteConfig.disciplines`** — nested `tasks[]` linked to TaskTypes. See `docs/PLATFORM_EXPANSION_DISCIPLINES_AND_TASK_TYPES.md`.
+- Member profile: `User.disciplines`, `disciplineTasks`, `availability`, `bio` via `PUT /api/users/me`.
+- Project assignment: `Project.assignedMemberIds`, `ProjectTask.assigneeAuth0Id`, `Lead.suggestedMemberAuth0Id`.
+
+### Client portal (v1)
+
+Admin invite only — `POST /api/users/invite-client`. Client user must have `role: 'client'` and `clientId`. Portal: projects, brief (sanitized HTML), client-visible tasks, per-project messaging. No rates, margins, or cross-client data.
+
+### Admin command center
+
+`GET /api/dashboard/admin-summary`, `/pipeline`, `/capacity`. Design tokens: `docs/Design System Update/design_handoff_admin_redesign/`.
+
+### Anti-patterns (do not)
+
+- Accept `workspaceId` or `clientId` from unauthenticated POST bodies without host validation
+- Show admin Sidebar to client role users
+- Store intake form definitions in frontend constants (except seed migration)
+- Return `taskType.rate` or invoice totals to `member` or `client` roles inappropriately
+- Skip `userId` on new Mongoose models
+- Bundle SaaS Tenant model + client portal + intake builder in one PR

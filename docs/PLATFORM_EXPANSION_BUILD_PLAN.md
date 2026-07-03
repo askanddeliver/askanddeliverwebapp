@@ -308,16 +308,16 @@ Locked in working session (July 2026):
 
 ## Success Criteria
 
-- [ ] Ask And Deliver runs on expanded features without tenant-specific code paths
-- [ ] Admin can edit intake form copy and field sets without deploy
-- [ ] Member logs in → `/member` dashboard; client logs in → `/portal`; admin → command center
-- [ ] Tenant discipline list drives projects, member profiles, and intake options
-- [ ] Admin can invite client portal users from dashboard (no self-signup)
-- [ ] Leads scoped to workspace; public intake attaches correct `userId`
-- [ ] Client sees project brief, client-visible tasks, and can read/reply in per-project message thread
-- [ ] Client sees only their projects; internal tasks hidden
-- [ ] Documentation + `.cursorrules` updated before each implementation phase
-- [ ] Each phase shippable independently behind feature flags if needed
+- [x] Ask And Deliver runs on expanded features without tenant-specific code paths
+- [x] Admin can edit intake form copy and field sets without deploy
+- [x] Member logs in → `/member` dashboard; client logs in → `/portal`; admin → command center
+- [x] Tenant discipline list drives projects, member profiles, and intake options
+- [x] Admin can invite client portal users from dashboard (no self-signup)
+- [x] Leads scoped to workspace; public intake attaches correct `userId`
+- [x] Client sees project brief, client-visible tasks, and can read/reply in per-project message thread
+- [x] Client sees only their projects; internal tasks hidden
+- [x] Documentation + `.cursorrules` updated (Phase 11)
+- [x] Each phase shippable independently behind feature flags if needed
 
 ---
 
@@ -328,3 +328,5 @@ Locked in working session (July 2026):
 | 2026-06-27 | Initial master plan from platform expansion working session |
 | 2026-07-03 | Locked product rules: `/member`, `/portal`, admin client invites, discipline taxonomy, intake v1 priorities |
 | 2026-07-03 | Client portal v1 spec — projects, brief, tasks, per-project messaging |
+| 2026-07-03 | **Phases 1–9 complete** — lead scoping, intake builder, dynamic renderer, disciplines, roles, member hub, client portal, admin command center, assignment & capacity |
+| 2026-07-03 | **Phase 11** — merged `PLATFORM_EXPANSION_CURSORRULES.md` into `.cursorrules`; updated ARCHITECTURE, README, SETUP |

@@ -2,6 +2,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { useAuth0 } from '@auth0/auth0-react';
 import { Bell, Menu, Search } from 'lucide-react';
 import { adminCrumbForPath } from '../lib/adminBreadcrumbs';
+import { useCommandPalette } from './CommandPalette';
 
 interface TopBarProps {
   onToggleMobile: () => void;
@@ -10,6 +11,7 @@ interface TopBarProps {
 function TopBar({ onToggleMobile }: TopBarProps) {
   const { logout, user } = useAuth0();
   const { pathname } = useLocation();
+  const { open: openCommandPalette } = useCommandPalette();
   const current = adminCrumbForPath(pathname);
 
   return (
@@ -54,13 +56,14 @@ function TopBar({ onToggleMobile }: TopBarProps) {
         <div className="flex shrink-0 items-center gap-2">
           <button
             type="button"
+            onClick={openCommandPalette}
             className="hidden min-w-[220px] items-center gap-2 rounded-md border px-3 text-left text-[12.5px] text-[var(--admin-text-3)] transition-colors duration-150 hover:border-[var(--admin-border-strong)] md:inline-flex"
             style={{
               height: 30,
               backgroundColor: 'var(--admin-app-bg)',
               borderColor: 'var(--admin-border)',
             }}
-            aria-label="Search (coming soon)"
+            aria-label="Search or jump to"
           >
             <Search className="h-[13px] w-[13px] shrink-0" strokeWidth={2} />
             <span className="truncate">Search or jump to…</span>

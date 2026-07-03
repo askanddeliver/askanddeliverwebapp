@@ -40,6 +40,9 @@ import type {
   PortalDashboardResponse,
   PortalProjectsResponse,
   PortalProjectDetailResponse,
+  AdminDashboardSummary,
+  DashboardPipelineResponse,
+  DashboardCapacityResponse,
 } from '../types';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
@@ -616,6 +619,13 @@ export const siteConfigApi = {
     api.put<SiteConfig>(`/site-config/palettes/${paletteId}`, { name }),
   deletePalette: (paletteId: string) =>
     api.delete<SiteConfig>(`/site-config/palettes/${paletteId}`),
+};
+
+// Admin dashboard aggregates
+export const dashboardApi = {
+  getAdminSummary: () => api.get<AdminDashboardSummary>('/dashboard/admin-summary'),
+  getPipeline: () => api.get<DashboardPipelineResponse>('/dashboard/pipeline'),
+  getCapacity: () => api.get<DashboardCapacityResponse>('/dashboard/capacity'),
 };
 
 // Project messages (admin/member on Projects page)

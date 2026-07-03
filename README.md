@@ -1,6 +1,6 @@
 # Ask And Deliver — Time Tracking & Invoicing System
 
-A full-featured time tracking, client management, and invoicing application built for freelancers and consultants. Includes a live timer with resume, per-client discount pricing, profit margin tracking, persistent invoices with optional Stripe payment links, client proposals (phases and investment), lead pipeline management, a public-facing portfolio website, theme customization, data backup/export, and multi-user workspace support with role-based access (admin, member, pending).
+A full-featured time tracking, client management, and invoicing application built for creative agencies and consultants. Includes a live timer with resume, per-client discount pricing, profit margin tracking, persistent invoices with optional Stripe payment links, client proposals, workspace-scoped lead pipeline with configurable intake, **member hub** (`/member`), **client portal** (`/portal`), admin command center with team capacity, a public-facing portfolio website, theme customization, data backup/export, and multi-user workspace support with role-based access (**admin**, **member**, **client**, **pending**).
 
 ## Features
 
@@ -53,12 +53,38 @@ A full-featured time tracking, client management, and invoicing application buil
 - **Branding snapshot** — Stores accent colors and company/client snapshots for a consistent PDF-style preview
 
 ### Lead Management
-- **Public intake form** — Prospective clients submit project inquiries from the public website with confidence level (YES, MAYBE, UNSURE), project type, budget, timeline, and message
+- **Configurable intake forms** — Admin builder at `/intake-config`; publish steps/fields; public contact page driven by published schema (`VITE_DYNAMIC_INTAKE`)
+- **Dynamic responses** — `Lead.responses` stores structured answers; disciplines, timeline, budget, file uploads
+- **Workspace-scoped leads** — Each lead belongs to a workspace owner; public POST resolves tenant via `DEFAULT_PUBLIC_WORKSPACE_OWNER_ID` or `X-Public-Workspace`
 - **Lead pipeline** — Track leads through stages: NEW, CONTACTED, QUALIFIED, PROPOSAL, WON, LOST
-- **Pipeline statistics** — Aggregated counts per pipeline stage
+- **Assign creative** — Optional `suggestedMemberAuth0Id` after qualification; applied on conversion
+- **Pipeline statistics** — Aggregated counts per pipeline stage; admin dashboard pipeline snippet
 - **Priority levels** — LOW, MEDIUM, HIGH priority classification
 - **Notes system** — Add timestamped internal notes to leads
 - **Lead conversion** — Convert a qualified lead directly into a Client and Project (with conversion tracking)
+
+### Member Hub (`/member`)
+- **Member-first dashboard** — Timer, assigned projects, open tasks; no financial data
+- **My projects** — Explicit assignment + time-entry fallback
+- **Profile** — Disciplines, nested task skills, availability (hours/week, preferred days), bio
+- **Admin dogfood** — Admins can navigate to `/member` to preview the member experience
+
+### Client Portal (`/portal`)
+- **Admin invite only** — `POST /api/users/invite-client` from Clients page; no client self-signup
+- **Project hub** — Clients see their projects (excludes ARCHIVED)
+- **Brief & tasks** — Sanitized HTML brief; tasks where `clientVisible: true`
+- **Per-project messaging** — Client read/reply in project detail; admin compose with visibility toggle
+
+### Admin Command Center
+- **Dashboard widgets** — Unbilled WIP, invoice aging, active projects, open tasks
+- **Lead pipeline snippet** — Open lead counts + recent activity
+- **Team capacity** — Member availability vs. logged hours, assignments, scheduled blocks
+- **Command palette** — ⌘K search for projects and clients
+
+### Team Assignment & Capacity
+- **Project assignment** — Multi-select members on project modal (`assignedMemberIds`)
+- **Task assignee** — Assign creative on project tasks
+- **Team page** — Disciplines and availability columns for members
 
 ### Public Portfolio Website
 - **Portfolio project management** — Create portfolio case studies with title, client, excerpt, description, categories, disciplines, year, challenge/solution/results, testimonials, and live URL
@@ -83,14 +109,16 @@ A full-featured time tracking, client management, and invoicing application buil
 - **Public API** — Active theme colors are served to the public site automatically
 
 ### Team & Workspace
-- **Role-based access** — Admin, member, and pending roles control what each user can see and do
-- **Workspace model** — Admins own a workspace; members belong to an admin's workspace
+- **Role-based access** — Admin, member, client, and pending roles; post-auth redirect to `/dashboard`, `/member`, or `/portal`
+- **Workspace model** — Admins own a workspace; members belong to an admin's workspace; clients link to a CRM Client record
 - **Add by email** — Admins can add team members by email (requires Auth0 M2M app for lookup)
+- **Client portal invite** — Admins invite clients from the Clients page (`invite-client` API)
 - **Remove team members** — Admins can remove members from the workspace
 - **Invite link** — Share your app URL; new users sign up, then admins add them via email
-- **Primary admin** — Set `PRIMARY_ADMIN_EMAIL` in env to ensure the intended owner always has admin (fixes signup-order edge cases)
-- **Member permissions** — Members can track time and manage projects; admins manage clients, leads, reports, portfolio, task types, and team
-- **Financial privacy** — Members cannot see hourly rates or dollar amounts; only time and descriptions are visible to them
+- **Primary admin** — Set `PRIMARY_ADMIN_EMAIL` in env to ensure the intended owner always has admin
+- **Member permissions** — Members track time on assigned projects; admins manage clients, leads, reports, portfolio, task types, and team
+- **Client permissions** — Clients see only their portal data; never rates, margins, or other clients
+- **Financial privacy** — Members and clients cannot see hourly rates or dollar amounts inappropriately
 - **Earned rates** — Assign per-task-type earned rates to members for cost/margin tracking on invoices
 - **Account deletion** — Users can delete their own account
 
@@ -301,6 +329,9 @@ VITE_API_URL=http://localhost:3001/api
 VITE_AUTH0_DOMAIN=your-tenant.auth0.com
 VITE_AUTH0_CLIENT_ID=your-client-id
 VITE_AUTH0_AUDIENCE=http://localhost:3001/api
+
+# Dynamic intake renderer (false = legacy static Contact form)
+VITE_DYNAMIC_INTAKE=true
 ```
 
 ### Server `.env`
@@ -316,6 +347,9 @@ CLOUDINARY_API_SECRET=your-api-secret
 
 # Optional: Primary admin (always gets admin role, fixes signup-order edge cases)
 # PRIMARY_ADMIN_EMAIL=your-email@example.com
+
+# Required for public intake on single-tenant deploys — Auth0 sub of workspace owner
+# DEFAULT_PUBLIC_WORKSPACE_OWNER_ID=auth0|your-admin-sub
 
 # Optional: For "Add by Email" — create M2M app in Auth0, authorize read:users
 # AUTH0_M2M_CLIENT_ID=
@@ -359,7 +393,8 @@ See [SETUP.md](SETUP.md) for detailed MongoDB Atlas, Auth0, Cloudinary, and Stri
 | `GET` | `/api/portfolio/public/featured` | Featured portfolio projects |
 | `GET` | `/api/portfolio/public/:slug` | Portfolio project by slug |
 | `GET` | `/api/site-config/public` | Active theme colors |
-| `POST` | `/api/leads/public` | Submit intake form |
+| `GET` | `/api/intake-forms/public?slug=default` | Published intake form schema |
+| `POST` | `/api/leads/public` | Submit intake form (workspace resolved server-side) |
 
 ### Webhooks (not JWT — Stripe-signed)
 
@@ -377,6 +412,7 @@ See [SETUP.md](SETUP.md) for detailed MongoDB Atlas, Auth0, Cloudinary, and Stri
 | `DELETE` | `/api/users/me` | Delete current user account |
 | `GET` | `/api/users` | List workspace users (admin only) |
 | `POST` | `/api/users/add-by-email` | Add user to workspace by email (admin only) |
+| `POST` | `/api/users/invite-client` | Invite client portal user (admin only) |
 | `PUT` | `/api/users/:id` | Update user role/status/earnedRates (admin only) |
 | `DELETE` | `/api/users/:id` | Remove user from workspace (admin only) |
 
@@ -500,6 +536,44 @@ See [SETUP.md](SETUP.md) for detailed MongoDB Atlas, Auth0, Cloudinary, and Stri
 | `POST` | `/api/leads/:id/convert` | Convert lead to client + project |
 | `DELETE` | `/api/leads/:id` | Delete lead |
 
+#### Intake Forms (Admin)
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/api/intake-forms` | List intake forms |
+| `GET` | `/api/intake-forms/:id` | Get form definition |
+| `POST` | `/api/intake-forms` | Create intake form |
+| `PUT` | `/api/intake-forms/:id` | Update draft form |
+| `POST` | `/api/intake-forms/:id/publish` | Publish form (increments version) |
+| `DELETE` | `/api/intake-forms/:id` | Delete form |
+
+#### Member Hub
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/api/member/dashboard` | Member hub summary |
+| `GET` | `/api/member/projects` | Assigned + fallback projects (no financials) |
+| `GET` | `/api/member/disciplines` | Discipline taxonomy for profile |
+
+#### Client Portal
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/api/portal/projects` | Client's projects |
+| `GET` | `/api/portal/projects/:id` | Project detail (brief, client-visible tasks) |
+| `GET` | `/api/portal/projects/:id/messages` | Project message thread |
+| `POST` | `/api/portal/projects/:id/messages` | Client reply |
+
+#### Dashboard (Admin)
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/api/dashboard/admin-summary` | Command center stats (WIP, projects, tasks, invoices) |
+| `GET` | `/api/dashboard/pipeline` | Lead pipeline stats + recent |
+| `GET` | `/api/dashboard/capacity` | Team availability vs. assignments and logged hours |
+
+#### Project Messages
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/api/projects/:projectId/messages` | List messages (admin/member) |
+| `POST` | `/api/projects/:projectId/messages` | Compose message (clientVisible toggle) |
+
 #### Uploads (Cloudinary)
 | Method | Endpoint | Description |
 |--------|----------|-------------|
@@ -524,13 +598,16 @@ See [SETUP.md](SETUP.md) for detailed MongoDB Atlas, Auth0, Cloudinary, and Stri
 ## Data Models
 
 ### User
-Auth0-linked user profile with `auth0Id`, `email`, `name`, `picture`, and `nickname`. Supports workspace/team model: `role` (admin | member | pending), `status` (active | pending | disabled), `workspaceOwnerId` (admin who owns this user's workspace), `invitedBy`, and `earnedRates` (optional `Record<string, number>` mapping task type IDs to per-member earned rates for margin tracking).
+Auth0-linked user profile with `auth0Id`, `email`, `name`, `picture`, and `nickname`. Roles: **admin**, **member**, **client**, **pending**. Members have `workspaceOwnerId`; clients have `clientId`. Profile fields: `disciplines`, `disciplineTasks`, `availability`, `bio`. Admins set `earnedRates` for margin tracking.
+
+### Lead
+Workspace-scoped pipeline record with `userId` (workspace owner). Top-level intake columns plus `responses` (dynamic answers), `suggestedMemberAuth0Id`, status/priority, notes, and conversion links (`convertedClientId`, `convertedProjectId`).
 
 ### Client
 Client record with `name`, `company`, `email`, `businessEntity` (official entity name for invoices), `address` (for invoices), `paymentPreference` (ACH | MAILED, defaults to MAILED), and a `taskDiscounts` map — a `Map<string, number>` where each key is a TaskType ID and the value is a discount percentage (0–100).
 
 ### Project
-Linked to a Client. Tracks `title`, `description`, `brief` (rich-text HTML from Tiptap editor), `status` (ACTIVE / PAUSED / COMPLETED / ARCHIVED), and optional `budget`. Includes portfolio-aligned fields for easier conversion to case studies: `excerpt`, `year`, `categories`, `disciplines`, `challenge`, `solution`, and `results` (string array).
+Linked to a Client. Tracks `title`, `description`, `brief`, `status`, optional `budget`, billing modes, portfolio-aligned fields, and `assignedMemberIds` (member Auth0 subs).
 
 ### TaskType
 Billable categories (e.g., "Design", "Development") with `name`, `rate` (hourly), and `color`.
@@ -539,7 +616,7 @@ Billable categories (e.g., "Design", "Development") with `name`, `rate` (hourly)
 Time records with `startTime`, `endTime`, `duration` (seconds), and `isRunning` flag for live timer support. Linked to Project, TaskType, and optionally a ProjectTask. Duration accumulates across pause/resume cycles.
 
 ### ProjectTask
-Sub-tasks within a Project. Tracks `title`, `description`, `status` (TODO / IN_PROGRESS / COMPLETED), `order` (for drag-and-drop), and `estimatedHours`.
+Sub-tasks within a Project. Tracks `title`, `description`, `status`, `order`, `estimatedHours`, `clientVisible` (portal), and optional `assigneeAuth0Id`.
 
 ### LineItem
 Fixed-cost billing entries for non-hourly charges. Linked to a Client and optionally a Project. Tracks `description`, `amount`, `category` (e.g., Software/Plugin, Hosting, Subcontractor), and `date`. Included alongside time entries in invoices and CSV exports. Optional `invoiceId` when included on a SENT invoice.
@@ -548,10 +625,7 @@ Fixed-cost billing entries for non-hourly charges. Linked to a Client and option
 Workspace-scoped billing document created from Reports or API. Tracks `invoiceNumber`, `status` (DRAFT | SENT | PAID), `clientId`, `projectIds`, `dateRange`, snapshotted `companyInfo` and `clientInfo`, rolled-up `items`, totals (`totalHours`, `totalEarned`, `totalMargin`), `timeEntryIds`, `lineItemIds`, `sentAt`, `paidAt`, optional `paymentLinkUrl` and `stripePaymentLinkId` when using Stripe Payment Links.
 
 ### Proposal
-Admin-scoped client proposal with `proposalNumber`, `title`, `clientId`, optional `projectId`, `status` (DRAFT | FINALIZED), `proposalDate`, `accentSnapshot`, `companyInfo`, `clientInfo`, narrative fields (`introduction`, `challenge`, `solution`, `assumptions`, `terms`), `phases`, `investment` (line items, fees, subtotal/total), `investmentSyncPhases`, and optional `sourceMarkdown`.
-
-### Lead
-Intake form submissions with pipeline management. Captures `confidence` (YES / MAYBE / UNSURE), `projectType`, `budget`, `timeline`, contact info (`name`, `email`, `company`, `message`), `description`, pipeline `status` (NEW through WON/LOST), `priority`, timestamped `notes` (with `createdBy`), and conversion references (`convertedClientId`, `convertedProjectId`).
+Admin-scoped client proposal with phases, investment, and DRAFT / FINALIZED status.
 
 ### PortfolioProject
 Case study entries for the public website with `slug`, `title`, `client`, `excerpt`, `description`, `categories`, `disciplines`, `year`, `featuredImage`, `clientLogo`, `images` (url, caption, type: image/video, source: cloudinary/vimeo/youtube), `challenge`, `solution`, `results` (string array), `testimonial` (quote, author, role), `liveUrl`, `color`, `order`, and `published`/`featured` controls.

@@ -38,6 +38,8 @@ export interface ILead extends Document {
   // Conversion tracking
   convertedClientId?: mongoose.Types.ObjectId;
   convertedProjectId?: mongoose.Types.ObjectId;
+  /** Suggested creative to staff on this lead (Auth0 sub) */
+  suggestedMemberAuth0Id?: string;
 
   createdAt: Date;
   updatedAt: Date;
@@ -160,6 +162,10 @@ const LeadSchema = new Schema<ILead>(
     convertedProjectId: {
       type: Schema.Types.ObjectId,
       ref: 'Project',
+    },
+    suggestedMemberAuth0Id: {
+      type: String,
+      trim: true,
     },
   },
   {

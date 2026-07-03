@@ -28,8 +28,9 @@ import {
   ChevronUp,
   GripVertical,
 } from 'lucide-react';
-import type { ProjectTask } from '../../types';
+import type { ProjectTask, User } from '../../types';
 import { ProjectTaskModal } from './ProjectTaskModal';
+import { usersApi } from '../../services/api';
 import { sortProjectTasksByOrder } from '../../utils/projectTasks';
 
 interface ProjectTaskListProps {
@@ -47,6 +48,7 @@ interface ProjectTaskListProps {
     status: 'TODO' | 'IN_PROGRESS' | 'COMPLETED';
     estimatedHours?: number;
     clientVisible?: boolean;
+    assigneeAuth0Id?: string;
   }) => void;
   onUpdateTask: (id: string, data: Partial<ProjectTask>) => void;
   onToggleStatus: (id: string, status: string) => void;
@@ -270,6 +272,17 @@ export function ProjectTaskList({
   const [modalOpen, setModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<ProjectTask | null>(null);
   const [expanded, setExpanded] = useState(true);
+  const [teamMembers, setTeamMembers] = useState<User[]>([]);
+
+  useEffect(() => {
+    if (!canEdit) return;
+    usersApi
+      .getAll()
+      .then((res) =>
+        setTeamMembers((res.data || []).filter((u) => u.role === 'member' && u.status === 'active'))
+      )
+      .catch(() => setTeamMembers([]));
+  }, [canEdit]);
 
   const sortedFromProps = useMemo(() => sortProjectTasksByOrder(tasks), [tasks]);
   const [items, setItems] = useState<ProjectTask[]>(sortedFromProps);
@@ -309,6 +322,7 @@ export function ProjectTaskList({
     status: 'TODO' | 'IN_PROGRESS' | 'COMPLETED';
     estimatedHours?: number;
     clientVisible?: boolean;
+    assigneeAuth0Id?: string;
   }) => {
     if (editingTask) {
       onUpdateTask(editingTask._id, data);
@@ -440,6 +454,7 @@ export function ProjectTaskList({
       <ProjectTaskModal
         task={editingTask}
         projectId={projectId}
+        members={teamMembers}
         isOpen={modalOpen}
         onClose={() => {
           setModalOpen(false);

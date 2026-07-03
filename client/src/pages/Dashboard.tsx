@@ -8,14 +8,32 @@ import { QuickEntry } from '../components/timer/QuickEntry';
 import { StartTaskTimerModal } from '../components/timer/StartTaskTimerModal';
 import { DashboardTaskList } from '../components/dashboard/DashboardTaskList';
 import { InternalWorkspaceTodoCard } from '../components/dashboard/InternalWorkspaceTodoCard';
+import LeadPipelineSnippet from '../components/dashboard/LeadPipelineSnippet';
+import CapacityWidget from '../components/dashboard/CapacityWidget';
 import { AdminPageHeader } from '../components/admin/AdminPageHeader';
 import { AdminStatStrip } from '../components/admin/AdminStatStrip';
 import { AdminPanel } from '../components/admin/AdminPanel';
 import { EntryList } from '../components/entries/EntryList';
 import { EntryModal } from '../components/entries/EntryModal';
-import { timeEntriesApi, projectsApi, taskTypesApi, projectTasksApi, leadsApi } from '../services/api';
-import { formatDurationHuman } from '../utils/calculations';
-import type { TimeEntry, Project, TaskType, ProjectTask, LeadStats } from '../types';
+import {
+  timeEntriesApi,
+  projectsApi,
+  taskTypesApi,
+  projectTasksApi,
+  leadsApi,
+  dashboardApi,
+} from '../services/api';
+import { formatDurationHuman, formatCurrency } from '../utils/calculations';
+import type {
+  TimeEntry,
+  Project,
+  TaskType,
+  ProjectTask,
+  LeadStats,
+  AdminDashboardSummary,
+  DashboardPipelineLead,
+  DashboardCapacityResponse,
+} from '../types';
 
 function Dashboard() {
   const { user } = useAuth0();
@@ -28,6 +46,9 @@ function Dashboard() {
   const [projectTasksClient, setProjectTasksClient] = useState<ProjectTask[]>([]);
   const [projectTasksInternal, setProjectTasksInternal] = useState<ProjectTask[]>([]);
   const [leadStats, setLeadStats] = useState<LeadStats | null>(null);
+  const [adminSummary, setAdminSummary] = useState<AdminDashboardSummary | null>(null);
+  const [pipelineRecent, setPipelineRecent] = useState<DashboardPipelineLead[]>([]);
+  const [capacity, setCapacity] = useState<DashboardCapacityResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [editModalOpen, setEditModalOpen] = useState(false);
@@ -44,12 +65,22 @@ function Dashboard() {
   const loadData = async () => {
     try {
       setLoading(true);
-      const [timerRes, entriesRes, projectsRes, taskTypesRes, leadStatsRes] = await Promise.all([
+      const [timerRes, entriesRes, projectsRes, taskTypesRes, leadStatsRes, summaryRes, pipelineRes, capacityRes] =
+        await Promise.all([
         timeEntriesApi.getActive(),
         timeEntriesApi.getAll(),
         projectsApi.getAll(),
         taskTypesApi.getAll(),
         leadsApi.getStats().catch(() => ({ data: null })),
+        isAdmin
+          ? dashboardApi.getAdminSummary().catch(() => ({ data: null }))
+          : Promise.resolve({ data: null }),
+        isAdmin
+          ? dashboardApi.getPipeline().catch(() => ({ data: null }))
+          : Promise.resolve({ data: null }),
+        isAdmin
+          ? dashboardApi.getCapacity().catch(() => ({ data: null }))
+          : Promise.resolve({ data: null }),
       ]);
 
       let clientTodo: ProjectTask[] = [];
@@ -83,6 +114,12 @@ function Dashboard() {
       setProjectTasksInternal(internalTodo);
       setProjectTasks(allTodo);
       setLeadStats(leadStatsRes.data);
+      setAdminSummary(summaryRes.data);
+      setPipelineRecent(pipelineRes.data?.recent || []);
+      setCapacity(capacityRes.data);
+      if (pipelineRes.data?.stats) {
+        setLeadStats(pipelineRes.data.stats);
+      }
       setError(null);
     } catch (err) {
       console.error('Failed to load data:', err);
@@ -252,33 +289,96 @@ function Dashboard() {
     );
   }
 
-  const statItems = [
-    {
-      label: 'Today',
-      value: todaySeconds > 0 ? formatDurationHuman(todaySeconds) : '0h',
-    },
-    {
-      label: 'This week',
-      value: weekSeconds > 0 ? formatDurationHuman(weekSeconds) : '0h',
-    },
-    {
-      label: 'Active projects',
-      value: activeProjects,
-    },
-    ...(isAdmin
-      ? [{ label: 'Open leads', value: newLeads }]
-      : []),
-  ];
+  const statItems = isAdmin && adminSummary
+    ? [
+        {
+          label: 'Today',
+          value:
+            adminSummary.todaySeconds > 0
+              ? formatDurationHuman(adminSummary.todaySeconds)
+              : '0h',
+        },
+        {
+          label: 'This week',
+          value:
+            adminSummary.weekSeconds > 0
+              ? formatDurationHuman(adminSummary.weekSeconds)
+              : '0h',
+          delta:
+            adminSummary.weekTrendPercent != null
+              ? {
+                  text: `${adminSummary.weekTrendPercent >= 0 ? '+' : ''}${adminSummary.weekTrendPercent}% vs last week`,
+                  tone:
+                    adminSummary.weekTrendPercent >= 0
+                      ? ('positive' as const)
+                      : ('negative' as const),
+                }
+              : { text: 'First week of data', tone: 'neutral' as const },
+        },
+        {
+          label: 'Active projects',
+          value: adminSummary.activeProjects,
+          delta:
+            adminSummary.pausedProjects > 0
+              ? {
+                  text: `${adminSummary.pausedProjects} paused`,
+                  tone: 'neutral' as const,
+                }
+              : undefined,
+        },
+        {
+          label: 'Outstanding',
+          value: formatCurrency(adminSummary.outstanding.total),
+          delta: {
+            text: `${adminSummary.outstanding.count} sent invoice${adminSummary.outstanding.count === 1 ? '' : 's'}`,
+            tone: 'neutral' as const,
+          },
+        },
+      ]
+    : [
+        {
+          label: 'Today',
+          value: todaySeconds > 0 ? formatDurationHuman(todaySeconds) : '0h',
+        },
+        {
+          label: 'This week',
+          value: weekSeconds > 0 ? formatDurationHuman(weekSeconds) : '0h',
+        },
+        {
+          label: 'Active projects',
+          value: activeProjects,
+        },
+        ...(isAdmin ? [{ label: 'Open leads', value: newLeads }] : []),
+      ];
+
+  const pageSubtitle = isAdmin && adminSummary
+    ? [
+        new Date().toLocaleDateString(undefined, {
+          weekday: 'long',
+          month: 'long',
+          day: 'numeric',
+        }),
+        adminSummary.activeProjects > 0
+          ? `${adminSummary.activeProjects} active project${adminSummary.activeProjects === 1 ? '' : 's'}`
+          : null,
+        adminSummary.openTasks > 0
+          ? `${adminSummary.openTasks} open task${adminSummary.openTasks === 1 ? '' : 's'}`
+          : null,
+        adminSummary.unbilledWip.amount > 0
+          ? `${formatCurrency(adminSummary.unbilledWip.amount)} unbilled WIP`
+          : null,
+      ]
+        .filter(Boolean)
+        .join(' · ')
+    : todaySeconds > 0
+      ? `${formatDurationHuman(todaySeconds)} tracked today · Use the timer or log entries below`
+      : "Let's get to work — start the timer or add time when you're done.";
 
   return (
     <div className="w-full">
       <AdminPageHeader
         title={`Welcome back, ${user?.given_name || user?.name || 'User'}`}
-        subtitle={
-          todaySeconds > 0
-            ? `${formatDurationHuman(todaySeconds)} tracked today · Use the timer or log entries below`
-            : "Let's get to work — start the timer or add time when you're done."
-        }
+        subtitle={pageSubtitle}
       />
 
       {/* Error */}
@@ -292,6 +392,13 @@ function Dashboard() {
       )}
 
       <AdminStatStrip items={statItems} />
+
+      {isAdmin && (
+        <div className="mb-6 grid gap-6 xl:grid-cols-2">
+          <LeadPipelineSnippet stats={leadStats} recent={pipelineRecent} />
+          <CapacityWidget capacity={capacity} />
+        </div>
+      )}
 
       {/* Main workspace: handoff ~2-col (primary ~7 / side ~5); gap 16px */}
       <div className="flex flex-col xl:grid xl:grid-cols-12 xl:items-start xl:gap-4">

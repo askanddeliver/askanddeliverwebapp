@@ -141,6 +141,7 @@ VITE_API_URL=http://localhost:3001/api
 VITE_AUTH0_DOMAIN=your-tenant.auth0.com
 VITE_AUTH0_CLIENT_ID=your-client-id-from-auth0-settings
 VITE_AUTH0_AUDIENCE=http://localhost:3001/api
+VITE_DYNAMIC_INTAKE=true
 ```
 
 ### Configure `server/.env`:
@@ -153,12 +154,49 @@ AUTH0_AUDIENCE=http://localhost:3001/api
 CLOUDINARY_CLOUD_NAME=your-cloud-name
 CLOUDINARY_API_KEY=your-api-key
 CLOUDINARY_API_SECRET=your-api-secret
+
+# Public intake: Auth0 sub of the workspace owner (find in Auth0 Users or GET /api/users/me after login)
+# DEFAULT_PUBLIC_WORKSPACE_OWNER_ID=auth0|your-admin-sub
 ```
 
 ### Optional: Team & Add by Email
 
 - **PRIMARY_ADMIN_EMAIL** — Set to your email (e.g. `you@example.com`) to ensure you always get admin role, even if someone else signs up first.
 - **AUTH0_M2M_CLIENT_ID** and **AUTH0_M2M_CLIENT_SECRET** — Required for "Add by Email" (look up users in Auth0). See [server/AUTH0_M2M_SETUP.md](server/AUTH0_M2M_SETUP.md) for setup.
+
+### Public workspace & intake (required for lead routing)
+
+Single-tenant deployments must tell the server which workspace owns public intake submissions:
+
+1. Log in as the admin who should receive leads.
+2. Copy your Auth0 `sub` from Auth0 Dashboard → User Management, or call `GET /api/users/me` and read `auth0Id`.
+3. Set in `server/.env`:
+   ```
+   DEFAULT_PUBLIC_WORKSPACE_OWNER_ID=auth0|xxxxxxxx
+   ```
+4. Set `VITE_DYNAMIC_INTAKE=true` in `client/.env` to use the admin-configurable form from `/intake-config`.
+5. Seed the default form and discipline taxonomy (from repo root):
+   ```bash
+   npm run seed:intake-form
+   npm run seed:disciplines
+   ```
+6. For existing databases created before lead scoping, backfill legacy leads:
+   ```bash
+   npm run backfill:lead-userid
+   ```
+
+The public site sends `X-Public-Workspace` when using multi-tenant public routing; the env var above is the legacy fallback for Ask And Deliver's single deployment.
+
+### Client portal invites
+
+Clients cannot self-signup. After a CRM Client exists:
+
+1. Go to **Clients** in the admin app.
+2. Use **Invite to portal** on the client row (or open the client modal).
+3. Enter the client's email — the server creates a `role: client` user linked to that Client record.
+4. Share the app URL; the client logs in with Auth0 and lands on `/portal`.
+
+Requires the invited person to have signed up in Auth0 first (same as team add-by-email flow), or use your Auth0 invitation flow if configured.
 
 ### Optional: Stripe (online invoice payment links)
 
@@ -230,13 +268,16 @@ On your first login, the Dashboard will prompt you to configure task types. Navi
 Return to the **Dashboard**. The timer controls will now appear. Select a project and task type, then start the timer.
 
 ### 6. Test the public intake form
-Navigate to http://localhost:5173/contact and submit a test inquiry. You should see it appear in the **Leads** section of the admin area.
+Navigate to http://localhost:5173/contact and submit a test inquiry. With `DEFAULT_PUBLIC_WORKSPACE_OWNER_ID` set, it should appear in **Leads** for that workspace only.
 
 ### 7. Customize your theme (optional)
 Go to **Site Config** to adjust your brand colors. You can tweak the sage, charcoal, cream, and accent colors, preview changes live, and save named palettes for quick switching.
 
 ### 8. Team management (optional)
 Go to **Team** to invite members. Share the invite link; after they sign up with Auth0, use "Add by Email" to add them to your workspace (requires Auth0 M2M setup if adding by email).
+
+### 9. Client portal (optional)
+Create a client, then use **Invite to portal** from the Clients page. Log in as that client user to verify `/portal` shows only their projects.
 
 ---
 

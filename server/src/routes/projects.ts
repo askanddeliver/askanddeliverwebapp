@@ -5,6 +5,7 @@ import { Project, TimeEntry, TimeBlock } from '../models';
 import type { ITaskType } from '../models/TaskType';
 import type { ProjectBillingMode } from '../models';
 import { getEffectiveRate, parseDateStart, parseDateEnd } from '../utils/calculations';
+import { validateWorkspaceMemberAuth0Ids } from '../lib/memberValidation';
 
 const BILLING_MODES: ProjectBillingMode[] = ['HOURLY', 'FIXED_PRICE', 'HOUR_RETAINER'];
 
@@ -276,6 +277,7 @@ router.post(
       retainerHoursTotal: rawRetainerHoursTotal,
       retainerHoursAdjustment: rawRetainerAdjustment,
       fixedPriceInvoiceLabel,
+      assignedMemberIds: rawAssignedMemberIds,
     } = req.body;
 
     if (!title || !title.trim()) {
@@ -294,6 +296,11 @@ router.post(
     const retainerHoursAdjustment = parseOptionalNumber(rawRetainerAdjustment);
 
     assertProjectBillingValid(billingMode, agreedAmount, retainerHoursTotal);
+
+    const assignedMemberIds = await validateWorkspaceMemberAuth0Ids(
+      userId,
+      rawAssignedMemberIds
+    );
 
     const project = await Project.create({
       userId,
@@ -318,6 +325,7 @@ router.post(
         typeof fixedPriceInvoiceLabel === 'string'
           ? fixedPriceInvoiceLabel.trim() || undefined
           : undefined,
+      assignedMemberIds,
     });
 
     await project.populate('clientId');
@@ -352,6 +360,7 @@ router.put(
       retainerHoursTotal: rawRetainerHoursTotal,
       retainerHoursAdjustment: rawRetainerAdjustment,
       fixedPriceInvoiceLabel,
+      assignedMemberIds: rawAssignedMemberIds,
     } = req.body;
 
     const existing = await Project.findOne({ _id: req.params.id, userId });
@@ -397,6 +406,12 @@ router.put(
         typeof fixedPriceInvoiceLabel === 'string'
           ? fixedPriceInvoiceLabel.trim() || undefined
           : undefined;
+    }
+    if (rawAssignedMemberIds !== undefined) {
+      update.assignedMemberIds = await validateWorkspaceMemberAuth0Ids(
+        userId,
+        rawAssignedMemberIds
+      );
     }
 
     const mergedMode: ProjectBillingMode =

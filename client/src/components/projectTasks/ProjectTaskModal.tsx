@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
-import type { ProjectTask } from '../../types';
+import type { ProjectTask, User } from '../../types';
 
 interface ProjectTaskModalProps {
   task?: ProjectTask | null;
   projectId: string;
+  members: User[];
   isOpen: boolean;
   onClose: () => void;
   onSave: (data: {
@@ -14,12 +15,14 @@ interface ProjectTaskModalProps {
     status: 'TODO' | 'IN_PROGRESS' | 'COMPLETED';
     estimatedHours?: number;
     clientVisible?: boolean;
+    assigneeAuth0Id?: string;
   }) => void;
 }
 
 export function ProjectTaskModal({
   task,
   projectId,
+  members,
   isOpen,
   onClose,
   onSave,
@@ -29,6 +32,7 @@ export function ProjectTaskModal({
   const [status, setStatus] = useState<'TODO' | 'IN_PROGRESS' | 'COMPLETED'>('TODO');
   const [estimatedHours, setEstimatedHours] = useState('');
   const [clientVisible, setClientVisible] = useState(false);
+  const [assigneeAuth0Id, setAssigneeAuth0Id] = useState('');
 
   useEffect(() => {
     if (task) {
@@ -37,12 +41,14 @@ export function ProjectTaskModal({
       setStatus(task.status);
       setEstimatedHours(task.estimatedHours?.toString() || '');
       setClientVisible(Boolean(task.clientVisible));
+      setAssigneeAuth0Id(task.assigneeAuth0Id || '');
     } else {
       setTitle('');
       setDescription('');
       setStatus('TODO');
       setEstimatedHours('');
       setClientVisible(false);
+      setAssigneeAuth0Id('');
     }
   }, [task, isOpen]);
 
@@ -57,6 +63,7 @@ export function ProjectTaskModal({
       status,
       estimatedHours: estimatedHours ? parseFloat(estimatedHours) : undefined,
       clientVisible,
+      assigneeAuth0Id: assigneeAuth0Id || undefined,
     });
   };
 
@@ -105,6 +112,26 @@ export function ProjectTaskModal({
             />
           </div>
 
+          {members.length > 0 && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Assignee
+              </label>
+              <select
+                value={assigneeAuth0Id}
+                onChange={(e) => setAssigneeAuth0Id(e.target.value)}
+                className="input"
+              >
+                <option value="">Unassigned</option>
+                {members.map((member) => (
+                  <option key={member.auth0Id} value={member.auth0Id}>
+                    {member.name || member.email}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -149,16 +176,12 @@ export function ProjectTaskModal({
             Visible to client portal
           </label>
 
-          <div className="flex gap-3 pt-2">
-            <button type="submit" className="btn-primary flex-1">
-              {task ? 'Update Task' : 'Add Task'}
-            </button>
-            <button
-              type="button"
-              onClick={onClose}
-              className="btn-secondary flex-1"
-            >
+          <div className="flex justify-end gap-3 pt-2">
+            <button type="button" onClick={onClose} className="btn-outline">
               Cancel
+            </button>
+            <button type="submit" className="btn-primary">
+              {task ? 'Save Changes' : 'Create Task'}
             </button>
           </div>
         </form>

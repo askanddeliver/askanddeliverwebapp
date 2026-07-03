@@ -91,6 +91,7 @@ export interface Project {
   retainerHoursTotal?: number;
   retainerHoursAdjustment?: number;
   fixedPriceInvoiceLabel?: string;
+  assignedMemberIds?: string[];
   createdAt: string;
   updatedAt: string;
 }
@@ -138,6 +139,7 @@ export interface ProjectTask {
   order: number;
   estimatedHours?: number;
   clientVisible?: boolean;
+  assigneeAuth0Id?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -203,6 +205,61 @@ export interface PortalDashboardResponse {
 
 export interface PortalProjectsResponse {
   projects: PortalProjectSummary[];
+}
+
+export interface AdminDashboardSummary {
+  todaySeconds: number;
+  weekSeconds: number;
+  lastWeekSeconds: number;
+  weekTrendPercent: number | null;
+  activeProjects: number;
+  pausedProjects: number;
+  openTasks: number;
+  openLeads: number;
+  unbilledWip: { amount: number; entryCount: number };
+  outstanding: { count: number; total: number };
+  invoiceAging: { oldestSentDays: number | null; sentCount: number };
+}
+
+export interface DashboardPipelineLead {
+  _id: string;
+  name: string;
+  company?: string;
+  status: LeadStatus;
+  priority?: LeadPriority;
+  updatedAt: string;
+  createdAt: string;
+}
+
+export interface DashboardPipelineResponse {
+  stats: LeadStats;
+  recent: DashboardPipelineLead[];
+}
+
+export interface DashboardCapacityMember {
+  auth0Id: string;
+  name: string;
+  disciplines: string[];
+  hoursPerWeek?: number;
+  preferredDays?: AvailabilityDay[];
+  assignedProjectCount: number;
+  openTaskCount: number;
+  assignedEstimatedHours: number;
+  loggedHoursThisWeek: number;
+  scheduledBlockHoursThisWeek: number;
+  utilizationPercent: number | null;
+  outOfOffice?: UserAvailability['outOfOffice'];
+}
+
+export interface DashboardCapacityResponse {
+  stub: boolean;
+  members: DashboardCapacityMember[];
+  totals: {
+    memberCount: number;
+    declaredHoursPerWeek: number;
+    loggedHoursThisWeek: number;
+    assignedOpenTasks: number;
+  };
 }
 
 export type TimeBlockKind = 'WORK' | 'PERSONAL' | 'DOWNTIME' | 'MEETING' | 'ADMIN';
@@ -536,6 +593,7 @@ export interface Lead {
   // Conversion tracking
   convertedClientId?: string | Client;
   convertedProjectId?: string | Project;
+  suggestedMemberAuth0Id?: string;
   createdAt: string;
   updatedAt: string;
 }
