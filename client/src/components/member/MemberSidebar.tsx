@@ -4,6 +4,7 @@ import {
   FolderOpen,
   FileText,
   UserCircle,
+  CalendarDays,
   X,
   PanelLeft,
   PanelLeftClose,
@@ -25,6 +26,7 @@ interface NavItem {
 const navItems: NavItem[] = [
   { to: '/member', label: 'Hub', icon: LayoutDashboard },
   { to: '/member/projects', label: 'Projects', icon: FolderOpen },
+  { to: '/member/schedule', label: 'Schedule', icon: CalendarDays },
   { to: '/member/entries', label: 'Entries', icon: FileText },
   { to: '/member/profile', label: 'Profile', icon: UserCircle },
   { to: '/dashboard', label: 'Admin dashboard', icon: ArrowLeft, adminOnly: true },

@@ -194,7 +194,8 @@ export async function computeCapacity(workspaceOwnerId: string) {
       .select('assigneeAuth0Id estimatedHours')
       .lean(),
     TimeBlock.find({
-      userId: { $in: memberAuth0Ids },
+      userId: workspaceOwnerId,
+      ownerAuth0Id: { $in: memberAuth0Ids },
       startTime: { $lt: weekEnd },
       endTime: { $gt: weekStart },
     }).lean(),
@@ -230,8 +231,8 @@ export async function computeCapacity(workspaceOwnerId: string) {
     for (const inst of expanded) {
       const hours = (inst.endTime.getTime() - inst.startTime.getTime()) / 3600000;
       scheduledByMember.set(
-        block.userId,
-        (scheduledByMember.get(block.userId) || 0) + hours
+        block.ownerAuth0Id!,
+        (scheduledByMember.get(block.ownerAuth0Id!) || 0) + hours
       );
     }
   }

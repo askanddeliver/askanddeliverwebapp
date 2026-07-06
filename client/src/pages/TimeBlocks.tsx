@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   timeBlocksApi,
+  memberTimeBlocksApi,
   projectsApi,
+  memberApi,
   taskTypesApi,
   projectTasksApi,
   clientsApi,
@@ -69,7 +71,13 @@ function expandedBlockToDraft(b: ExpandedTimeBlock): BlockEditorDraft {
   };
 }
 
-export default function TimeBlocks() {
+interface TimeBlocksProps {
+  /** Personal schedule for assigned projects (member hub). */
+  memberMode?: boolean;
+}
+
+export default function TimeBlocks({ memberMode = false }: TimeBlocksProps) {
+  const launchRedirect = memberMode ? '/member' : '/dashboard';
   const [view, setView] = useState<ViewMode>('week');
   const [anchor, setAnchor] = useState(() => new Date());
   const [blocks, setBlocks] = useState<ExpandedTimeBlock[]>([]);
@@ -106,22 +114,43 @@ export default function TimeBlocks() {
   }, [anchor, view]);
 
   const fetchAll = useCallback(async () => {
+    const blocksApi = memberMode ? memberTimeBlocksApi : timeBlocksApi;
     try {
       setLoading(true);
       const startIso = toUTCStartOfDay(ymd(range.start));
       const endIso = toUTCEndOfDay(ymd(range.end));
-      const [bRes, pRes, cRes, tRes, ptRes] = await Promise.all([
-        timeBlocksApi.getAll({ start: startIso, end: endIso }),
-        projectsApi.getAll(),
-        clientsApi.getAll(),
-        taskTypesApi.getAll(),
-        projectTasksApi.getAll(),
-      ]);
-      setBlocks(bRes.data || []);
-      setProjects(pRes.data || []);
-      setClients(cRes.data || []);
-      setTaskTypes(tRes.data || []);
-      setProjectTasks(ptRes.data || []);
+      if (memberMode) {
+        const [bRes, pRes, tRes, ptRes] = await Promise.all([
+          blocksApi.getAll({ start: startIso, end: endIso }),
+          memberApi.getProjects(),
+          taskTypesApi.getAll(),
+          projectTasksApi.getAll(),
+        ]);
+        setBlocks(bRes.data || []);
+        setProjects(pRes.data || []);
+        const clientMap = new Map<string, Client>();
+        for (const p of pRes.data || []) {
+          if (typeof p.clientId === 'object' && p.clientId) {
+            clientMap.set(p.clientId._id, p.clientId);
+          }
+        }
+        setClients(Array.from(clientMap.values()));
+        setTaskTypes(tRes.data || []);
+        setProjectTasks(ptRes.data || []);
+      } else {
+        const [bRes, pRes, cRes, tRes, ptRes] = await Promise.all([
+          blocksApi.getAll({ start: startIso, end: endIso }),
+          projectsApi.getAll(),
+          clientsApi.getAll(),
+          taskTypesApi.getAll(),
+          projectTasksApi.getAll(),
+        ]);
+        setBlocks(bRes.data || []);
+        setProjects(pRes.data || []);
+        setClients(cRes.data || []);
+        setTaskTypes(tRes.data || []);
+        setProjectTasks(ptRes.data || []);
+      }
       setError(null);
     } catch (e) {
       console.error(e);
@@ -129,11 +158,13 @@ export default function TimeBlocks() {
     } finally {
       setLoading(false);
     }
-  }, [range.start, range.end]);
+  }, [range.start, range.end, memberMode]);
 
   useEffect(() => {
     fetchAll();
   }, [fetchAll]);
+
+  const blocksApi = memberMode ? memberTimeBlocksApi : timeBlocksApi;
 
   const weekDays = useMemo(() => {
     const ws = startOfWeekMonday(anchor);
@@ -240,9 +271,9 @@ export default function TimeBlocks() {
         notes: draft.notes.trim() || undefined,
       };
       if (editingMasterId) {
-        await timeBlocksApi.update(editingMasterId, body);
+        await blocksApi.update(editingMasterId, body);
       } else {
-        await timeBlocksApi.create(body);
+        await blocksApi.create(body);
       }
       setModalOpen(false);
       fetchAll();
@@ -255,7 +286,7 @@ export default function TimeBlocks() {
   const deleteBlock = async (id: string) => {
     if (!window.confirm('Delete this block?')) return;
     try {
-      await timeBlocksApi.delete(id);
+      await blocksApi.delete(id);
       setModalOpen(false);
       setDetail(null);
       fetchAll();
@@ -277,11 +308,11 @@ export default function TimeBlocks() {
     }
     try {
       setError(null);
-      await timeBlocksApi.launch(b.masterId, {
+      await blocksApi.launch(b.masterId, {
         description: [b.title, b.notes].filter(Boolean).join(' — '),
       });
       setDetail(null);
-      window.location.href = '/dashboard';
+      window.location.href = launchRedirect;
     } catch (e) {
       console.error(e);
       setError('Could not start timer');
@@ -291,7 +322,7 @@ export default function TimeBlocks() {
   const handleResizeCommit = async (b: ExpandedTimeBlock, newEnd: Date) => {
     try {
       setError(null);
-      await timeBlocksApi.update(b.masterId, {
+      await blocksApi.update(b.masterId, {
         startTime: new Date(b.startTime).toISOString(),
         endTime: newEnd.toISOString(),
       });
@@ -334,9 +365,13 @@ export default function TimeBlocks() {
 
       <div className="flex-1 flex flex-col min-w-0 min-h-0">
         <div className="mb-2">
-          <h1 className="text-3xl font-bold text-gray-900">Block Time</h1>
+          <h1 className="text-3xl font-bold text-gray-900">
+            {memberMode ? 'My Schedule' : 'Block Time'}
+          </h1>
           <p className="text-gray-500 mt-1 text-sm">
-            Plan your week, match client colors in the legend, and start the timer from a block.
+            {memberMode
+              ? 'Plan your week on assigned projects, link tasks, and start the timer from a block.'
+              : 'Plan your week, match client colors in the legend, and start the timer from a block.'}
           </p>
         </div>
 
@@ -447,6 +482,7 @@ export default function TimeBlocks() {
         taskTypes={taskTypes}
         tasksForProject={tasksForProject}
         showProjectFields={showProjectFields}
+        memberMode={memberMode}
         onSave={saveBlock}
         onCancel={() => {
           setModalOpen(false);

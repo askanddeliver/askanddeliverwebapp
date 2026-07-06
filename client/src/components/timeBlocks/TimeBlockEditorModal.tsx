@@ -40,6 +40,8 @@ interface TimeBlockEditorModalProps {
   tasksForProject: ProjectTask[];
   taskTypes: TaskType[];
   showProjectFields: boolean;
+  /** Member schedule: project picker only (assigned projects). */
+  memberMode?: boolean;
   onSave: () => void;
   onCancel: () => void;
   /** Save as a new block from current form (edit mode only). */
@@ -94,6 +96,7 @@ export function TimeBlockEditorModal({
   tasksForProject,
   taskTypes,
   showProjectFields,
+  memberMode = false,
   onSave,
   onCancel,
   onDuplicate,
@@ -115,12 +118,14 @@ export function TimeBlockEditorModal({
   const startBad =
     eh.h * 60 + eh.m <= sh.h * 60 + sh.m;
 
-  const clientProjects = draft.clientId
-    ? projects.filter((p) => {
-        const c = typeof p.clientId === 'object' ? p.clientId._id : p.clientId;
-        return c === draft.clientId && p.status === 'ACTIVE';
-      })
-    : [];
+  const clientProjects = memberMode
+    ? projects.filter((p) => p.status === 'ACTIVE' || p.status === 'PAUSED')
+    : draft.clientId
+      ? projects.filter((p) => {
+          const c = typeof p.clientId === 'object' ? p.clientId._id : p.clientId;
+          return c === draft.clientId && p.status === 'ACTIVE';
+        })
+      : [];
 
   const handleKind = (k: TimeBlockKind) => {
     onDraftChange({ kind: k });
@@ -196,7 +201,42 @@ export function TimeBlockEditorModal({
             </div>
           </div>
 
-          {showProjectFields && (
+          {showProjectFields && memberMode && (
+            <div>
+              <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider mb-1.5">
+                Project
+              </p>
+              <select
+                className="input text-sm"
+                value={draft.projectId}
+                onChange={(e) => {
+                  const pid = e.target.value;
+                  const p = projects.find((x) => x._id === pid);
+                  const cid =
+                    p && typeof p.clientId === 'object'
+                      ? p.clientId._id
+                      : p?.clientId
+                        ? String(p.clientId)
+                        : '';
+                  onDraftChange({
+                    projectId: pid,
+                    clientId: cid,
+                    projectTaskId: '',
+                  });
+                }}
+              >
+                <option value="">— None —</option>
+                {clientProjects.map((p) => (
+                  <option key={p._id} value={p._id}>
+                    {typeof p.clientId === 'object' ? `${p.clientId.name} · ` : ''}
+                    {p.title}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {showProjectFields && !memberMode && (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider mb-1.5">

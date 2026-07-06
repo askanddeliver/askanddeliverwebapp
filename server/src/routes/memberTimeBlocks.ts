@@ -1,16 +1,23 @@
 import { Router, Response } from 'express';
 import mongoose from 'mongoose';
-import { checkJwt, AuthRequest, extractUserId, getWorkspaceOwnerId, requireAdmin } from '../middleware/auth';
+import {
+  checkJwt,
+  AuthRequest,
+  extractUserId,
+  getWorkspaceOwnerId,
+  requireMemberOrAdmin,
+} from '../middleware/auth';
 import { asyncHandler, createError } from '../middleware/errorHandler';
 import { TimeBlock, TimeEntry, Project, TaskType, ProjectTask } from '../models';
 import { parseDateStart, parseDateEnd } from '../utils/calculations';
 import { expandTimeBlocksForRange } from '../lib/expandTimeBlocks';
-import { ADMIN_TIME_BLOCK_OWNER_FILTER } from '../lib/timeBlockScope';
+import { memberHasProjectAccess } from '../lib/memberProjects';
+import { memberTimeBlockOwnerFilter } from '../lib/timeBlockScope';
 
 const router = Router();
 
 router.use(checkJwt);
-router.use(requireAdmin);
+router.use(requireMemberOrAdmin);
 
 function normalizeStringArray(q: unknown): string[] {
   if (Array.isArray(q)) return q.map(String).filter(Boolean);
@@ -19,12 +26,56 @@ function normalizeStringArray(q: unknown): string[] {
   return [];
 }
 
-// GET /api/time-blocks?start=&end=&projectIds[]=&kinds[]=
+async function validateMemberBlockRefs(
+  workspaceOwnerId: string,
+  memberAuth0Id: string,
+  projectId?: string | null,
+  taskTypeId?: string | null,
+  projectTaskId?: string | null
+) {
+  if (projectId) {
+    const allowed = await memberHasProjectAccess(workspaceOwnerId, memberAuth0Id, projectId);
+    if (!allowed) throw createError('Project not found or not assigned to you', 404);
+    const proj = await Project.findOne({ _id: projectId, userId: workspaceOwnerId });
+    if (!proj) throw createError('Project not found', 404);
+  }
+  if (taskTypeId) {
+    const tt = await TaskType.findOne({ _id: taskTypeId, userId: workspaceOwnerId });
+    if (!tt) throw createError('Task type not found', 404);
+  }
+  if (projectTaskId) {
+    const pt = await ProjectTask.findOne({ _id: projectTaskId, userId: workspaceOwnerId });
+    if (!pt) throw createError('Project task not found', 404);
+    const taskProjectId = pt.projectId.toString();
+    if (projectId && taskProjectId !== projectId) {
+      throw createError('Task does not belong to selected project', 400);
+    }
+    const allowed = await memberHasProjectAccess(workspaceOwnerId, memberAuth0Id, taskProjectId);
+    if (!allowed) throw createError('Project task not found', 404);
+  }
+}
+
+async function loadMemberBlock(
+  workspaceOwnerId: string,
+  memberAuth0Id: string,
+  blockId: string
+) {
+  const block = await TimeBlock.findOne({
+    _id: blockId,
+    userId: workspaceOwnerId,
+    ...memberTimeBlockOwnerFilter(memberAuth0Id),
+  });
+  if (!block) throw createError('Time block not found', 404);
+  return block;
+}
+
+// GET /api/member/time-blocks?start=&end=&projectIds[]=&kinds[]=
 router.get(
   '/',
   asyncHandler(async (req: AuthRequest, res: Response) => {
+    const auth0Id = extractUserId(req);
     const workspaceOwnerId = await getWorkspaceOwnerId(req);
-    if (!workspaceOwnerId) throw createError('Workspace access required', 403);
+    if (!auth0Id || !workspaceOwnerId) throw createError('Workspace access required', 403);
 
     const { start, end } = req.query;
     if (!start || !end || typeof start !== 'string' || typeof end !== 'string') {
@@ -37,25 +88,23 @@ router.get(
     const projectIdsRaw = normalizeStringArray(req.query.projectIds ?? req.query['projectIds[]']);
     const kindsRaw = normalizeStringArray(req.query.kinds ?? req.query['kinds[]']);
 
-    const workspaceProjects = await Project.find({ userId: workspaceOwnerId }).distinct('_id');
-    const validProjectFilter =
-      projectIdsRaw.length > 0
-        ? projectIdsRaw.filter(
-            (id) =>
-              mongoose.Types.ObjectId.isValid(id) &&
-              workspaceProjects.some((p) => p.toString() === id)
-          )
-        : [];
-
-    if (projectIdsRaw.length > 0 && validProjectFilter.length === 0) {
-      res.json([]);
-      return;
+    let validProjectFilter: string[] = [];
+    if (projectIdsRaw.length > 0) {
+      for (const id of projectIdsRaw) {
+        if (!mongoose.Types.ObjectId.isValid(id)) continue;
+        const allowed = await memberHasProjectAccess(workspaceOwnerId, auth0Id, id);
+        if (allowed) validProjectFilter.push(id);
+      }
+      if (validProjectFilter.length === 0) {
+        res.json([]);
+        return;
+      }
     }
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const query: any = {
       userId: workspaceOwnerId,
-      ...ADMIN_TIME_BLOCK_OWNER_FILTER,
+      ...memberTimeBlockOwnerFilter(auth0Id),
       recurrenceParentId: null,
       endTime: { $gte: rangeStart },
       startTime: { $lte: rangeEnd },
@@ -82,34 +131,13 @@ router.get(
   })
 );
 
-// GET /api/time-blocks/:id
-router.get(
-  '/:id',
-  asyncHandler(async (req: AuthRequest, res: Response) => {
-    const workspaceOwnerId = await getWorkspaceOwnerId(req);
-    if (!workspaceOwnerId) throw createError('Workspace access required', 403);
-
-    const block = await TimeBlock.findOne({
-      _id: req.params.id,
-      userId: workspaceOwnerId,
-      ...ADMIN_TIME_BLOCK_OWNER_FILTER,
-    })
-      .populate({ path: 'projectId', populate: { path: 'clientId' } })
-      .populate('taskTypeId')
-      .populate('projectTaskId')
-      .lean();
-
-    if (!block) throw createError('Time block not found', 404);
-    res.json(block);
-  })
-);
-
-// POST /api/time-blocks
+// POST /api/member/time-blocks
 router.post(
   '/',
   asyncHandler(async (req: AuthRequest, res: Response) => {
+    const auth0Id = extractUserId(req);
     const workspaceOwnerId = await getWorkspaceOwnerId(req);
-    if (!workspaceOwnerId) throw createError('Workspace access required', 403);
+    if (!auth0Id || !workspaceOwnerId) throw createError('Workspace access required', 403);
 
     const {
       title,
@@ -134,23 +162,20 @@ router.post(
     }
     if (end <= start) throw createError('endTime must be after startTime', 400);
 
-    const k = kind && ['WORK', 'PERSONAL', 'DOWNTIME', 'MEETING', 'ADMIN'].includes(kind) ? kind : 'WORK';
+    const k =
+      kind && ['WORK', 'PERSONAL', 'DOWNTIME', 'MEETING', 'ADMIN'].includes(kind) ? kind : 'WORK';
 
-    if (projectId) {
-      const proj = await Project.findOne({ _id: projectId, userId: workspaceOwnerId });
-      if (!proj) throw createError('Project not found', 404);
-    }
-    if (taskTypeId) {
-      const tt = await TaskType.findOne({ _id: taskTypeId, userId: workspaceOwnerId });
-      if (!tt) throw createError('Task type not found', 404);
-    }
-    if (projectTaskId) {
-      const pt = await ProjectTask.findOne({ _id: projectTaskId, userId: workspaceOwnerId });
-      if (!pt) throw createError('Project task not found', 404);
-    }
+    await validateMemberBlockRefs(
+      workspaceOwnerId,
+      auth0Id,
+      projectId || undefined,
+      taskTypeId || undefined,
+      projectTaskId || undefined
+    );
 
     const block = await TimeBlock.create({
       userId: workspaceOwnerId,
+      ownerAuth0Id: auth0Id,
       title: String(title).trim(),
       startTime: start,
       endTime: end,
@@ -173,19 +198,15 @@ router.post(
   })
 );
 
-// PATCH /api/time-blocks/:id
+// PATCH /api/member/time-blocks/:id
 router.patch(
   '/:id',
   asyncHandler(async (req: AuthRequest, res: Response) => {
+    const auth0Id = extractUserId(req);
     const workspaceOwnerId = await getWorkspaceOwnerId(req);
-    if (!workspaceOwnerId) throw createError('Workspace access required', 403);
+    if (!auth0Id || !workspaceOwnerId) throw createError('Workspace access required', 403);
 
-    const block = await TimeBlock.findOne({
-      _id: req.params.id,
-      userId: workspaceOwnerId,
-      ...ADMIN_TIME_BLOCK_OWNER_FILTER,
-    });
-    if (!block) throw createError('Time block not found', 404);
+    const block = await loadMemberBlock(workspaceOwnerId, auth0Id, req.params.id);
 
     const {
       title,
@@ -201,6 +222,33 @@ router.patch(
       exceptionDates,
     } = req.body;
 
+    const nextProjectId =
+      projectId !== undefined
+        ? projectId === null || projectId === ''
+          ? undefined
+          : String(projectId)
+        : block.projectId?.toString();
+    const nextTaskTypeId =
+      taskTypeId !== undefined
+        ? taskTypeId === null || taskTypeId === ''
+          ? undefined
+          : String(taskTypeId)
+        : block.taskTypeId?.toString();
+    const nextProjectTaskId =
+      projectTaskId !== undefined
+        ? projectTaskId === null || projectTaskId === ''
+          ? undefined
+          : String(projectTaskId)
+        : block.projectTaskId?.toString();
+
+    await validateMemberBlockRefs(
+      workspaceOwnerId,
+      auth0Id,
+      nextProjectId,
+      nextTaskTypeId,
+      nextProjectTaskId
+    );
+
     if (title !== undefined) block.title = String(title).trim();
     if (startTime !== undefined) block.startTime = new Date(startTime);
     if (endTime !== undefined) block.endTime = new Date(endTime);
@@ -211,31 +259,15 @@ router.patch(
       block.kind = kind;
     }
     if (projectId !== undefined) {
-      if (projectId === null || projectId === '') {
-        block.projectId = undefined;
-      } else {
-        const proj = await Project.findOne({ _id: projectId, userId: workspaceOwnerId });
-        if (!proj) throw createError('Project not found', 404);
-        block.projectId = proj._id;
-      }
+      block.projectId = projectId ? new mongoose.Types.ObjectId(String(projectId)) : undefined;
     }
     if (taskTypeId !== undefined) {
-      if (taskTypeId === null || taskTypeId === '') {
-        block.taskTypeId = undefined;
-      } else {
-        const tt = await TaskType.findOne({ _id: taskTypeId, userId: workspaceOwnerId });
-        if (!tt) throw createError('Task type not found', 404);
-        block.taskTypeId = tt._id;
-      }
+      block.taskTypeId = taskTypeId ? new mongoose.Types.ObjectId(String(taskTypeId)) : undefined;
     }
     if (projectTaskId !== undefined) {
-      if (projectTaskId === null || projectTaskId === '') {
-        block.projectTaskId = undefined;
-      } else {
-        const pt = await ProjectTask.findOne({ _id: projectTaskId, userId: workspaceOwnerId });
-        if (!pt) throw createError('Project task not found', 404);
-        block.projectTaskId = pt._id;
-      }
+      block.projectTaskId = projectTaskId
+        ? new mongoose.Types.ObjectId(String(projectTaskId))
+        : undefined;
     }
     if (colorHint !== undefined) block.colorHint = colorHint?.trim() || undefined;
     if (recurrenceRule !== undefined) block.recurrenceRule = recurrenceRule?.trim() || undefined;
@@ -258,41 +290,35 @@ router.patch(
   })
 );
 
-// DELETE /api/time-blocks/:id
+// DELETE /api/member/time-blocks/:id
 router.delete(
   '/:id',
   asyncHandler(async (req: AuthRequest, res: Response) => {
+    const auth0Id = extractUserId(req);
     const workspaceOwnerId = await getWorkspaceOwnerId(req);
-    if (!workspaceOwnerId) throw createError('Workspace access required', 403);
+    if (!auth0Id || !workspaceOwnerId) throw createError('Workspace access required', 403);
 
     const block = await TimeBlock.findOneAndDelete({
       _id: req.params.id,
       userId: workspaceOwnerId,
-      ...ADMIN_TIME_BLOCK_OWNER_FILTER,
+      ...memberTimeBlockOwnerFilter(auth0Id),
     });
     if (!block) throw createError('Time block not found', 404);
     res.json({ message: 'Time block deleted' });
   })
 );
 
-// POST /api/time-blocks/:id/launch
+// POST /api/member/time-blocks/:id/launch
 router.post(
   '/:id/launch',
   asyncHandler(async (req: AuthRequest, res: Response) => {
-    const userId = extractUserId(req);
-    if (!userId) throw createError('User ID not found in token', 401);
-
+    const auth0Id = extractUserId(req);
     const workspaceOwnerId = await getWorkspaceOwnerId(req);
-    if (!workspaceOwnerId) throw createError('Workspace access required', 403);
+    if (!auth0Id || !workspaceOwnerId) throw createError('Workspace access required', 403);
 
     const { description } = req.body as { description?: string };
 
-    const block = await TimeBlock.findOne({
-      _id: req.params.id,
-      userId: workspaceOwnerId,
-      ...ADMIN_TIME_BLOCK_OWNER_FILTER,
-    });
-    if (!block) throw createError('Time block not found', 404);
+    const block = await loadMemberBlock(workspaceOwnerId, auth0Id, req.params.id);
 
     const projectId = block.projectId;
     const taskTypeId = block.taskTypeId;
@@ -302,15 +328,18 @@ router.post(
       throw createError('Block must have a project and task type to start the timer', 400);
     }
 
-    const proj = await Project.findOne({ _id: projectId, userId: workspaceOwnerId });
-    if (!proj) throw createError('Project not found', 404);
-    const tt = await TaskType.findOne({ _id: taskTypeId, userId: workspaceOwnerId });
-    if (!tt) throw createError('Task type not found', 404);
+    await validateMemberBlockRefs(
+      workspaceOwnerId,
+      auth0Id,
+      projectId.toString(),
+      taskTypeId.toString(),
+      projectTaskId?.toString()
+    );
 
     const titleOrNotes = [block.title, block.notes].filter(Boolean).join(' — ');
     const desc = (description?.trim() || titleOrNotes || undefined) as string | undefined;
 
-    const runningTimers = await TimeEntry.find({ userId, isRunning: true });
+    const runningTimers = await TimeEntry.find({ userId: auth0Id, isRunning: true });
     for (const timer of runningTimers) {
       const endTime = new Date();
       const sessionDuration = Math.floor((endTime.getTime() - timer.startTime.getTime()) / 1000);
@@ -321,7 +350,7 @@ router.post(
     }
 
     const timer = await TimeEntry.create({
-      userId,
+      userId: auth0Id,
       projectId,
       taskTypeId,
       projectTaskId: projectTaskId || undefined,

@@ -12,11 +12,14 @@ import {
   findMemberProjects,
   stripProjectFinancials,
 } from '../lib/memberProjects';
+import memberTimeBlockRoutes from './memberTimeBlocks';
 
 const router = Router();
 
 router.use(checkJwt);
 router.use(requireMemberOrAdmin);
+
+router.use('/time-blocks', memberTimeBlockRoutes);
 
 // GET /api/member/dashboard — stats for member hub (no financial data)
 router.get(

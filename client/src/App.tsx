@@ -40,6 +40,7 @@ import MemberHub from './pages/member/MemberHub';
 import MemberProjects from './pages/member/MemberProjects';
 import MemberEntries from './pages/member/MemberEntries';
 import MemberProfile from './pages/member/MemberProfile';
+import MemberSchedule from './pages/member/MemberSchedule';
 import TimeBlocks from './pages/TimeBlocks';
 import InternalWorkspace from './pages/InternalWorkspace';
 
@@ -159,6 +160,7 @@ function App() {
         <Route index element={<MemberHub />} />
         <Route path="projects" element={<MemberProjects />} />
         <Route path="entries" element={<MemberEntries />} />
+        <Route path="schedule" element={<MemberSchedule />} />
         <Route path="profile" element={<MemberProfile />} />
       </Route>
 

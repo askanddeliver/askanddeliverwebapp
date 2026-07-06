@@ -321,6 +321,50 @@ export const timeBlocksApi = {
     api.post<{ timeEntry: TimeEntry; block: unknown }>(`/time-blocks/${id}/launch`, body ?? {}),
 };
 
+// Member personal block time (assigned projects/tasks only)
+export const memberTimeBlocksApi = {
+  getAll: (params: {
+    start: string;
+    end: string;
+    projectIds?: string[];
+    kinds?: string[];
+  }) => api.get<ExpandedTimeBlock[]>('/member/time-blocks', { params }),
+  create: (data: {
+    title: string;
+    startTime: string;
+    endTime: string;
+    kind?: string;
+    projectId?: string;
+    taskTypeId?: string;
+    projectTaskId?: string;
+    colorHint?: string;
+    recurrenceRule?: string;
+    notes?: string;
+  }) => api.post('/member/time-blocks', data),
+  update: (
+    id: string,
+    data: Partial<{
+      title: string;
+      startTime: string;
+      endTime: string;
+      kind: string;
+      projectId: string | null;
+      taskTypeId: string | null;
+      projectTaskId: string | null;
+      colorHint: string;
+      recurrenceRule: string;
+      notes: string;
+      exceptionDates: string[];
+    }>
+  ) => api.patch(`/member/time-blocks/${id}`, data),
+  delete: (id: string) => api.delete(`/member/time-blocks/${id}`),
+  launch: (id: string, body?: { description?: string }) =>
+    api.post<{ timeEntry: TimeEntry; block: unknown }>(
+      `/member/time-blocks/${id}/launch`,
+      body ?? {}
+    ),
+};
+
 // Line Items (fixed-cost charges)
 export const lineItemsApi = {
   getAll: (params?: {

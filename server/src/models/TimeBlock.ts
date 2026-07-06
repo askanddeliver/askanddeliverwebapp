@@ -3,7 +3,10 @@ import mongoose, { Document, Schema } from 'mongoose';
 export type TimeBlockKind = 'WORK' | 'PERSONAL' | 'DOWNTIME' | 'MEETING' | 'ADMIN';
 
 export interface ITimeBlock extends Document {
+  /** Workspace owner auth0Id (Pattern B scoping). */
   userId: string;
+  /** Set for member-owned blocks; null/absent for admin workspace calendar blocks. */
+  ownerAuth0Id?: string | null;
   startTime: Date;
   endTime: Date;
   title: string;
@@ -28,6 +31,11 @@ const TimeBlockSchema = new Schema<ITimeBlock>(
       required: true,
       index: true,
     },
+    ownerAuth0Id: {
+      type: String,
+      index: true,
+      default: null,
+    },
     startTime: { type: Date, required: true },
     endTime: { type: Date, required: true },
     title: { type: String, required: true, trim: true },
@@ -50,6 +58,7 @@ const TimeBlockSchema = new Schema<ITimeBlock>(
 );
 
 TimeBlockSchema.index({ userId: 1, startTime: 1 });
+TimeBlockSchema.index({ userId: 1, ownerAuth0Id: 1, startTime: 1 });
 TimeBlockSchema.index({ userId: 1, projectId: 1 });
 TimeBlockSchema.index({ recurrenceParentId: 1 });
 
