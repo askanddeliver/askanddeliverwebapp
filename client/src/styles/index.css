@@ -401,16 +401,24 @@
     @apply shadow-none border-none p-0;
   }
 
-  /* [data-admin-theme] .card sets box-shadow — beats plain .card in cascade */
+  /*
+   * [data-admin-theme] .card sets border/shadow/radius with higher specificity
+   * than plain .card — without this override, invoice PDFs keep a card outline
+   * while print:p-0 strips padding (content flush against the border).
+   */
   [data-admin-theme] .card,
   .proposal-doc,
-  #proposal-preview {
+  #proposal-preview,
+  #invoice-preview {
     box-shadow: none !important;
+    border: none !important;
+    border-radius: 0 !important;
   }
 
   #invoice-preview {
     @apply text-xs;
     background-color: #ffffff !important;
+    padding: 0 !important;
   }
 
   /* No scrollbars on invoice tables when printing */

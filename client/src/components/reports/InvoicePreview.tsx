@@ -24,7 +24,7 @@ export function InvoicePreview({ invoice }: InvoicePreviewProps) {
   const retainerPeriodHours = retainerUtilItems.reduce((s, item) => s + item.hours, 0);
 
   return (
-    <div className="card print:p-0 print:overflow-visible" id="invoice-preview">
+    <div className="card print:border-0 print:shadow-none print:rounded-none print:p-0 print:overflow-visible" id="invoice-preview">
       {/* Invoice Header: Company (left) + Client (right) */}
       <div className="flex justify-between items-start gap-6 mb-6 print:mb-4">
         <div className="flex-1 min-w-0">
