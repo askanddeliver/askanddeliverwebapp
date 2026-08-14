@@ -18,6 +18,8 @@ interface DashboardTaskListProps {
   isTimerRunning: boolean;
   hasTaskTypes: boolean;
   onPlay: (project: Project, task: ProjectTask) => void;
+  /** Cycle task status (TODO → IN_PROGRESS → COMPLETED). Completed tasks leave this list. */
+  onToggleStatus?: (id: string, status: string) => void | Promise<void>;
   /** When true, render list only (no outer card). Used inside Internal workspace card. */
   hideOuterCard?: boolean;
   /** Override default "To-do" heading */
@@ -36,6 +38,18 @@ const statusLabels: Record<string, string> = {
   TODO: 'To Do',
   IN_PROGRESS: 'In progress',
   COMPLETED: 'Done',
+};
+
+const nextStatus: Record<ProjectTask['status'], ProjectTask['status']> = {
+  TODO: 'IN_PROGRESS',
+  IN_PROGRESS: 'COMPLETED',
+  COMPLETED: 'TODO',
+};
+
+const statusActionHint: Record<ProjectTask['status'], string> = {
+  TODO: 'Click to mark in progress',
+  IN_PROGRESS: 'Click to complete',
+  COMPLETED: 'Click to reopen',
 };
 
 type ClientGroup = {
@@ -116,6 +130,7 @@ export function DashboardTaskList({
   isTimerRunning,
   hasTaskTypes,
   onPlay,
+  onToggleStatus,
   hideOuterCard = false,
   title = 'To-do',
   projectsLink = '/projects',
@@ -128,9 +143,20 @@ export function DashboardTaskList({
   const [expandedClients, setExpandedClients] = useState<Record<string, boolean>>(
     {}
   );
+  const [busyTaskId, setBusyTaskId] = useState<string | null>(null);
 
   const toggleClient = (key: string) => {
     setExpandedClients((prev) => ({ ...prev, [key]: !prev[key] }));
+  };
+
+  const handleCycleStatus = async (task: ProjectTask) => {
+    if (!onToggleStatus || busyTaskId) return;
+    setBusyTaskId(task._id);
+    try {
+      await onToggleStatus(task._id, nextStatus[task.status]);
+    } finally {
+      setBusyTaskId(null);
+    }
   };
 
   const totalOpen = useMemo(
@@ -215,12 +241,26 @@ export function DashboardTaskList({
                         {tasks.map((task) => {
                           const playDisabled =
                             isTimerRunning || !hasTaskTypes;
+                          const statusBusy = busyTaskId === task._id;
                           return (
                             <li
                               key={task._id}
                               className="flex items-start gap-2 py-1.5 rounded-md hover:bg-gray-50/80 -mx-1 px-1"
                             >
-                              <span className="mt-0.5">{statusIcons[task.status]}</span>
+                              {onToggleStatus ? (
+                                <button
+                                  type="button"
+                                  onClick={() => handleCycleStatus(task)}
+                                  disabled={statusBusy}
+                                  className="mt-0.5 flex-shrink-0 hover:scale-110 transition-transform disabled:opacity-40 disabled:cursor-wait"
+                                  title={`Status: ${statusLabels[task.status]} — ${statusActionHint[task.status]}`}
+                                  aria-label={`${statusLabels[task.status]}. ${statusActionHint[task.status]}`}
+                                >
+                                  {statusIcons[task.status]}
+                                </button>
+                              ) : (
+                                <span className="mt-0.5">{statusIcons[task.status]}</span>
+                              )}
                               <div className="flex-1 min-w-0">
                                 <div className="text-sm font-medium text-gray-900 truncate">
                                   {task.title}

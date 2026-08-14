@@ -162,6 +162,18 @@ function MemberHub() {
     if (ok) setStartTaskContext(null);
   };
 
+  const handleToggleTaskStatus = async (id: string, status: string) => {
+    try {
+      const res = await projectTasksApi.updateStatus(id, status);
+      setProjectTasks((prev) =>
+        prev.map((t) => (t._id === res.data._id ? res.data : t))
+      );
+    } catch (err) {
+      console.error('Failed to update task status:', err);
+      setError('Failed to update task status');
+    }
+  };
+
   const handleSaveEdit = async (data: {
     projectId: string;
     taskTypeId: string;
@@ -293,6 +305,7 @@ function MemberHub() {
               isTimerRunning={Boolean(activeTimer?.isRunning)}
               hasTaskTypes={taskTypes.length > 0}
               onPlay={(project, task) => setStartTaskContext({ project, task })}
+              onToggleStatus={handleToggleTaskStatus}
               projectsLink="/member/projects"
             />
           )}

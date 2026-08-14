@@ -222,16 +222,30 @@ function Dashboard() {
     if (isAdmin && ctx.task.status === 'TODO') {
       try {
         const res = await projectTasksApi.updateStatus(ctx.task._id, 'IN_PROGRESS');
-        const next = (prev: ProjectTask[]) =>
-          prev.map((t) => (t._id === res.data._id ? res.data : t));
-        setProjectTasks(next);
-        setProjectTasksClient(next);
-        setProjectTasksInternal(next);
+        applyTaskUpdate(res.data);
       } catch (e) {
         console.error('Could not mark task in progress:', e);
       }
     }
     setStartTaskContext(null);
+  };
+
+  const applyTaskUpdate = (updated: ProjectTask) => {
+    const next = (prev: ProjectTask[]) =>
+      prev.map((t) => (t._id === updated._id ? updated : t));
+    setProjectTasks(next);
+    setProjectTasksClient(next);
+    setProjectTasksInternal(next);
+  };
+
+  const handleToggleTaskStatus = async (id: string, status: string) => {
+    try {
+      const res = await projectTasksApi.updateStatus(id, status);
+      applyTaskUpdate(res.data);
+    } catch (err) {
+      console.error('Failed to update task status:', err);
+      setError('Failed to update task status');
+    }
   };
 
   const handleSaveEdit = async (data: {
@@ -504,6 +518,7 @@ function Dashboard() {
             isTimerRunning={Boolean(activeTimer?.isRunning)}
             hasTaskTypes={taskTypes.length > 0}
             onPlay={(project, task) => setStartTaskContext({ project, task })}
+            onToggleStatus={handleToggleTaskStatus}
           />
           {isAdmin && (
             <InternalWorkspaceTodoCard
@@ -512,6 +527,7 @@ function Dashboard() {
               isTimerRunning={Boolean(activeTimer?.isRunning)}
               hasTaskTypes={taskTypes.length > 0}
               onPlay={(project, task) => setStartTaskContext({ project, task })}
+              onToggleStatus={handleToggleTaskStatus}
             />
           )}
         </>

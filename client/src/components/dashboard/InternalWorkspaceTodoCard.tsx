@@ -10,6 +10,7 @@ interface InternalWorkspaceTodoCardProps {
   isTimerRunning: boolean;
   hasTaskTypes: boolean;
   onPlay: (project: Project, task: ProjectTask) => void;
+  onToggleStatus?: (id: string, status: string) => void | Promise<void>;
 }
 
 export function InternalWorkspaceTodoCard({
@@ -18,6 +19,7 @@ export function InternalWorkspaceTodoCard({
   isTimerRunning,
   hasTaskTypes,
   onPlay,
+  onToggleStatus,
 }: InternalWorkspaceTodoCardProps) {
   const [expanded, setExpanded] = useState(false);
 
@@ -72,6 +74,7 @@ export function InternalWorkspaceTodoCard({
             isTimerRunning={isTimerRunning}
             hasTaskTypes={hasTaskTypes}
             onPlay={onPlay}
+            onToggleStatus={onToggleStatus}
             hideOuterCard
             title="Internal to-do"
           />
