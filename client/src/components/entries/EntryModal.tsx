@@ -51,7 +51,7 @@ export function EntryModal({
 
   useEffect(() => {
     if (entry) {
-      const project =
+      const populatedProject =
         typeof entry.projectId === 'object' ? entry.projectId : null;
       const taskType =
         typeof entry.taskTypeId === 'object' ? entry.taskTypeId : null;
@@ -60,14 +60,14 @@ export function EntryModal({
           ? entry.projectTaskId
           : null;
 
+      const projectIdValue =
+        populatedProject?._id || (entry.projectId as string);
       const resolvedProject =
-        project ||
-        projects.find(
-          (p) => p._id === (project?._id || (entry.projectId as string))
-        ) ||
+        populatedProject ||
+        projects.find((p) => p._id === projectIdValue) ||
         null;
       setClientId(resolvedProject ? projectClientId(resolvedProject) : '');
-      setProjectId(project?._id || (entry.projectId as string));
+      setProjectId(projectIdValue);
       setTaskTypeId(taskType?._id || (entry.taskTypeId as string));
       setProjectTaskId(
         projectTask?._id || (entry.projectTaskId as string) || ''
