@@ -125,12 +125,12 @@ export function DashboardTaskList({
     [projects, projectTasks]
   );
 
-  const [collapsedClients, setCollapsedClients] = useState<Record<string, boolean>>(
+  const [expandedClients, setExpandedClients] = useState<Record<string, boolean>>(
     {}
   );
 
   const toggleClient = (key: string) => {
-    setCollapsedClients((prev) => ({ ...prev, [key]: !prev[key] }));
+    setExpandedClients((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
   const totalOpen = useMemo(
@@ -183,7 +183,7 @@ export function DashboardTaskList({
 
       <div className="space-y-4">
         {groups.map((group) => {
-          const collapsed = collapsedClients[group.clientSortKey];
+          const expanded = !!expandedClients[group.clientSortKey];
           return (
             <div
               key={group.clientSortKey}
@@ -194,17 +194,17 @@ export function DashboardTaskList({
                 onClick={() => toggleClient(group.clientSortKey)}
                 className="w-full flex items-center gap-2 px-3 py-2 bg-gray-50 hover:bg-gray-100/80 transition-colors text-left"
               >
-                {collapsed ? (
-                  <ChevronRight className="w-4 h-4 text-gray-500 flex-shrink-0" />
-                ) : (
+                {expanded ? (
                   <ChevronDown className="w-4 h-4 text-gray-500 flex-shrink-0" />
+                ) : (
+                  <ChevronRight className="w-4 h-4 text-gray-500 flex-shrink-0" />
                 )}
                 <span className="font-semibold text-gray-800 text-sm">
                   {group.clientName}
                 </span>
               </button>
 
-              {!collapsed && (
+              {expanded && (
                 <div className="divide-y divide-gray-50">
                   {group.projectBlocks.map(({ project, tasks }) => (
                     <div key={project._id} className="px-3 py-2">
