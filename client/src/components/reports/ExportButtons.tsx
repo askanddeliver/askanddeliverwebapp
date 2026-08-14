@@ -4,6 +4,7 @@ import { exportApi } from '../../services/api';
 import { toUTCStartOfDay, toUTCEndOfDay } from '../../utils/calculations';
 interface ExportButtonsProps {
   clientId?: string;
+  clientIds?: string[];
   projectId?: string;
   projectIds?: string[];
   startDate?: string;
@@ -13,6 +14,7 @@ interface ExportButtonsProps {
 
 export function ExportButtons({
   clientId,
+  clientIds,
   projectId,
   projectIds,
   startDate,
@@ -48,6 +50,7 @@ export function ExportButtons({
     try {
       const response = await exportApi.csv({
         clientId: clientId || undefined,
+        clientIds: clientIds?.length ? clientIds : undefined,
         projectId: (projectIds?.length ? undefined : projectId) || undefined,
         projectIds: projectIds?.length ? projectIds : undefined,
         startDate: startDate ? toUTCStartOfDay(startDate) : undefined,

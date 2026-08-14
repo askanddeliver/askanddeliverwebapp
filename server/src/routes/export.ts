@@ -71,7 +71,13 @@ router.post(
     const workspaceOwnerId = await getWorkspaceOwnerId(req);
     if (!workspaceOwnerId) throw createError('Workspace access required', 403);
 
-    const { clientId, projectId, projectIds, startDate, endDate } = req.body;
+    const { clientId, clientIds, projectId, projectIds, startDate, endDate } = req.body;
+    const requestedClientIds = Array.isArray(clientIds) && clientIds.length > 0
+      ? clientIds.map(String).filter(Boolean)
+      : typeof clientId === 'string' && clientId
+        ? [clientId]
+        : [];
+    const hasClientFilter = requestedClientIds.length > 0;
 
     const workspaceProjectIds = await Project.find({ userId: workspaceOwnerId }).distinct('_id');
 
@@ -112,30 +118,38 @@ router.post(
       .populate('projectTaskId')
       .sort({ startTime: -1 });
 
-    // Filter by clientId if specified
+    // Filter by client(s) if specified
     let filteredEntries = entries;
-    if (clientId) {
+    if (hasClientFilter) {
+      const allowed = new Set(requestedClientIds);
       filteredEntries = entries.filter((entry) => {
         const project = entry.projectId as unknown as IProject & { clientId: { _id: string; name: string } };
-        return project?.clientId?._id?.toString() === clientId;
+        const cid = project?.clientId?._id?.toString();
+        return Boolean(cid && allowed.has(cid));
       });
     }
 
     // Client cache for per-entry discounts (single-client filter or all-clients)
     const clientCache = new Map<string, IClient>();
-    if (clientId) {
-      const c = await Client.findOne({ _id: clientId, userId: workspaceOwnerId });
-      if (c) clientCache.set(clientId, c);
-    } else {
-      const clientIds = new Set<string>();
+    if (hasClientFilter) {
+      const clients = await Client.find({
+        _id: { $in: requestedClientIds },
+        userId: workspaceOwnerId,
+      });
+      for (const c of clients) {
+        clientCache.set(c._id.toString(), c);
+      }
+    }
+    if (!hasClientFilter || requestedClientIds.length > 1) {
+      const idsToLoad = new Set<string>();
       for (const entry of filteredEntries) {
         const proj = entry.projectId as unknown as IProject & { clientId: { _id: string } };
         const cid = proj?.clientId?._id?.toString();
-        if (cid) clientIds.add(cid);
+        if (cid && !clientCache.has(cid)) idsToLoad.add(cid);
       }
-      if (clientIds.size > 0) {
+      if (idsToLoad.size > 0) {
         const clients = await Client.find({
-          _id: { $in: Array.from(clientIds) },
+          _id: { $in: Array.from(idsToLoad) },
           userId: workspaceOwnerId,
         });
         for (const c of clients) {
@@ -178,7 +192,7 @@ router.post(
     // Query fixed-cost line items for the same period
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const lineItemQuery: any = { userId: workspaceOwnerId };
-    if (clientId) lineItemQuery.clientId = clientId;
+    if (hasClientFilter) lineItemQuery.clientId = { $in: requestedClientIds };
     if (requestedIds.length > 0) {
       lineItemQuery.$or = [
         { projectId: { $in: requestedIds } },

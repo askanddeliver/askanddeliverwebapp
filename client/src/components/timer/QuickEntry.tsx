@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Plus } from 'lucide-react';
 import type { Project, TaskType, ProjectTask } from '../../types';
+import { projectClientId, uniqueClientsFromProjects } from '../../utils/projectClient';
 
 interface QuickEntryProps {
   projects: Project[];
@@ -20,6 +21,7 @@ interface QuickEntryProps {
 
 export function QuickEntry({ projects, taskTypes, projectTasks, showRate = true, onSubmit }: QuickEntryProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [clientId, setClientId] = useState('');
   const [projectId, setProjectId] = useState('');
   const [taskTypeId, setTaskTypeId] = useState('');
   const [projectTaskId, setProjectTaskId] = useState('');
@@ -65,6 +67,7 @@ export function QuickEntry({ projects, taskTypes, projectTasks, showRate = true,
     });
 
     // Reset form
+    setClientId('');
     setProjectId('');
     setTaskTypeId('');
     setProjectTaskId('');
@@ -89,6 +92,10 @@ export function QuickEntry({ projects, taskTypes, projectTasks, showRate = true,
   const activeProjects = projects.filter(
     (p) => p.status === 'ACTIVE' || p.status === 'PAUSED'
   );
+  const clients = uniqueClientsFromProjects(activeProjects);
+  const clientProjects = clientId
+    ? activeProjects.filter((p) => projectClientId(p) === clientId)
+    : [];
 
   return (
     <div className="card border-primary-200">
@@ -96,7 +103,29 @@ export function QuickEntry({ projects, taskTypes, projectTasks, showRate = true,
         Add Manual Entry
       </h3>
       <form onSubmit={handleSubmit} className="space-y-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Client
+            </label>
+            <select
+              value={clientId}
+              onChange={(e) => {
+                setClientId(e.target.value);
+                setProjectId('');
+              }}
+              className="input"
+              required
+            >
+              <option value="">Select client...</option>
+              {clients.map((c) => (
+                <option key={c._id} value={c._id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Project
@@ -104,15 +133,16 @@ export function QuickEntry({ projects, taskTypes, projectTasks, showRate = true,
             <select
               value={projectId}
               onChange={(e) => setProjectId(e.target.value)}
-              className="input"
+              className="input disabled:opacity-50"
+              disabled={!clientId}
               required
             >
-              <option value="">Select project...</option>
-              {activeProjects.map((p) => (
+              <option value="">
+                {clientId ? 'Select project...' : 'Select a client first'}
+              </option>
+              {clientProjects.map((p) => (
                 <option key={p._id} value={p._id}>
-                  {typeof p.clientId === 'object'
-                    ? `${p.clientId.name} — ${p.title}`
-                    : p.title}
+                  {p.title}
                 </option>
               ))}
             </select>

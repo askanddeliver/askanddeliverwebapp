@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 import type { TimeEntry, Project, TaskType, ProjectTask } from '../../types';
+import { projectClientId, uniqueClientsFromProjects } from '../../utils/projectClient';
 
 interface EntryModalProps {
   entry?: TimeEntry | null;
@@ -31,6 +32,7 @@ export function EntryModal({
   onClose,
   onSave,
 }: EntryModalProps) {
+  const [clientId, setClientId] = useState('');
   const [projectId, setProjectId] = useState('');
   const [taskTypeId, setTaskTypeId] = useState('');
   const [projectTaskId, setProjectTaskId] = useState('');
@@ -58,6 +60,13 @@ export function EntryModal({
           ? entry.projectTaskId
           : null;
 
+      const resolvedProject =
+        project ||
+        projects.find(
+          (p) => p._id === (project?._id || (entry.projectId as string))
+        ) ||
+        null;
+      setClientId(resolvedProject ? projectClientId(resolvedProject) : '');
       setProjectId(project?._id || (entry.projectId as string));
       setTaskTypeId(taskType?._id || (entry.taskTypeId as string));
       setProjectTaskId(
@@ -74,6 +83,7 @@ export function EntryModal({
       setHours(Math.floor(totalMinutes / 60).toString());
       setMinutes((totalMinutes % 60).toString());
     } else {
+      setClientId('');
       setProjectId('');
       setTaskTypeId('');
       setProjectTaskId('');
@@ -136,22 +146,47 @@ export function EntryModal({
         <form onSubmit={handleSubmit} className="p-6 space-y-5">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
+              Client *
+            </label>
+            <select
+              value={clientId}
+              onChange={(e) => {
+                setClientId(e.target.value);
+                setProjectId('');
+              }}
+              className="input"
+              required
+            >
+              <option value="">Select client...</option>
+              {uniqueClientsFromProjects(projects).map((c) => (
+                <option key={c._id} value={c._id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
               Project *
             </label>
             <select
               value={projectId}
               onChange={(e) => setProjectId(e.target.value)}
-              className="input"
+              className="input disabled:opacity-50"
+              disabled={!clientId}
               required
             >
-              <option value="">Select project...</option>
-              {projects.map((p) => (
-                <option key={p._id} value={p._id}>
-                  {typeof p.clientId === 'object'
-                    ? `${p.clientId.name} — ${p.title}`
-                    : p.title}
-                </option>
-              ))}
+              <option value="">
+                {clientId ? 'Select project...' : 'Select a client first'}
+              </option>
+              {projects
+                .filter((p) => !clientId || projectClientId(p) === clientId)
+                .map((p) => (
+                  <option key={p._id} value={p._id}>
+                    {p.title}
+                  </option>
+                ))}
             </select>
           </div>
 

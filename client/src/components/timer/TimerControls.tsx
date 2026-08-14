@@ -1,6 +1,7 @@
 import { Play, Square } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import type { Project, TaskType, ProjectTask } from '../../types';
+import { projectClientId, uniqueClientsFromProjects } from '../../utils/projectClient';
 
 interface TimerControlsProps {
   projects: Project[];
@@ -26,6 +27,7 @@ export function TimerControls({
   onStart,
   onStop,
 }: TimerControlsProps) {
+  const [selectedClient, setSelectedClient] = useState('');
   const [selectedProject, setSelectedProject] = useState('');
   const [selectedTaskType, setSelectedTaskType] = useState('');
   const [selectedProjectTask, setSelectedProjectTask] = useState('');
@@ -59,10 +61,36 @@ export function TimerControls({
   const activeProjects = projects.filter(
     (p) => p.status === 'ACTIVE' || p.status === 'PAUSED'
   );
+  const clients = uniqueClientsFromProjects(activeProjects);
+  const clientProjects = selectedClient
+    ? activeProjects.filter((p) => projectClientId(p) === selectedClient)
+    : [];
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Client
+          </label>
+          <select
+            value={selectedClient}
+            onChange={(e) => {
+              setSelectedClient(e.target.value);
+              setSelectedProject('');
+            }}
+            disabled={isRunning}
+            className="input"
+          >
+            <option value="">Select client...</option>
+            {clients.map((client) => (
+              <option key={client._id} value={client._id}>
+                {client.name}
+              </option>
+            ))}
+          </select>
+        </div>
+
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
             Project
@@ -70,15 +98,15 @@ export function TimerControls({
           <select
             value={selectedProject}
             onChange={(e) => setSelectedProject(e.target.value)}
-            disabled={isRunning}
-            className="input"
+            disabled={isRunning || !selectedClient}
+            className="input disabled:opacity-50"
           >
-            <option value="">Select project...</option>
-            {activeProjects.map((project) => (
+            <option value="">
+              {selectedClient ? 'Select project...' : 'Select a client first'}
+            </option>
+            {clientProjects.map((project) => (
               <option key={project._id} value={project._id}>
-                {typeof project.clientId === 'object'
-                  ? `${project.clientId.name} — ${project.title}`
-                  : project.title}
+                {project.title}
               </option>
             ))}
           </select>

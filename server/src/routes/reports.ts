@@ -11,6 +11,19 @@ import {
 
 const router = Router();
 
+function normalizeIdList(multi: unknown, single?: unknown): string[] {
+  if (Array.isArray(multi) && multi.length > 0) {
+    return multi.map(String).filter(Boolean);
+  }
+  if (typeof multi === 'string' && multi.trim()) {
+    return multi.split(',').map((s) => s.trim()).filter(Boolean);
+  }
+  if (typeof single === 'string' && single.trim()) {
+    return [single.trim()];
+  }
+  return [];
+}
+
 // All routes require authentication + admin
 router.use(checkJwt);
 router.use(requireAdmin);
@@ -25,7 +38,10 @@ router.post(
     const workspaceOwnerId = await getWorkspaceOwnerId(req);
     if (!workspaceOwnerId) throw createError('Workspace access required', 403);
 
-    const { clientId, projectId, projectIds, startDate, endDate } = req.body;
+    const { clientId, clientIds, projectId, projectIds, startDate, endDate } = req.body;
+    const requestedClientIds = normalizeIdList(clientIds, clientId);
+    const hasClientFilter = requestedClientIds.length > 0;
+    const singleClientId = requestedClientIds.length === 1 ? requestedClientIds[0] : undefined;
 
     if (!startDate || !endDate) {
       throw createError('Start date and end date are required', 400);
@@ -80,16 +96,16 @@ router.post(
       const mode = [...modes][0];
       if (mode === 'FIXED_PRICE') {
         isFixedPriceInvoice = true;
-        const clientIds = new Set(
+        const projectClientIdSet = new Set(
           selectedProjectDocs.map((p) => p.clientId.toString())
         );
-        if (clientIds.size > 1) {
+        if (projectClientIdSet.size > 1) {
           throw createError(
             'Fixed-price invoicing requires projects for a single client.',
             400
           );
         }
-        if (clientId && !clientIds.has(clientId)) {
+        if (hasClientFilter && [...projectClientIdSet].some((id) => !requestedClientIds.includes(id))) {
           throw createError(
             'Selected projects do not match the selected client filter.',
             400
@@ -106,16 +122,16 @@ router.post(
       }
       if (mode === 'HOUR_RETAINER') {
         isRetainerReport = true;
-        const clientIds = new Set(
+        const projectClientIdSet = new Set(
           selectedProjectDocs.map((p) => p.clientId.toString())
         );
-        if (clientIds.size > 1) {
+        if (projectClientIdSet.size > 1) {
           throw createError(
             'Hour retainer reports require projects for a single client.',
             400
           );
         }
-        if (clientId && !clientIds.has(clientId)) {
+        if (hasClientFilter && [...projectClientIdSet].some((id) => !requestedClientIds.includes(id))) {
           throw createError(
             'Selected projects do not match the selected client filter.',
             400
@@ -150,12 +166,14 @@ router.post(
       })
       .populate('taskTypeId');
 
-    // Filter by clientId if specified (need to check after population)
+    // Filter by client(s) if specified (need to check after population)
     let filteredEntries = entries;
-    if (clientId) {
+    if (hasClientFilter) {
+      const allowed = new Set(requestedClientIds);
       filteredEntries = entries.filter((entry) => {
         const project = entry.projectId as unknown as IProject & { clientId: { _id: string } };
-        return project?.clientId?._id?.toString() === clientId;
+        const cid = project?.clientId?._id?.toString();
+        return Boolean(cid && allowed.has(cid));
       });
     }
 
@@ -172,30 +190,36 @@ router.post(
     // We need the actual Mongoose documents to reliably read the Map field
     const clientCache = new Map<string, IClient>();
 
-    // If a specific client is selected, pre-load it
-    if (clientId) {
-      const c = await Client.findOne({ _id: clientId, userId: workspaceOwnerId });
-      if (c) clientCache.set(clientId, c);
+    // If specific clients are selected, pre-load them
+    if (hasClientFilter) {
+      const clients = await Client.find({
+        _id: { $in: requestedClientIds },
+        userId: workspaceOwnerId,
+      });
+      for (const c of clients) {
+        clientCache.set(c._id.toString(), c);
+      }
     }
 
     // Fixed-price / retainer preview without client filter: load the project's client for the header
-    if ((isFixedPriceInvoice || isRetainerReport) && !clientId && selectedProjectDocs.length > 0) {
+    if ((isFixedPriceInvoice || isRetainerReport) && !hasClientFilter && selectedProjectDocs.length > 0) {
       const cid = selectedProjectDocs[0].clientId.toString();
       const inf = await Client.findOne({ _id: cid, userId: workspaceOwnerId });
       if (inf) clientCache.set(cid, inf);
     }
 
-    // For "All Clients" mode, collect unique client IDs from entries and load them
-    if (!clientId) {
-      const clientIds = new Set<string>();
+    // For "All Clients" / multi-client mode, collect unique client IDs from entries and load them
+    if (!singleClientId) {
+      const entryClientIds = new Set<string>();
       for (const entry of filteredEntries) {
         const project = entry.projectId as unknown as IProject & { clientId: { _id: string } };
         const cId = project?.clientId?._id?.toString();
-        if (cId) clientIds.add(cId);
+        if (cId) entryClientIds.add(cId);
       }
-      if (clientIds.size > 0) {
+      const missing = Array.from(entryClientIds).filter((id) => !clientCache.has(id));
+      if (missing.length > 0) {
         const clients = await Client.find({
-          _id: { $in: Array.from(clientIds) },
+          _id: { $in: missing },
           userId: workspaceOwnerId,
         });
         for (const c of clients) {
@@ -204,9 +228,9 @@ router.post(
       }
     }
 
-    // Single client for invoice header: explicit filter, or inferred from fixed-price / retainer selection
-    const effectiveInvoiceClientId = clientId
-      ? clientId
+    // Single client for invoice header: explicit one-client filter, or inferred from fixed-price / retainer selection
+    const effectiveInvoiceClientId = singleClientId
+      ? singleClientId
       : (isFixedPriceInvoice || isRetainerReport) && selectedProjectDocs.length > 0
         ? selectedProjectDocs[0].clientId.toString()
         : undefined;
@@ -278,7 +302,7 @@ router.post(
       // When grouping by task type, we also need to account for different
       // clients having different discounts on the same task type.
       // Use a composite key of taskTypeId + clientId for accurate grouping.
-      const groupKey = clientId
+      const groupKey = singleClientId
         ? taskTypeKey  // Single client: group by task type only
         : `${taskTypeKey}:${entryClientId || 'unknown'}`; // Multi-client: group by task+client
 
@@ -323,7 +347,7 @@ router.post(
         $lte: parseDateEnd(endDate),
       },
     };
-    if (clientId) lineItemQuery.clientId = clientId;
+    if (hasClientFilter) lineItemQuery.clientId = { $in: requestedClientIds };
 
     // Filter by selected projects: include line items assigned to one of
     // the selected projects OR line items with no project (client-level charges)
@@ -347,7 +371,7 @@ router.post(
       filteredFixedItems = fixedCostItems.filter(
         (fi) => fi.clientId.toString() === cid
       );
-    } else if (!clientId && filteredEntries.length > 0) {
+    } else if (!hasClientFilter && filteredEntries.length > 0) {
       const entryClientIds = new Set<string>();
       for (const entry of filteredEntries) {
         const project = entry.projectId as unknown as IProject & { clientId: { _id: string } };

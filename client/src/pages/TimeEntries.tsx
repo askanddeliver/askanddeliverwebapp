@@ -10,6 +10,7 @@ import {
   projectTasksApi,
 } from '../services/api';
 import { formatDurationHuman, getDaysAgoString, getTodayString, toUTCStartOfDay, toUTCEndOfDay } from '../utils/calculations';
+import { projectClientId, uniqueClientsFromProjects } from '../utils/projectClient';
 import type { TimeEntry, Project, TaskType, ProjectTask } from '../types';
 
 function TimeEntries() {
@@ -27,6 +28,7 @@ function TimeEntries() {
   const [showFilters, setShowFilters] = useState(false);
   const [startDate, setStartDate] = useState(getDaysAgoString(30));
   const [endDate, setEndDate] = useState(getTodayString());
+  const [clientFilter, setClientFilter] = useState('');
   const [projectFilter, setProjectFilter] = useState('');
   const [billingStatus, setBillingStatus] = useState<'unbilled' | 'paid' | 'all'>('unbilled');
 
@@ -34,16 +36,25 @@ function TimeEntries() {
     loadData();
   }, []);
 
+  const entryListParams = () => {
+    const clientProjectIds = clientFilter
+      ? projects.filter((p) => projectClientId(p) === clientFilter).map((p) => p._id)
+      : [];
+    return {
+      startDate: toUTCStartOfDay(startDate),
+      endDate: toUTCEndOfDay(endDate),
+      projectId: projectFilter || undefined,
+      projectIds:
+        !projectFilter && clientProjectIds.length > 0 ? clientProjectIds : undefined,
+      billingStatus: billingStatus !== 'all' ? billingStatus : undefined,
+    };
+  };
+
   const loadData = async () => {
     try {
       setLoading(true);
       const [entriesRes, projectsRes, taskTypesRes, projectTasksRes] = await Promise.all([
-        timeEntriesApi.getAll({
-          startDate: toUTCStartOfDay(startDate),
-          endDate: toUTCEndOfDay(endDate),
-          projectId: projectFilter || undefined,
-          billingStatus: billingStatus !== 'all' ? billingStatus : undefined,
-        }),
+        timeEntriesApi.getAll(entryListParams()),
         projectsApi.getAll(),
         taskTypesApi.getAll(),
         projectTasksApi.getAll(),
@@ -67,12 +78,15 @@ function TimeEntries() {
   const handleApplyFilters = async () => {
     try {
       setLoading(true);
-      const res = await timeEntriesApi.getAll({
-        startDate: toUTCStartOfDay(startDate),
-        endDate: toUTCEndOfDay(endDate),
-        projectId: projectFilter || undefined,
-        billingStatus: billingStatus !== 'all' ? billingStatus : undefined,
-      });
+      const clientProjectIds = clientFilter
+        ? projects.filter((p) => projectClientId(p) === clientFilter).map((p) => p._id)
+        : [];
+      if (clientFilter && !projectFilter && clientProjectIds.length === 0) {
+        setEntries([]);
+        setError(null);
+        return;
+      }
+      const res = await timeEntriesApi.getAll(entryListParams());
       setEntries(
         (res.data || []).filter((e: TimeEntry) => !e.isRunning)
       );
@@ -165,7 +179,7 @@ function TimeEntries() {
       {/* Filters */}
       {showFilters && (
         <div className="card mb-6">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Start Date
@@ -190,6 +204,26 @@ function TimeEntries() {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
+                Client
+              </label>
+              <select
+                value={clientFilter}
+                onChange={(e) => {
+                  setClientFilter(e.target.value);
+                  setProjectFilter('');
+                }}
+                className="input"
+              >
+                <option value="">All Clients</option>
+                {uniqueClientsFromProjects(projects).map((c) => (
+                  <option key={c._id} value={c._id}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
                 Project
               </label>
               <select
@@ -198,11 +232,13 @@ function TimeEntries() {
                 className="input"
               >
                 <option value="">All Projects</option>
-                {projects.map((p) => (
-                  <option key={p._id} value={p._id}>
-                    {p.title}
-                  </option>
-                ))}
+                {projects
+                  .filter((p) => !clientFilter || projectClientId(p) === clientFilter)
+                  .map((p) => (
+                    <option key={p._id} value={p._id}>
+                      {p.title}
+                    </option>
+                  ))}
               </select>
             </div>
             <div>

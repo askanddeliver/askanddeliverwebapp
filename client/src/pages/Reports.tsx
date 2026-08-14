@@ -29,6 +29,7 @@ import {
   toUTCStartOfDay,
   toUTCEndOfDay,
 } from '../utils/calculations';
+import { projectClientId } from '../utils/projectClient';
 import type {
   Client,
   Project,
@@ -43,39 +44,41 @@ import type {
 
 type TabId = 'invoice' | 'entries' | 'members';
 
-function ProjectMultiSelect({
-  projects,
+function CheckboxMultiSelect<T extends { _id: string }>({
+  items,
   selectedIds,
   onChange,
+  getLabel,
 }: {
-  projects: Project[];
+  items: T[];
   selectedIds: string[];
   onChange: (ids: string[]) => void;
+  getLabel: (item: T) => string;
 }) {
   return (
     <div className="border border-gray-300 rounded-lg p-2 max-h-32 overflow-y-auto bg-white">
-      {projects.map((p) => (
-        <label key={p._id} className="flex items-center gap-2 py-1 cursor-pointer hover:bg-gray-50 rounded px-1">
+      {items.map((item) => (
+        <label key={item._id} className="flex items-center gap-2 py-1 cursor-pointer hover:bg-gray-50 rounded px-1">
           <input
             type="checkbox"
-            checked={selectedIds.includes(p._id)}
+            checked={selectedIds.includes(item._id)}
             onChange={(e) => {
               if (e.target.checked) {
-                onChange([...selectedIds, p._id]);
+                onChange([...selectedIds, item._id]);
               } else {
-                onChange(selectedIds.filter((id) => id !== p._id));
+                onChange(selectedIds.filter((id) => id !== item._id));
               }
             }}
             className="rounded border-gray-300"
           />
-          <span className="text-sm">{p.title}</span>
+          <span className="text-sm">{getLabel(item)}</span>
         </label>
       ))}
-      {projects.length > 0 && (
+      {items.length > 0 && (
         <div className="flex gap-2 mt-1 pt-1 border-t border-gray-100">
           <button
             type="button"
-            onClick={() => onChange(projects.map((p) => p._id))}
+            onClick={() => onChange(items.map((item) => item._id))}
             className="text-xs text-primary-600 hover:text-primary-700"
           >
             Select All
@@ -116,7 +119,7 @@ function Reports() {
   const [memberFilter, setMemberFilter] = useState('');
 
   // Filter state
-  const [clientId, setClientId] = useState('');
+  const [clientIds, setClientIds] = useState<string[]>([]);
   const [projectIds, setProjectIds] = useState<string[]>([]);
   const [startDate, setStartDate] = useState(getDaysAgoString(30));
   const [endDate, setEndDate] = useState(getTodayString());
@@ -215,7 +218,7 @@ function Reports() {
 
       const [invoiceRes, entriesRes, lineItemsRes, blocksRes] = await Promise.all([
         reportsApi.generateInvoice({
-          clientId: clientId || undefined,
+          clientIds: clientIds.length > 0 ? clientIds : undefined,
           projectIds: projectIds.length > 0 ? projectIds : undefined,
           startDate: utcStart,
           endDate: utcEnd,
@@ -226,7 +229,7 @@ function Reports() {
           projectIds: projectIds.length > 0 ? projectIds : undefined,
         }),
         lineItemsApi.getAll({
-          clientId: clientId || undefined,
+          clientIds: clientIds.length > 0 ? clientIds : undefined,
           projectIds: projectIds.length > 0 ? projectIds : undefined,
           startDate: utcStart,
           endDate: utcEnd,
@@ -240,14 +243,15 @@ function Reports() {
       let entries = (entriesRes.data || []).filter(
         (e: TimeEntry) => !e.isRunning
       );
-      if (clientId) {
+      if (clientIds.length > 0) {
+        const allowed = new Set(clientIds);
         entries = entries.filter((e: TimeEntry) => {
           const project = typeof e.projectId === 'object' ? e.projectId : null;
           const entryClient =
             project && typeof project.clientId === 'object'
               ? project.clientId
               : null;
-          return entryClient && entryClient._id === clientId;
+          return entryClient && allowed.has(entryClient._id);
         });
       }
       setFilteredEntries(entries);
@@ -262,7 +266,7 @@ function Reports() {
     } finally {
       setGenerating(false);
     }
-  }, [clientId, projectIds, startDate, endDate]);
+  }, [clientIds, projectIds, startDate, endDate]);
 
   const userMap = useMemo(() => {
     const m = new Map<string, string>();
@@ -342,6 +346,28 @@ function Reports() {
     return Array.from(names).sort();
   }, [filteredEntries, userMap]);
 
+  const sortedClients = useMemo(
+    () => [...clients].sort((a, b) => a.name.localeCompare(b.name)),
+    [clients]
+  );
+
+  const filteredProjects = useMemo(
+    () =>
+      clientIds.length > 0
+        ? projects.filter((p) => clientIds.includes(projectClientId(p)))
+        : projects,
+    [projects, clientIds]
+  );
+
+  const handleClientIdsChange = (ids: string[]) => {
+    setClientIds(ids);
+    if (ids.length === 0) return;
+    const allowed = new Set(
+      projects.filter((p) => ids.includes(projectClientId(p))).map((p) => p._id)
+    );
+    setProjectIds((prev) => prev.filter((id) => allowed.has(id)));
+  };
+
   if (loading) {
     return (
       <div className="flex justify-center items-center h-64">
@@ -379,33 +405,26 @@ function Reports() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Client</label>
-            <select
-              value={clientId}
-              onChange={(e) => {
-                setClientId(e.target.value);
-                setProjectIds([]);
-              }}
-              className="input"
-            >
-              <option value="">All Clients</option>
-              {clients.map((c) => (
-                <option key={c._id} value={c._id}>{c.name}</option>
-              ))}
-            </select>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Clients</label>
+            <CheckboxMultiSelect
+              items={sortedClients}
+              selectedIds={clientIds}
+              onChange={handleClientIdsChange}
+              getLabel={(c) => c.name}
+            />
+            <p className="text-xs text-gray-500 mt-0.5">Leave empty for all clients</p>
           </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Projects</label>
-            <ProjectMultiSelect
-              projects={clientId
-                ? projects.filter((p) => {
-                    const pClientId = typeof p.clientId === 'object' ? p.clientId._id : p.clientId;
-                    return pClientId === clientId;
-                  })
-                : projects}
+            <CheckboxMultiSelect
+              items={filteredProjects}
               selectedIds={projectIds}
               onChange={setProjectIds}
+              getLabel={(p) => {
+                const name = typeof p.clientId === 'object' ? p.clientId.name : null;
+                return name && clientIds.length !== 1 ? `${name} — ${p.title}` : p.title;
+              }}
             />
             <p className="text-xs text-gray-500 mt-0.5">Leave empty for all projects</p>
           </div>
@@ -491,7 +510,7 @@ function Reports() {
 
         <div className="flex flex-wrap items-center gap-3">
           <ExportButtons
-            clientId={clientId || undefined}
+            clientIds={clientIds.length > 0 ? clientIds : undefined}
             projectIds={projectIds.length > 0 ? projectIds : undefined}
             startDate={startDate}
             endDate={endDate}
@@ -530,9 +549,9 @@ function Reports() {
             >
               This month
             </button>
-            {(clientId || projectIds.length > 0) && (
+            {(clientIds.length > 0 || projectIds.length > 0) && (
               <button
-                onClick={() => { setClientId(''); setProjectIds([]); }}
+                onClick={() => { setClientIds([]); setProjectIds([]); }}
                 className="px-3 py-1.5 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 transition-colors"
               >
                 Clear Filters
@@ -563,7 +582,7 @@ function Reports() {
               lineItems={lineItems}
               clients={clients}
               projects={projects}
-              selectedClientId={clientId}
+              selectedClientId={clientIds.length === 1 ? clientIds[0] : ''}
               onChanged={handleGenerate}
             />
           </div>
@@ -675,7 +694,7 @@ function Reports() {
       {/* Tab content (hidden when printing - use print block below) */}
       {activeTab === 'invoice' && invoice && invoice.items.length > 0 && (
         <div className="mb-6 print:hidden">
-          {(clientId || invoice.client?._id) && (
+          {(clientIds.length === 1 || invoice.client?._id) && (
             <div className="flex justify-end mb-3">
               <button
                 onClick={() => setCreateModalOpen(true)}
@@ -685,6 +704,11 @@ function Reports() {
                 {invoice.invoiceKind === 'RETAINER_REPORT' ? 'Save retainer report' : 'Create Invoice'}
               </button>
             </div>
+          )}
+          {clientIds.length > 1 && (
+            <p className="text-sm text-gray-500 mb-3">
+              Previewing multiple clients. Select a single client to create an invoice.
+            </p>
           )}
           <InvoicePreview invoice={invoice} />
         </div>

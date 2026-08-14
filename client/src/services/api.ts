@@ -370,6 +370,7 @@ export const memberTimeBlocksApi = {
 export const lineItemsApi = {
   getAll: (params?: {
     clientId?: string;
+    clientIds?: string[];
     projectId?: string;
     projectIds?: string[];
     startDate?: string;
@@ -392,6 +393,7 @@ export const lineItemsApi = {
 export const reportsApi = {
   generateInvoice: (data: {
     clientId?: string;
+    clientIds?: string[];
     projectId?: string;
     projectIds?: string[];
     startDate: string;
@@ -405,6 +407,7 @@ export const reportsApi = {
 export const exportApi = {
   csv: (data: {
     clientId?: string;
+    clientIds?: string[];
     projectId?: string;
     projectIds?: string[];
     startDate?: string;

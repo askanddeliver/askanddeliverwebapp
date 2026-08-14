@@ -16,6 +16,7 @@ import {
   toUTCStartOfDay,
   toUTCEndOfDay,
 } from '../../utils/calculations';
+import { projectClientId, uniqueClientsFromProjects } from '../../utils/projectClient';
 import type { TimeEntry, Project, TaskType, ProjectTask } from '../../types';
 
 function MemberEntries() {
@@ -31,11 +32,25 @@ function MemberEntries() {
   const [showFilters, setShowFilters] = useState(false);
   const [startDate, setStartDate] = useState(getDaysAgoString(30));
   const [endDate, setEndDate] = useState(getTodayString());
+  const [clientFilter, setClientFilter] = useState('');
   const [projectFilter, setProjectFilter] = useState('');
 
   useEffect(() => {
     loadData();
   }, []);
+
+  const matchesMemberEntryFilter = (e: TimeEntry): boolean => {
+    if (e.isRunning) return false;
+    const proj = typeof e.projectId === 'object' ? e.projectId : null;
+    if (projectFilter) {
+      return (proj?._id || String(e.projectId)) === projectFilter;
+    }
+    if (clientFilter && proj) {
+      return projectClientId(proj) === clientFilter;
+    }
+    if (clientFilter && !proj) return false;
+    return true;
+  };
 
   const loadData = async () => {
     try {
@@ -51,7 +66,7 @@ function MemberEntries() {
         projectTasksApi.getAll(),
       ]);
 
-      setEntries((entriesRes.data || []).filter((e: TimeEntry) => !e.isRunning));
+      setEntries((entriesRes.data || []).filter(matchesMemberEntryFilter));
       setProjects(projectsRes.data || []);
       setTaskTypes(taskTypesRes.data || []);
       setProjectTasks(projectTasksRes.data || []);
@@ -72,7 +87,7 @@ function MemberEntries() {
         endDate: toUTCEndOfDay(endDate),
         projectId: projectFilter || undefined,
       });
-      setEntries((res.data || []).filter((e: TimeEntry) => !e.isRunning));
+      setEntries((res.data || []).filter(matchesMemberEntryFilter));
       setError(null);
     } catch (err) {
       console.error('Failed to filter entries:', err);
@@ -156,7 +171,7 @@ function MemberEntries() {
 
       {showFilters && (
         <div className="card mb-6">
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
             <div>
               <label className="mb-1 block text-sm font-medium text-gray-700">
                 Start Date
@@ -181,6 +196,26 @@ function MemberEntries() {
             </div>
             <div>
               <label className="mb-1 block text-sm font-medium text-gray-700">
+                Client
+              </label>
+              <select
+                value={clientFilter}
+                onChange={(e) => {
+                  setClientFilter(e.target.value);
+                  setProjectFilter('');
+                }}
+                className="input"
+              >
+                <option value="">All Clients</option>
+                {uniqueClientsFromProjects(projects).map((c) => (
+                  <option key={c._id} value={c._id}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700">
                 Project
               </label>
               <select
@@ -189,11 +224,13 @@ function MemberEntries() {
                 className="input"
               >
                 <option value="">All Projects</option>
-                {projects.map((p) => (
-                  <option key={p._id} value={p._id}>
-                    {p.title}
-                  </option>
-                ))}
+                {projects
+                  .filter((p) => !clientFilter || projectClientId(p) === clientFilter)
+                  .map((p) => (
+                    <option key={p._id} value={p._id}>
+                      {p.title}
+                    </option>
+                  ))}
               </select>
             </div>
           </div>
