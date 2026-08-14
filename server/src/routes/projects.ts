@@ -6,6 +6,7 @@ import type { ITaskType } from '../models/TaskType';
 import type { ProjectBillingMode } from '../models';
 import { getEffectiveRate, parseDateStart, parseDateEnd } from '../utils/calculations';
 import { validateWorkspaceMemberAuth0Ids } from '../lib/memberValidation';
+import { notifyMembersAssignedToProject } from '../lib/email';
 
 const BILLING_MODES: ProjectBillingMode[] = ['HOURLY', 'FIXED_PRICE', 'HOUR_RETAINER'];
 
@@ -329,6 +330,12 @@ router.post(
     });
 
     await project.populate('clientId');
+    notifyMembersAssignedToProject(
+      userId,
+      String(project._id),
+      project.title,
+      assignedMemberIds
+    );
     res.status(201).json(project);
   })
 );
@@ -414,6 +421,8 @@ router.put(
       );
     }
 
+    const previousAssignedMemberIds = existing.assignedMemberIds || [];
+
     const mergedMode: ProjectBillingMode =
       (update.billingMode as ProjectBillingMode | undefined) ??
       (existing.billingMode as ProjectBillingMode) ??
@@ -473,6 +482,19 @@ router.put(
 
     if (!project) {
       throw createError('Project not found', 404);
+    }
+
+    if (rawAssignedMemberIds !== undefined) {
+      const nextAssigned = project.assignedMemberIds || [];
+      const newlyAssigned = nextAssigned.filter(
+        (id) => !previousAssignedMemberIds.includes(id)
+      );
+      notifyMembersAssignedToProject(
+        userId,
+        String(project._id),
+        project.title,
+        newlyAssigned
+      );
     }
 
     res.json(project);

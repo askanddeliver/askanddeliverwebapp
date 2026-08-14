@@ -155,6 +155,7 @@ export const usersApi = {
         | 'disciplineTasks'
         | 'availability'
         | 'bio'
+        | 'notificationPreferences'
       >
     >
   ) => api.put<User>('/users/me', data),

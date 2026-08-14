@@ -5,6 +5,7 @@ import { Invoice, TimeEntry, LineItem, Client, Project, SiteConfig } from '../mo
 import type { InvoiceDocumentKind, InvoiceStatus, IInvoiceRetainerSummary } from '../models';
 import { parseDateStart, parseDateEnd } from '../utils/calculations';
 import { createPaymentLink, isStripeEnabled } from '../lib/stripeClient';
+import { notifyInvoiceSentToClient } from '../lib/email';
 
 const router = Router();
 
@@ -401,6 +402,21 @@ router.patch(
 
     invoice.status = status;
     await invoice.save();
+
+    if (currentStatus === 'DRAFT' && status === 'SENT') {
+      const documentKind = (invoice.documentKind || 'INVOICE') as InvoiceDocumentKind;
+      if (documentKind === 'INVOICE') {
+        notifyInvoiceSentToClient({
+          workspaceOwnerId,
+          clientId: String(invoice.clientId),
+          invoiceId: String(invoice._id),
+          invoiceNumber: invoice.invoiceNumber,
+          clientName: invoice.clientInfo?.name || 'there',
+          total: invoice.total ?? 0,
+          paymentLinkUrl: invoice.paymentLinkUrl,
+        });
+      }
+    }
 
     res.json(invoice);
   })

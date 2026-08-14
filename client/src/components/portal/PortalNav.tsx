@@ -1,9 +1,10 @@
 import { Link, useLocation } from 'react-router-dom';
-import { Home, FolderOpen } from 'lucide-react';
+import { Home, FolderOpen, Settings } from 'lucide-react';
 
 const navItems = [
   { to: '/portal', label: 'Home', icon: Home, end: true },
   { to: '/portal/projects', label: 'Projects', icon: FolderOpen, end: false },
+  { to: '/portal/settings', label: 'Email', icon: Settings, end: false },
 ];
 
 function PortalNav() {

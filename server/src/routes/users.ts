@@ -5,7 +5,12 @@ import { User } from '../models';
 import { Client } from '../models/Client';
 import type { UserRole, UserStatus } from '../models/User';
 import { getAuth0UsersByEmail } from '../lib/auth0Management';
+import { notifyClientPortalInvite } from '../lib/email';
 import { validateMemberProfileFields } from '../lib/userProfile';
+import {
+  mergeNotificationPreferences,
+  parseNotificationPreferencesUpdate,
+} from '../lib/email/notificationPreferences';
 
 const router = Router();
 
@@ -181,6 +186,13 @@ router.put(
         ? await validateMemberProfileFields(profileOwnerId, req.body)
         : {};
 
+    const notificationPatch = parseNotificationPreferencesUpdate(
+      req.body?.notificationPreferences
+    );
+    const notificationPreferences = notificationPatch
+      ? mergeNotificationPreferences(existing?.notificationPreferences, notificationPatch)
+      : existing?.notificationPreferences;
+
     const user = await User.findOneAndUpdate(
       { auth0Id },
       {
@@ -192,6 +204,9 @@ router.put(
         workspaceOwnerId,
         status: existing?.status ?? 'active',
         ...profileUpdate,
+        ...(notificationPreferences !== undefined
+          ? { notificationPreferences }
+          : {}),
       },
       {
         new: true,
@@ -405,6 +420,12 @@ router.post(
       },
       { new: true }
     );
+
+    notifyClientPortalInvite({
+      workspaceOwnerId: auth0Id,
+      inviteeEmail: normalizedEmail,
+      clientName: client.name,
+    });
 
     res.json(updated);
   })

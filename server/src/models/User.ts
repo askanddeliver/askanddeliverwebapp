@@ -16,6 +16,19 @@ export interface IUserAvailability {
   };
 }
 
+export interface IUserEmailNotificationPreferences {
+  clientMessages?: boolean;
+  projectAssignments?: boolean;
+  clientVisibleReplies?: boolean;
+  taskCompleted?: boolean;
+  invoiceSent?: boolean;
+  digest?: 'none' | 'daily' | 'weekly';
+}
+
+export interface IUserNotificationPreferences {
+  email?: IUserEmailNotificationPreferences;
+}
+
 export interface IUser extends Document {
   auth0Id: string;
   email: string;
@@ -33,6 +46,7 @@ export interface IUser extends Document {
   availability?: IUserAvailability;
   bio?: string;
   earnedRates?: Record<string, number>;
+  notificationPreferences?: IUserNotificationPreferences;
   status: UserStatus;
   invitedBy?: string;
   createdAt: Date;
@@ -111,6 +125,16 @@ const userSchema = new Schema<IUser>(
     earnedRates: {
       type: Schema.Types.Mixed,
       default: {},
+    },
+    notificationPreferences: {
+      email: {
+        clientMessages: { type: Boolean },
+        projectAssignments: { type: Boolean },
+        clientVisibleReplies: { type: Boolean },
+        taskCompleted: { type: Boolean },
+        invoiceSent: { type: Boolean },
+        digest: { type: String, enum: ['none', 'daily', 'weekly'] },
+      },
     },
     status: {
       type: String,

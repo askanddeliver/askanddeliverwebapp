@@ -11,6 +11,7 @@ import { asyncHandler, createError } from '../middleware/errorHandler';
 import { Project, User, ProjectMessage } from '../models';
 import { findClientProject, requirePortalContext } from '../lib/portalScope';
 import { memberHasProjectAccess } from '../lib/memberProjects';
+import { notifyClientMessageToTeam, notifyTeamMessageToClient } from '../lib/email';
 import type { ProjectMessageAuthorRole } from '../models/ProjectMessage';
 
 const router = Router({ mergeParams: true });
@@ -68,7 +69,7 @@ router.post(
   '/',
   asyncHandler(async (req: AuthRequest, res: Response) => {
     const projectId = req.params.projectId;
-    const { auth0Id, workspaceOwnerId, user } = await loadWorkspaceProject(req, projectId);
+    const { auth0Id, workspaceOwnerId, user, project } = await loadWorkspaceProject(req, projectId);
 
     const body = typeof req.body?.body === 'string' ? req.body.body.trim() : '';
     if (!body) throw createError('Message body is required', 400);
@@ -86,6 +87,17 @@ router.post(
       body,
       clientVisible,
     });
+
+    if (clientVisible && project.clientId) {
+      notifyTeamMessageToClient({
+        workspaceOwnerId,
+        clientId: String(project.clientId),
+        projectId,
+        projectTitle: project.title,
+        authorName: user.name,
+        messageBody: body,
+      });
+    }
 
     res.status(201).json(message);
   })
@@ -123,7 +135,7 @@ portalProjectMessagesRouter.post(
   asyncHandler(async (req: AuthRequest, res: Response) => {
     const ctx = await requirePortalContext(req);
     const projectId = req.params.projectId;
-    await findClientProject(projectId, ctx.workspaceOwnerId, ctx.clientId);
+    const project = await findClientProject(projectId, ctx.workspaceOwnerId, ctx.clientId);
 
     const body = typeof req.body?.body === 'string' ? req.body.body.trim() : '';
     if (!body) throw createError('Message body is required', 400);
@@ -139,6 +151,15 @@ portalProjectMessagesRouter.post(
       authorRole: 'client',
       body,
       clientVisible: true,
+    });
+
+    notifyClientMessageToTeam({
+      workspaceOwnerId: ctx.workspaceOwnerId,
+      projectId,
+      projectTitle: project.title,
+      assignedMemberIds: project.assignedMemberIds,
+      authorName: user.name,
+      messageBody: body,
     });
 
     res.status(201).json(message);

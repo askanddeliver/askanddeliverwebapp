@@ -2,6 +2,10 @@ import { useState, useEffect } from 'react';
 import { useAuth0 } from '@auth0/auth0-react';
 import { useUserRole } from '../contexts/UserContext';
 import { usersApi } from '../services/api';
+import EmailNotificationPreferences, {
+  resolveEmailPreferences,
+} from '../components/profile/EmailNotificationPreferences';
+import type { UserEmailNotificationPreferences } from '../types';
 
 function Profile() {
   const { user: auth0User } = useAuth0();
@@ -9,10 +13,20 @@ function Profile() {
   const [displayName, setDisplayName] = useState(appUser?.name ?? '');
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [emailPrefs, setEmailPrefs] = useState<UserEmailNotificationPreferences>({});
+  const [emailSaving, setEmailSaving] = useState(false);
+  const [emailSaved, setEmailSaved] = useState(false);
+  const [emailError, setEmailError] = useState<string | null>(null);
 
   useEffect(() => {
     if (appUser?.name) setDisplayName(appUser.name);
   }, [appUser?.name]);
+
+  useEffect(() => {
+    if (appUser && role) {
+      setEmailPrefs(resolveEmailPreferences(role, appUser.notificationPreferences?.email));
+    }
+  }, [appUser, role]);
 
   const user = auth0User;
 
@@ -34,6 +48,22 @@ function Profile() {
       setSaveError('Failed to update display name');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleSaveEmailPrefs = async () => {
+    setEmailSaving(true);
+    setEmailSaved(false);
+    setEmailError(null);
+    try {
+      await usersApi.updateMe({ notificationPreferences: { email: emailPrefs } });
+      await refetch();
+      setEmailSaved(true);
+    } catch (err) {
+      console.error('Failed to update notifications:', err);
+      setEmailError('Failed to save notification settings');
+    } finally {
+      setEmailSaving(false);
     }
   };
 
@@ -115,6 +145,20 @@ function Profile() {
             <p className="text-sm text-red-600">{saveError}</p>
           )}
         </div>
+
+        <hr className="my-6" />
+
+        {role && (
+          <EmailNotificationPreferences
+            role={role}
+            preferences={emailPrefs}
+            onChange={setEmailPrefs}
+            onSave={handleSaveEmailPrefs}
+            saving={emailSaving}
+            saved={emailSaved}
+            error={emailError}
+          />
+        )}
 
         <hr className="my-6" />
 

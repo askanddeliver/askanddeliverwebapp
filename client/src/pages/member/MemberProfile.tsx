@@ -6,7 +6,10 @@ import {
   disciplineTaskKey,
   isOperationalDiscipline,
 } from '../../lib/disciplines';
-import type { AvailabilityDay, DisciplineDefinition, UserAvailability } from '../../types';
+import type { AvailabilityDay, DisciplineDefinition, UserAvailability, UserEmailNotificationPreferences } from '../../types';
+import EmailNotificationPreferences, {
+  resolveEmailPreferences,
+} from '../../components/profile/EmailNotificationPreferences';
 
 const WEEKDAYS: { id: AvailabilityDay; label: string }[] = [
   { id: 'mon', label: 'Mon' },
@@ -19,7 +22,7 @@ const WEEKDAYS: { id: AvailabilityDay; label: string }[] = [
 ];
 
 function MemberProfile() {
-  const { user, refetch } = useUserRole();
+  const { user, role, refetch } = useUserRole();
   const [disciplines, setDisciplines] = useState<DisciplineDefinition[]>([]);
   const [selectedDisciplines, setSelectedDisciplines] = useState<string[]>([]);
   const [selectedTasks, setSelectedTasks] = useState<string[]>([]);
@@ -29,6 +32,10 @@ function MemberProfile() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+  const [emailPrefs, setEmailPrefs] = useState<UserEmailNotificationPreferences>({});
+  const [emailSaving, setEmailSaving] = useState(false);
+  const [emailSaved, setEmailSaved] = useState(false);
+  const [emailError, setEmailError] = useState<string | null>(null);
 
   useEffect(() => {
     loadData();
@@ -43,6 +50,9 @@ function MemberProfile() {
       setSelectedTasks(user?.disciplineTasks || []);
       setBio(user?.bio || '');
       setAvailability(user?.availability || {});
+      if (user && role) {
+        setEmailPrefs(resolveEmailPreferences(role, user.notificationPreferences?.email));
+      }
       setError(null);
     } catch (err) {
       console.error('Failed to load profile:', err);
@@ -116,6 +126,22 @@ function MemberProfile() {
       setError('Failed to save profile');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleSaveEmailPrefs = async () => {
+    setEmailSaving(true);
+    setEmailSaved(false);
+    setEmailError(null);
+    try {
+      await usersApi.updateMe({ notificationPreferences: { email: emailPrefs } });
+      await refetch();
+      setEmailSaved(true);
+    } catch (err) {
+      console.error('Failed to save notifications:', err);
+      setEmailError('Failed to save notification settings');
+    } finally {
+      setEmailSaving(false);
     }
   };
 
@@ -314,6 +340,20 @@ function MemberProfile() {
           />
         </div>
       </div>
+
+      {role && (
+        <div className="card mb-6">
+          <EmailNotificationPreferences
+            role={role}
+            preferences={emailPrefs}
+            onChange={setEmailPrefs}
+            onSave={handleSaveEmailPrefs}
+            saving={emailSaving}
+            saved={emailSaved}
+            error={emailError}
+          />
+        </div>
+      )}
 
       <div className="flex items-center gap-4">
         <button

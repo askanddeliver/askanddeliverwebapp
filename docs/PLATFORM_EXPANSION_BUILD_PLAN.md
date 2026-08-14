@@ -14,6 +14,9 @@ This document is the **index** for the expansion program. Companion docs:
 | [PLATFORM_EXPANSION_DISCIPLINES_AND_TASK_TYPES.md](./PLATFORM_EXPANSION_DISCIPLINES_AND_TASK_TYPES.md) | Discipline vs Task Type model, A&D seed list, assignability flags |
 | [PLATFORM_EXPANSION_INTAKE_FORM_SPEC.md](./PLATFORM_EXPANSION_INTAKE_FORM_SPEC.md) | Default intake step flow, fields, required/optional, A&D seed form |
 | [PLATFORM_EXPANSION_CLIENT_PORTAL_SPEC.md](./PLATFORM_EXPANSION_CLIENT_PORTAL_SPEC.md) | Client portal v1 — projects, brief, tasks, per-project messaging |
+| [CLIENT_PORTAL_DASHBOARD_BUILD_PLAN.md](./CLIENT_PORTAL_DASHBOARD_BUILD_PLAN.md) | Client dashboard v1 status, v1.1 roadmap, Resend hooks |
+| [PROJECT_HUB_BUILD_PLAN.md](./PROJECT_HUB_BUILD_PLAN.md) | Admin/member unified project detail — brief, tasks, entries, budget, messages, team |
+| [RESEND_NOTIFICATIONS_BUILD_PLAN.md](./RESEND_NOTIFICATIONS_BUILD_PLAN.md) | Transactional email — **RN-0–RN-3 shipped**, paused at RN-4 (triggers-by-action reference) |
 
 **Related existing docs:** [SAAS_CONVERSION_BUILD_PLAN.md](./SAAS_CONVERSION_BUILD_PLAN.md) (subscription/multi-domain layer), [Design System Update/design_handoff_admin_redesign/](./Design%20System%20Update/design_handoff_admin_redesign/) (admin shell target), [Internal_Workspace_and_Block_Time_Concept.md](./Internal_Workspace_and_Block_Time_Concept.md), [BLOCK_TIME_AND_INTERNAL_WORKSPACE_BUILD_PLAN.md](./BLOCK_TIME_AND_INTERNAL_WORKSPACE_BUILD_PLAN.md).
 
@@ -245,7 +248,7 @@ Align with [design_handoff_admin_redesign](./Design%20System%20Update/design_han
 - Client **posts** replies on the project (always `clientVisible: true`)
 - No global `/portal/messages` — context stays on the project
 
-**Deferred:** DMs, @mentions, email notifications, attachments — validate usage after v1.
+**Deferred:** DMs, @mentions, attachments — validate usage after v1. **Email notifications** — RN-0–RN-3 shipped; see [RESEND_NOTIFICATIONS_BUILD_PLAN.md](./RESEND_NOTIFICATIONS_BUILD_PLAN.md) (paused at RN-4 digests).
 
 ---
 
@@ -330,3 +333,4 @@ Locked in working session (July 2026):
 | 2026-07-03 | Client portal v1 spec — projects, brief, tasks, per-project messaging |
 | 2026-07-03 | **Phases 1–9 complete** — lead scoping, intake builder, dynamic renderer, disciplines, roles, member hub, client portal, admin command center, assignment & capacity |
 | 2026-07-03 | **Phase 11** — merged `PLATFORM_EXPANSION_CURSORRULES.md` into `.cursorrules`; updated ARCHITECTURE, README, SETUP |
+| 2026-07-17 | Added client dashboard, project hub, and Resend notifications build plans |

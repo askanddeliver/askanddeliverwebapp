@@ -1,4 +1,5 @@
 import StripeImport from 'stripe';
+import { getFrontendBaseUrl } from './frontendUrl';
 
 type StripeClient = StripeImport.Stripe;
 
@@ -14,13 +15,7 @@ export function isStripeEnabled(): boolean {
   return !!secretKey;
 }
 
-/** Base URL for the SPA (no trailing slash). Used for post-payment redirect. */
-export function getFrontendBaseUrl(): string {
-  const fromEnv =
-    process.env.FRONTEND_URL ||
-    (process.env.CLIENT_URL || '').split(',')[0].trim();
-  return (fromEnv || 'http://localhost:5173').replace(/\/$/, '');
-}
+export { getFrontendBaseUrl } from './frontendUrl';
 
 export function getPublicPaymentSuccessUrl(): string {
   return `${getFrontendBaseUrl()}/invoices/paid`;

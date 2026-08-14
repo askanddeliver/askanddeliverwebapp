@@ -1,8 +1,8 @@
 # Platform Expansion — Client Portal Spec (v1)
 
-**Status:** Planning (July 2026)  
+**Status:** v1 shipped (July 2026)  
 **Parent:** [PLATFORM_EXPANSION_BUILD_PLAN.md](./PLATFORM_EXPANSION_BUILD_PLAN.md)  
-**See also:** [PLATFORM_EXPANSION_ARCHITECTURE.md](./PLATFORM_EXPANSION_ARCHITECTURE.md)
+**See also:** [PLATFORM_EXPANSION_ARCHITECTURE.md](./PLATFORM_EXPANSION_ARCHITECTURE.md) · [CLIENT_PORTAL_DASHBOARD_BUILD_PLAN.md](./CLIENT_PORTAL_DASHBOARD_BUILD_PLAN.md) (v1.1 + notifications)
 
 This document locks **client portal v1** scope: project browsing, brief, tasks with status, and **per-project communication** — all scoped to the authenticated client's CRM record.
 
@@ -325,7 +325,7 @@ On admin/member **project detail** (existing Projects page):
 | Messages only inside project (not global inbox) | ✓ v1 — locked |
 | Brief sanitization for HTML | ✓ v1 |
 | Invoices + pay links | v1.1 — optional same release |
-| Email notify on new client message | ✗ defer |
+| Email notify on new client message | Planned — [RESEND_NOTIFICATIONS_BUILD_PLAN.md](./RESEND_NOTIFICATIONS_BUILD_PLAN.md) |
 | Client upload attachments in messages | ✗ defer |
 | Client sees project files / deliverables | ✗ defer (use intake-style file share later) |
 

@@ -36,6 +36,7 @@ import IntakeConfig from './pages/IntakeConfig';
 import PortalHome from './pages/portal/PortalHome';
 import PortalProjects from './pages/portal/PortalProjects';
 import PortalProjectDetail from './pages/portal/PortalProjectDetail';
+import PortalSettings from './pages/portal/PortalSettings';
 import MemberHub from './pages/member/MemberHub';
 import MemberProjects from './pages/member/MemberProjects';
 import MemberEntries from './pages/member/MemberEntries';
@@ -142,6 +143,7 @@ function App() {
         <Route index element={<PortalHome />} />
         <Route path="projects" element={<PortalProjects />} />
         <Route path="projects/:id" element={<PortalProjectDetail />} />
+        <Route path="settings" element={<PortalSettings />} />
       </Route>
 
       {/* ============================================

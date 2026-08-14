@@ -15,6 +15,19 @@ export interface UserAvailability {
   };
 }
 
+export interface UserEmailNotificationPreferences {
+  clientMessages?: boolean;
+  projectAssignments?: boolean;
+  clientVisibleReplies?: boolean;
+  taskCompleted?: boolean;
+  invoiceSent?: boolean;
+  digest?: 'none' | 'daily' | 'weekly';
+}
+
+export interface UserNotificationPreferences {
+  email?: UserEmailNotificationPreferences;
+}
+
 export interface User {
   _id: string;
   auth0Id: string;
@@ -29,6 +42,7 @@ export interface User {
   availability?: UserAvailability;
   bio?: string;
   earnedRates?: Record<string, number>;
+  notificationPreferences?: UserNotificationPreferences;
   status: UserStatus;
   invitedBy?: string;
   createdAt: string;
