@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
-import { memberApi } from '../../services/api';
+import { memberApi, projectTasksApi } from '../../services/api';
 import { ProjectList } from '../../components/projects/ProjectList';
 import { AdminPageHeader } from '../../components/admin/AdminPageHeader';
-import type { Project } from '../../types';
+import type { Project, ProjectTask } from '../../types';
 
 function MemberProjects() {
   const [projects, setProjects] = useState<Project[]>([]);
+  const [projectTasks, setProjectTasks] = useState<ProjectTask[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -16,8 +17,12 @@ function MemberProjects() {
   const loadData = async () => {
     try {
       setLoading(true);
-      const projectsRes = await memberApi.getProjects();
+      const [projectsRes, tasksRes] = await Promise.all([
+        memberApi.getProjects(),
+        projectTasksApi.getAll(),
+      ]);
       setProjects(projectsRes.data || []);
+      setProjectTasks(tasksRes.data || []);
       setError(null);
     } catch (err) {
       console.error('Failed to load member projects:', err);
@@ -39,7 +44,7 @@ function MemberProjects() {
     <div className="w-full">
       <AdminPageHeader
         title="My projects"
-        subtitle="Active and paused projects in your workspace."
+        subtitle="Grouped by client — open a project to track time and tasks."
       />
 
       {error && (
@@ -51,6 +56,7 @@ function MemberProjects() {
       <ProjectList
         projects={projects}
         hubPathPrefix="/member/projects"
+        tasks={projectTasks}
         showBudget={false}
         canEdit={false}
         onEdit={() => {}}

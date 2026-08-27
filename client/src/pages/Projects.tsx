@@ -3,8 +3,8 @@ import { Plus, Search, X, ChevronDown } from 'lucide-react';
 import { useUserRole } from '../contexts/UserContext';
 import { ProjectList } from '../components/projects/ProjectList';
 import { ProjectModal, type ProjectModalSaveData } from '../components/projects/ProjectModal';
-import { projectsApi, clientsApi } from '../services/api';
-import type { Project, Client, ProjectStatus, ProjectCounts, ProjectBudgetBurn } from '../types';
+import { projectsApi, clientsApi, projectTasksApi } from '../services/api';
+import type { Project, Client, ProjectStatus, ProjectCounts, ProjectBudgetBurn, ProjectTask } from '../types';
 import { getBurnDateRange, type BurnPeriod } from '../utils/projectBilling';
 
 type StatusTab = ProjectStatus | 'ALL';
@@ -29,6 +29,7 @@ function Projects() {
   const { isAdmin } = useUserRole();
   const [projects, setProjects] = useState<Project[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
+  const [projectTasks, setProjectTasks] = useState<ProjectTask[]>([]);
   const [counts, setCounts] = useState<ProjectCounts | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -71,12 +72,12 @@ function Projects() {
 
   const loadSupportData = useCallback(async () => {
     try {
-      if (!isAdmin) {
-        setClients([]);
-        return;
-      }
-      const clientsRes = await clientsApi.getAll();
+      const [clientsRes, tasksRes] = await Promise.all([
+        isAdmin ? clientsApi.getAll() : Promise.resolve({ data: [] as Client[] }),
+        projectTasksApi.getAll(),
+      ]);
       setClients(clientsRes.data || []);
+      setProjectTasks(tasksRes.data || []);
     } catch (err) {
       console.error('Failed to load support data:', err);
     }
@@ -183,7 +184,7 @@ function Projects() {
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Projects</h1>
           <p className="text-gray-500 mt-1">
-            Manage your projects and open a hub for tasks, time, and messages
+            Browse by client, then open a project hub for tasks, time, and messages
           </p>
         </div>
         {isAdmin && (
@@ -287,7 +288,7 @@ function Projects() {
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search projects..."
+            placeholder="Search clients or projects..."
             className="w-full pl-10 pr-10 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
           />
           {searchQuery && (
@@ -366,6 +367,7 @@ function Projects() {
         <ProjectList
           projects={projects}
           hubPathPrefix="/projects"
+          tasks={projectTasks}
           budgetBurnByProjectId={budgetBurnByProjectId}
           budgetBurnPeriodLabel={budgetBurnPeriodLabel}
           showBudget={isAdmin}

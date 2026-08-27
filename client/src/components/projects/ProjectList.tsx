@@ -1,10 +1,12 @@
 import { FolderOpen } from 'lucide-react';
-import type { Project, ProjectBudgetBurn } from '../../types';
-import { ProjectCard } from './ProjectCard';
+import type { Project, ProjectBudgetBurn, ProjectTask } from '../../types';
+import { groupProjectsByClient, openTasksByProject } from '../../utils/projectClient';
+import { ClientProjectsCard } from './ClientProjectsCard';
 
 interface ProjectListProps {
   projects: Project[];
   hubPathPrefix: string;
+  tasks?: ProjectTask[];
   /** Admin: billed vs budget from API (HOURLY + budget only) */
   budgetBurnByProjectId?: Record<string, ProjectBudgetBurn>;
   budgetBurnPeriodLabel?: string;
@@ -18,6 +20,7 @@ interface ProjectListProps {
 export function ProjectList({
   projects,
   hubPathPrefix,
+  tasks = [],
   budgetBurnByProjectId,
   budgetBurnPeriodLabel,
   showBudget = true,
@@ -36,20 +39,24 @@ export function ProjectList({
     );
   }
 
+  const groups = groupProjectsByClient(projects);
+  const tasksByProjectId = openTasksByProject(tasks);
+
   return (
-    <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-      {projects.map((project) => (
-        <ProjectCard
-          key={project._id}
-          project={project}
-          hubTo={`${hubPathPrefix}/${project._id}`}
-          budgetBurn={budgetBurnByProjectId?.[project._id]}
+    <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+      {groups.map((group) => (
+        <ClientProjectsCard
+          key={group.clientId}
+          group={group}
+          hubPathPrefix={hubPathPrefix}
+          openTasksByProjectId={tasksByProjectId}
+          budgetBurnByProjectId={budgetBurnByProjectId}
           budgetBurnPeriodLabel={budgetBurnPeriodLabel}
+          showBudget={showBudget}
+          canEdit={canEdit}
           onEdit={onEdit}
           onDelete={onDelete}
           onArchive={onArchive}
-          showBudget={showBudget}
-          canEdit={canEdit}
         />
       ))}
     </div>

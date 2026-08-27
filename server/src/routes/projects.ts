@@ -2,7 +2,7 @@ import { Router, Response } from 'express';
 import mongoose from 'mongoose';
 import { checkJwt, AuthRequest, extractUserId, getWorkspaceOwnerId, requireAdmin, loadUser } from '../middleware/auth';
 import { asyncHandler, createError } from '../middleware/errorHandler';
-import { Project, TimeEntry, TimeBlock, User } from '../models';
+import { Project, TimeEntry, TimeBlock, User, Client } from '../models';
 import type { ITaskType } from '../models/TaskType';
 import type { ProjectBillingMode } from '../models';
 import { getEffectiveRate, parseDateStart, parseDateEnd } from '../utils/calculations';
@@ -94,11 +94,18 @@ router.get(
 
     if (search && typeof search === 'string' && search.trim()) {
       const searchRegex = new RegExp(search.trim(), 'i');
+      const matchingClients = await Client.find({
+        userId: workspaceOwnerId,
+        $or: [{ name: searchRegex }, { company: searchRegex }],
+      })
+        .select('_id')
+        .lean();
       filter.$or = [
         { title: searchRegex },
         { description: searchRegex },
         { brief: searchRegex },
         { excerpt: searchRegex },
+        { clientId: { $in: matchingClients.map((c) => c._id) } },
       ];
     }
 
