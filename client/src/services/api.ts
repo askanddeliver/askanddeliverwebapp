@@ -44,6 +44,7 @@ import type {
   DashboardPipelineResponse,
   DashboardCapacityResponse,
 } from '../types';
+import type { DashboardPeriodParams } from '../utils/calculations';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
 
@@ -671,9 +672,11 @@ export const siteConfigApi = {
 
 // Admin dashboard aggregates
 export const dashboardApi = {
-  getAdminSummary: () => api.get<AdminDashboardSummary>('/dashboard/admin-summary'),
+  getAdminSummary: (params?: DashboardPeriodParams) =>
+    api.get<AdminDashboardSummary>('/dashboard/admin-summary', { params }),
   getPipeline: () => api.get<DashboardPipelineResponse>('/dashboard/pipeline'),
-  getCapacity: () => api.get<DashboardCapacityResponse>('/dashboard/capacity'),
+  getCapacity: (params?: Pick<DashboardPeriodParams, 'weekStart' | 'weekEnd'>) =>
+    api.get<DashboardCapacityResponse>('/dashboard/capacity', { params }),
 };
 
 // Project messages (admin/member on Projects page)
@@ -699,7 +702,8 @@ export const portalApi = {
 
 // Member hub (member + admin dogfooding)
 export const memberApi = {
-  getDashboard: () => api.get<MemberDashboardResponse>('/member/dashboard'),
+  getDashboard: (params?: Pick<DashboardPeriodParams, 'todayStart' | 'todayEnd' | 'weekStart' | 'weekEnd'>) =>
+    api.get<MemberDashboardResponse>('/member/dashboard', { params }),
   getProjects: () => api.get<Project[]>('/member/projects'),
   getDisciplines: () => api.get<DisciplineDefinition[]>('/member/disciplines'),
 };

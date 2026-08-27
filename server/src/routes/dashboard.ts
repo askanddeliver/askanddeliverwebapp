@@ -16,6 +16,7 @@ import {
   computeLeadStats,
   computeCapacity,
 } from '../lib/dashboardAggregates';
+import { dashboardPeriodBoundsFromQuery } from '../utils/calculations';
 
 const router = Router();
 
@@ -29,6 +30,8 @@ router.get(
     const workspaceOwnerId = await getWorkspaceOwnerId(req);
     if (!workspaceOwnerId) throw createError('Workspace access required', 403);
 
+    const period = dashboardPeriodBoundsFromQuery(req.query as Record<string, unknown>);
+
     const [
       timeTotals,
       unbilledWip,
@@ -37,7 +40,7 @@ router.get(
       invoices,
       leadStats,
     ] = await Promise.all([
-      computeTimeTotals(workspaceOwnerId),
+      computeTimeTotals(workspaceOwnerId, undefined, period),
       computeUnbilledWip(workspaceOwnerId),
       computeProjectCounts(workspaceOwnerId),
       computeOpenTaskCount(workspaceOwnerId),
@@ -124,7 +127,8 @@ router.get(
     const workspaceOwnerId = await getWorkspaceOwnerId(req);
     if (!workspaceOwnerId) throw createError('Workspace access required', 403);
 
-    const capacity = await computeCapacity(workspaceOwnerId);
+    const period = dashboardPeriodBoundsFromQuery(req.query as Record<string, unknown>);
+    const capacity = await computeCapacity(workspaceOwnerId, period);
     res.json(capacity);
   })
 );

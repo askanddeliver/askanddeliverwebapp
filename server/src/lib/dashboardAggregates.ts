@@ -2,20 +2,20 @@ import { Invoice, Lead, Project, ProjectTask, TimeBlock, TimeEntry, User } from 
 import type { IClient } from '../models/Client';
 import type { IProject } from '../models/Project';
 import type { ITaskType } from '../models/TaskType';
-import { calculateAmount, getEffectiveRate } from '../utils/calculations';
+import {
+  calculateAmount,
+  defaultDashboardPeriodBounds,
+  getEffectiveRate,
+  type DashboardPeriodBounds,
+} from '../utils/calculations';
 import { expandTimeBlocksForRange } from './expandTimeBlocks';
 
-export async function computeTimeTotals(workspaceOwnerId: string, auth0Id?: string) {
-  const now = new Date();
-  const todayStart = new Date(now);
-  todayStart.setHours(0, 0, 0, 0);
-
-  const weekStart = new Date(now);
-  weekStart.setDate(now.getDate() - now.getDay());
-  weekStart.setHours(0, 0, 0, 0);
-
-  const lastWeekStart = new Date(weekStart);
-  lastWeekStart.setDate(lastWeekStart.getDate() - 7);
+export async function computeTimeTotals(
+  workspaceOwnerId: string,
+  auth0Id?: string,
+  period: DashboardPeriodBounds = defaultDashboardPeriodBounds()
+) {
+  const { todayStart, todayEnd, weekStart, weekEnd, lastWeekStart } = period;
 
   const projectIds = await Project.find({ userId: workspaceOwnerId }).distinct('_id');
   const baseFilter: Record<string, unknown> = {
@@ -25,10 +25,10 @@ export async function computeTimeTotals(workspaceOwnerId: string, auth0Id?: stri
   if (auth0Id) baseFilter.userId = auth0Id;
 
   const [todayEntries, weekEntries, lastWeekEntries] = await Promise.all([
-    TimeEntry.find({ ...baseFilter, startTime: { $gte: todayStart } })
+    TimeEntry.find({ ...baseFilter, startTime: { $gte: todayStart, $lt: todayEnd } })
       .select('duration')
       .lean(),
-    TimeEntry.find({ ...baseFilter, startTime: { $gte: weekStart } })
+    TimeEntry.find({ ...baseFilter, startTime: { $gte: weekStart, $lt: weekEnd } })
       .select('duration')
       .lean(),
     TimeEntry.find({
@@ -157,16 +157,14 @@ export async function listTeamMembers(workspaceOwnerId: string) {
     .lean();
 }
 
-export async function computeCapacity(workspaceOwnerId: string) {
+export async function computeCapacity(
+  workspaceOwnerId: string,
+  period: Pick<DashboardPeriodBounds, 'weekStart' | 'weekEnd'> = defaultDashboardPeriodBounds()
+) {
   const members = await listTeamMembers(workspaceOwnerId);
   const memberAuth0Ids = members.map((m) => m.auth0Id);
 
-  const now = new Date();
-  const weekStart = new Date(now);
-  weekStart.setDate(now.getDate() - now.getDay());
-  weekStart.setHours(0, 0, 0, 0);
-  const weekEnd = new Date(weekStart);
-  weekEnd.setDate(weekEnd.getDate() + 7);
+  const { weekStart, weekEnd } = period;
 
   const projectIds = await Project.find({ userId: workspaceOwnerId }).distinct('_id');
 

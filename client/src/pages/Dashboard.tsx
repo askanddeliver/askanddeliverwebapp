@@ -23,7 +23,7 @@ import {
   leadsApi,
   dashboardApi,
 } from '../services/api';
-import { formatDurationHuman, formatCurrency } from '../utils/calculations';
+import { formatDurationHuman, formatCurrency, getDashboardPeriodParams } from '../utils/calculations';
 import type {
   TimeEntry,
   Project,
@@ -65,6 +65,7 @@ function Dashboard() {
   const loadData = async () => {
     try {
       setLoading(true);
+      const period = getDashboardPeriodParams();
       const [timerRes, entriesRes, projectsRes, taskTypesRes, leadStatsRes, summaryRes, pipelineRes, capacityRes] =
         await Promise.all([
         timeEntriesApi.getActive(),
@@ -73,13 +74,13 @@ function Dashboard() {
         taskTypesApi.getAll(),
         leadsApi.getStats().catch(() => ({ data: null })),
         isAdmin
-          ? dashboardApi.getAdminSummary().catch(() => ({ data: null }))
+          ? dashboardApi.getAdminSummary(period).catch(() => ({ data: null }))
           : Promise.resolve({ data: null }),
         isAdmin
           ? dashboardApi.getPipeline().catch(() => ({ data: null }))
           : Promise.resolve({ data: null }),
         isAdmin
-          ? dashboardApi.getCapacity().catch(() => ({ data: null }))
+          ? dashboardApi.getCapacity({ weekStart: period.weekStart, weekEnd: period.weekEnd }).catch(() => ({ data: null }))
           : Promise.resolve({ data: null }),
       ]);
 

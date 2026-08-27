@@ -112,3 +112,45 @@ export function toUTCStartOfDay(dateStr: string): string {
 export function toUTCEndOfDay(dateStr: string): string {
   return new Date(dateStr + 'T23:59:59.999').toISOString();
 }
+
+export interface DashboardPeriodParams {
+  todayStart: string;
+  todayEnd: string;
+  weekStart: string;
+  weekEnd: string;
+  lastWeekStart: string;
+}
+
+function formatLocalYmd(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function addDaysToDateString(dateStr: string, days: number): string {
+  const d = new Date(`${dateStr}T12:00:00`);
+  d.setDate(d.getDate() + days);
+  return formatLocalYmd(d);
+}
+
+/** Sunday of the current local week as YYYY-MM-DD. */
+export function getStartOfWeekString(): string {
+  const d = new Date();
+  d.setDate(d.getDate() - d.getDay());
+  return formatLocalYmd(d);
+}
+
+/**
+ * Local-timezone day/week bounds as UTC ISO strings for dashboard aggregates.
+ * The server runs in UTC; without these, "today" rolls over at midnight UTC
+ * (7pm Central during CDT).
+ */
+export function getDashboardPeriodParams(): DashboardPeriodParams {
+  const today = getTodayString();
+  const weekStart = getStartOfWeekString();
+  return {
+    todayStart: toUTCStartOfDay(today),
+    todayEnd: toUTCStartOfDay(addDaysToDateString(today, 1)),
+    weekStart: toUTCStartOfDay(weekStart),
+    weekEnd: toUTCStartOfDay(addDaysToDateString(weekStart, 7)),
+    lastWeekStart: toUTCStartOfDay(addDaysToDateString(weekStart, -7)),
+  };
+}

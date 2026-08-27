@@ -88,3 +88,52 @@ export function parseDateEnd(dateStr: string): Date {
   if (dateStr.includes('T')) return new Date(dateStr);
   return new Date(dateStr + 'T23:59:59.999Z');
 }
+
+export interface DashboardPeriodBounds {
+  todayStart: Date;
+  todayEnd: Date;
+  weekStart: Date;
+  weekEnd: Date;
+  lastWeekStart: Date;
+}
+
+/** Server-local midnight bounds (UTC on Railway). Used when the client omits period params. */
+export function defaultDashboardPeriodBounds(now = new Date()): DashboardPeriodBounds {
+  const todayStart = new Date(now);
+  todayStart.setHours(0, 0, 0, 0);
+  const todayEnd = new Date(todayStart);
+  todayEnd.setDate(todayEnd.getDate() + 1);
+
+  const weekStart = new Date(now);
+  weekStart.setDate(now.getDate() - now.getDay());
+  weekStart.setHours(0, 0, 0, 0);
+  const weekEnd = new Date(weekStart);
+  weekEnd.setDate(weekEnd.getDate() + 7);
+
+  const lastWeekStart = new Date(weekStart);
+  lastWeekStart.setDate(lastWeekStart.getDate() - 7);
+
+  return { todayStart, todayEnd, weekStart, weekEnd, lastWeekStart };
+}
+
+function optionalDateParam(val: unknown): Date | undefined {
+  if (typeof val === 'string' && val.trim()) return parseDateStart(val.trim());
+  return undefined;
+}
+
+/**
+ * Prefer client-sent ISO bounds (local timezone) so "today" / "this week"
+ * match the user's calendar day, not the server's UTC midnight.
+ */
+export function dashboardPeriodBoundsFromQuery(
+  query: Record<string, unknown>
+): DashboardPeriodBounds {
+  const fallback = defaultDashboardPeriodBounds();
+  return {
+    todayStart: optionalDateParam(query.todayStart) ?? fallback.todayStart,
+    todayEnd: optionalDateParam(query.todayEnd) ?? fallback.todayEnd,
+    weekStart: optionalDateParam(query.weekStart) ?? fallback.weekStart,
+    weekEnd: optionalDateParam(query.weekEnd) ?? fallback.weekEnd,
+    lastWeekStart: optionalDateParam(query.lastWeekStart) ?? fallback.lastWeekStart,
+  };
+}

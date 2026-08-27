@@ -17,7 +17,7 @@ import {
   taskTypesApi,
   projectTasksApi,
 } from '../../services/api';
-import { formatDurationHuman } from '../../utils/calculations';
+import { formatDurationHuman, getDashboardPeriodParams } from '../../utils/calculations';
 import type { TimeEntry, Project, TaskType, ProjectTask, MemberDashboardStats } from '../../types';
 
 function MemberHub() {
@@ -46,7 +46,7 @@ function MemberHub() {
       setLoading(true);
       const [dashboardRes, timerRes, entriesRes, projectsRes, taskTypesRes, allTasksRes] =
         await Promise.all([
-          memberApi.getDashboard(),
+          memberApi.getDashboard(getDashboardPeriodParams()),
           timeEntriesApi.getActive(),
           timeEntriesApi.getAll(),
           memberApi.getProjects(),

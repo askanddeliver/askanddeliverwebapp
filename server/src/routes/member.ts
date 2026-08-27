@@ -8,6 +8,7 @@ import {
 } from '../middleware/auth';
 import { asyncHandler, createError } from '../middleware/errorHandler';
 import { ProjectTask, SiteConfig, TimeEntry } from '../models';
+import { dashboardPeriodBoundsFromQuery } from '../utils/calculations';
 import {
   findMemberProjects,
   stripProjectFinancials,
@@ -31,26 +32,22 @@ router.get(
       throw createError('Workspace access required', 403);
     }
 
-    const now = new Date();
-    const todayStart = new Date(now);
-    todayStart.setHours(0, 0, 0, 0);
-
-    const weekStart = new Date(now);
-    weekStart.setDate(now.getDate() - now.getDay());
-    weekStart.setHours(0, 0, 0, 0);
+    const { todayStart, todayEnd, weekStart, weekEnd } = dashboardPeriodBoundsFromQuery(
+      req.query as Record<string, unknown>
+    );
 
     const [todayEntries, weekEntries, projects] = await Promise.all([
       TimeEntry.find({
         userId: auth0Id,
         isRunning: false,
-        startTime: { $gte: todayStart },
+        startTime: { $gte: todayStart, $lt: todayEnd },
       })
         .select('duration')
         .lean(),
       TimeEntry.find({
         userId: auth0Id,
         isRunning: false,
-        startTime: { $gte: weekStart },
+        startTime: { $gte: weekStart, $lt: weekEnd },
       })
         .select('duration')
         .lean(),
