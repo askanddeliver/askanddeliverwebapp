@@ -67,11 +67,10 @@ export async function memberHasProjectAccess(
   return Boolean(project);
 }
 
-/** Remove billing fields before returning projects to member routes. */
+/** Remove dollar and pool-size billing fields before returning projects to members. */
 export function stripProjectFinancials<T extends Record<string, unknown>>(project: T) {
   const {
     budget,
-    billingMode,
     agreedAmount,
     retainerHoursTotal,
     retainerHoursAdjustment,
@@ -79,7 +78,6 @@ export function stripProjectFinancials<T extends Record<string, unknown>>(projec
     ...rest
   } = project;
   void budget;
-  void billingMode;
   void agreedAmount;
   void retainerHoursTotal;
   void retainerHoursAdjustment;

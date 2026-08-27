@@ -106,8 +106,17 @@ export interface Project {
   retainerHoursAdjustment?: number;
   fixedPriceInvoiceLabel?: string;
   assignedMemberIds?: string[];
+  /** Resolved on GET /api/projects/:id — not stored on the model */
+  assignedMembers?: ProjectAssignedMember[];
   createdAt: string;
   updatedAt: string;
+}
+
+export interface ProjectAssignedMember {
+  auth0Id: string;
+  name: string;
+  picture?: string;
+  role: UserRole;
 }
 
 export type ProjectStatus = 'ACTIVE' | 'PAUSED' | 'COMPLETED' | 'ARCHIVED';

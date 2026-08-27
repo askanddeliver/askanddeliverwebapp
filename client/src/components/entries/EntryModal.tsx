@@ -10,6 +10,7 @@ interface EntryModalProps {
   projectTasks: ProjectTask[];
   isOpen: boolean;
   showRate?: boolean;
+  defaultProjectId?: string;
   onClose: () => void;
   onSave: (data: {
     projectId: string;
@@ -29,6 +30,7 @@ export function EntryModal({
   projectTasks,
   isOpen,
   showRate = true,
+  defaultProjectId,
   onClose,
   onSave,
 }: EntryModalProps) {
@@ -83,8 +85,11 @@ export function EntryModal({
       setHours(Math.floor(totalMinutes / 60).toString());
       setMinutes((totalMinutes % 60).toString());
     } else {
-      setClientId('');
-      setProjectId('');
+      const defaultProject = defaultProjectId
+        ? projects.find((p) => p._id === defaultProjectId) || null
+        : null;
+      setClientId(defaultProject ? projectClientId(defaultProject) : '');
+      setProjectId(defaultProjectId || '');
       setTaskTypeId('');
       setProjectTaskId('');
       setDescription('');
@@ -92,7 +97,7 @@ export function EntryModal({
       setHours('');
       setMinutes('');
     }
-  }, [entry, isOpen]);
+  }, [entry, isOpen, defaultProjectId]);
 
   // Reset project task when project changes (only for new entries)
   useEffect(() => {

@@ -1,12 +1,14 @@
 import { Router, Response } from 'express';
-import { checkJwt, AuthRequest, extractUserId, getWorkspaceOwnerId, requireAdmin } from '../middleware/auth';
+import mongoose from 'mongoose';
+import { checkJwt, AuthRequest, extractUserId, getWorkspaceOwnerId, requireAdmin, loadUser } from '../middleware/auth';
 import { asyncHandler, createError } from '../middleware/errorHandler';
-import { Project, TimeEntry, TimeBlock } from '../models';
+import { Project, TimeEntry, TimeBlock, User } from '../models';
 import type { ITaskType } from '../models/TaskType';
 import type { ProjectBillingMode } from '../models';
 import { getEffectiveRate, parseDateStart, parseDateEnd } from '../utils/calculations';
 import { validateWorkspaceMemberAuth0Ids } from '../lib/memberValidation';
 import { notifyMembersAssignedToProject } from '../lib/email';
+import { memberHasProjectAccess, stripProjectFinancials } from '../lib/memberProjects';
 
 const BILLING_MODES: ProjectBillingMode[] = ['HOURLY', 'FIXED_PRICE', 'HOUR_RETAINER'];
 
@@ -248,6 +250,74 @@ router.get(
       .lean();
 
     res.json(projects);
+  })
+);
+
+// GET /api/projects/:id — single project (admin: full; member: access check + stripped financials)
+router.get(
+  '/:id',
+  asyncHandler(async (req: AuthRequest, res: Response) => {
+    const workspaceOwnerId = await getWorkspaceOwnerId(req);
+    if (!workspaceOwnerId) throw createError('Workspace access required', 403);
+
+    const { id } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      throw createError('Project not found', 404);
+    }
+
+    const currentUser = await loadUser(req);
+    if (!currentUser || (currentUser.role !== 'admin' && currentUser.role !== 'member')) {
+      throw createError('Project not found', 404);
+    }
+
+    const isMember = currentUser.role === 'member';
+
+    const projectQuery = Project.findOne({ _id: id, userId: workspaceOwnerId });
+    if (isMember) {
+      projectQuery.populate({ path: 'clientId', select: 'name company' });
+    } else {
+      projectQuery.populate('clientId');
+    }
+    const project = await projectQuery.lean();
+
+    if (!project) {
+      throw createError('Project not found', 404);
+    }
+
+    if (isMember) {
+      const allowed = await memberHasProjectAccess(workspaceOwnerId, currentUser.auth0Id, id);
+      if (!allowed) throw createError('Project not found', 404);
+    }
+
+    const assignedIds = Array.isArray(project.assignedMemberIds)
+      ? project.assignedMemberIds
+      : [];
+    const memberDocs =
+      assignedIds.length > 0
+        ? await User.find({ auth0Id: { $in: assignedIds } })
+            .select('auth0Id name picture role')
+            .lean()
+        : [];
+    const byAuth0 = new Map(memberDocs.map((m) => [m.auth0Id, m]));
+    const assignedMembers = assignedIds
+      .map((auth0Id) => byAuth0.get(auth0Id))
+      .filter((m): m is (typeof memberDocs)[number] => Boolean(m))
+      .map((m) => ({
+        auth0Id: m.auth0Id,
+        name: m.name,
+        picture: m.picture,
+        role: m.role,
+      }));
+
+    if (isMember) {
+      res.json({
+        ...stripProjectFinancials(project as Record<string, unknown>),
+        assignedMembers,
+      });
+      return;
+    }
+
+    res.json({ ...project, assignedMembers });
   })
 );
 

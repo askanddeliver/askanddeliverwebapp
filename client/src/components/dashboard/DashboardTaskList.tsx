@@ -26,6 +26,8 @@ interface DashboardTaskListProps {
   title?: string;
   /** Link for "Manage on Projects" (member hub uses /member/projects) */
   projectsLink?: string;
+  /** Base path for per-project hub links */
+  projectHubBase?: string;
 }
 
 const statusIcons: Record<string, React.ReactNode> = {
@@ -134,6 +136,7 @@ export function DashboardTaskList({
   hideOuterCard = false,
   title = 'To-do',
   projectsLink = '/projects',
+  projectHubBase = '/projects',
 }: DashboardTaskListProps) {
   const groups = useMemo(
     () => buildGroups(projects, projectTasks),
@@ -235,7 +238,12 @@ export function DashboardTaskList({
                   {group.projectBlocks.map(({ project, tasks }) => (
                     <div key={project._id} className="px-3 py-2">
                       <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">
-                        {project.title}
+                        <Link
+                          to={`${projectHubBase}/${project._id}#tasks`}
+                          className="hover:text-primary-700 hover:underline"
+                        >
+                          {project.title}
+                        </Link>
                       </p>
                       <ul className="space-y-1">
                         {tasks.map((task) => {

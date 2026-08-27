@@ -3,22 +3,9 @@ import { Plus, Search, X, ChevronDown } from 'lucide-react';
 import { useUserRole } from '../contexts/UserContext';
 import { ProjectList } from '../components/projects/ProjectList';
 import { ProjectModal, type ProjectModalSaveData } from '../components/projects/ProjectModal';
-import { projectsApi, clientsApi, projectTasksApi } from '../services/api';
-import type {
-  Project,
-  Client,
-  ProjectTask,
-  ProjectStatus,
-  ProjectCounts,
-  ProjectBudgetBurn,
-} from '../types';
-import {
-  getDaysAgoString,
-  getTodayString,
-  toUTCStartOfDay,
-  toUTCEndOfDay,
-} from '../utils/calculations';
-import { sortProjectTasksByOrder } from '../utils/projectTasks';
+import { projectsApi, clientsApi } from '../services/api';
+import type { Project, Client, ProjectStatus, ProjectCounts, ProjectBudgetBurn } from '../types';
+import { getBurnDateRange, type BurnPeriod } from '../utils/projectBilling';
 
 type StatusTab = ProjectStatus | 'ALL';
 
@@ -38,27 +25,11 @@ const SORT_OPTIONS = [
   { value: 'budget_desc', label: 'Budget High–Low' },
 ];
 
-type BurnPeriod = 'all' | 'month' | '30d';
-
-function getBurnDateRange(period: BurnPeriod): { startDate?: string; endDate?: string } {
-  if (period === 'all') return {};
-  const endDate = toUTCEndOfDay(getTodayString());
-  if (period === '30d') {
-    return { startDate: toUTCStartOfDay(getDaysAgoString(30)), endDate };
-  }
-  const d = new Date();
-  const y = d.getFullYear();
-  const m = d.getMonth();
-  const firstLocal = `${y}-${String(m + 1).padStart(2, '0')}-01`;
-  return { startDate: toUTCStartOfDay(firstLocal), endDate };
-}
-
 function Projects() {
   const { isAdmin } = useUserRole();
   const [projects, setProjects] = useState<Project[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
   const [counts, setCounts] = useState<ProjectCounts | null>(null);
-  const [tasksByProject, setTasksByProject] = useState<Record<string, ProjectTask[]>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
@@ -100,22 +71,12 @@ function Projects() {
 
   const loadSupportData = useCallback(async () => {
     try {
-      const [clientsRes, tasksRes] = await Promise.all([
-        isAdmin ? clientsApi.getAll() : Promise.resolve({ data: [] }),
-        projectTasksApi.getAll(),
-      ]);
+      if (!isAdmin) {
+        setClients([]);
+        return;
+      }
+      const clientsRes = await clientsApi.getAll();
       setClients(clientsRes.data || []);
-
-      const grouped: Record<string, ProjectTask[]> = {};
-      for (const task of tasksRes.data || []) {
-        const pid = typeof task.projectId === 'object' ? task.projectId._id : task.projectId;
-        if (!grouped[pid]) grouped[pid] = [];
-        grouped[pid].push(task);
-      }
-      for (const pid of Object.keys(grouped)) {
-        grouped[pid] = sortProjectTasksByOrder(grouped[pid]);
-      }
-      setTasksByProject(grouped);
     } catch (err) {
       console.error('Failed to load support data:', err);
     }
@@ -198,9 +159,6 @@ function Projects() {
   const handleDelete = async (id: string) => {
     try {
       await projectsApi.delete(id);
-      const updated = { ...tasksByProject };
-      delete updated[id];
-      setTasksByProject(updated);
       loadProjects();
     } catch (err) {
       console.error('Failed to delete project:', err);
@@ -218,111 +176,6 @@ function Projects() {
     }
   };
 
-  // --- Project Task handlers ---
-
-  const handleCreateTask = async (data: {
-    projectId: string;
-    title: string;
-    description?: string;
-    status: 'TODO' | 'IN_PROGRESS' | 'COMPLETED';
-    estimatedHours?: number;
-    clientVisible?: boolean;
-  }) => {
-    try {
-      const res = await projectTasksApi.create(data);
-      const pid = data.projectId;
-      setTasksByProject((prev) => {
-        const existing = prev[pid] || [];
-        const bumped = existing.map((t) => ({
-          ...t,
-          order: (t.order ?? 0) + 1,
-        }));
-        return { ...prev, [pid]: [res.data, ...bumped] };
-      });
-      setError(null);
-    } catch (err) {
-      console.error('Failed to create task:', err);
-      setError('Failed to create task');
-    }
-  };
-
-  const handleUpdateTask = async (id: string, data: Partial<ProjectTask>) => {
-    try {
-      const res = await projectTasksApi.update(id, data);
-      const pid = typeof res.data.projectId === 'object'
-        ? res.data.projectId._id
-        : res.data.projectId;
-      setTasksByProject((prev) => ({
-        ...prev,
-        [pid]: (prev[pid] || []).map((t) => (t._id === id ? res.data : t)),
-      }));
-      setError(null);
-    } catch (err) {
-      console.error('Failed to update task:', err);
-      setError('Failed to update task');
-    }
-  };
-
-  const handleToggleTaskStatus = async (id: string, status: string) => {
-    try {
-      const res = await projectTasksApi.updateStatus(id, status);
-      const pid = typeof res.data.projectId === 'object'
-        ? res.data.projectId._id
-        : res.data.projectId;
-      setTasksByProject((prev) => ({
-        ...prev,
-        [pid]: (prev[pid] || []).map((t) => (t._id === id ? res.data : t)),
-      }));
-    } catch (err) {
-      console.error('Failed to toggle task status:', err);
-    }
-  };
-
-  const handleReorderTasks = async (projectId: string, taskIds: string[]) => {
-    try {
-      const res = await projectTasksApi.reorder(projectId, taskIds);
-      const proj = projects.find((p) => p._id === projectId);
-      const merged = (res.data || []).map((t: ProjectTask) => ({
-        ...t,
-        projectId: proj ?? t.projectId,
-      }));
-      setTasksByProject((prev) => ({
-        ...prev,
-        [projectId]: merged,
-      }));
-      setError(null);
-    } catch (err) {
-      console.error('Failed to reorder tasks:', err);
-      setError('Failed to reorder tasks');
-    }
-  };
-
-  const handleDeleteTask = async (id: string) => {
-    try {
-      let taskProjectId = '';
-      for (const [pid, tasks] of Object.entries(tasksByProject)) {
-        if (tasks.some((t) => t._id === id)) {
-          taskProjectId = pid;
-          break;
-        }
-      }
-
-      await projectTasksApi.delete(id);
-
-      if (taskProjectId) {
-        setTasksByProject((prev) => ({
-          ...prev,
-          [taskProjectId]: (prev[taskProjectId] || []).filter(
-            (t) => t._id !== id
-          ),
-        }));
-      }
-    } catch (err) {
-      console.error('Failed to delete task:', err);
-      setError('Failed to delete task');
-    }
-  };
-
   return (
     <div className="w-full">
       {/* Header */}
@@ -330,7 +183,7 @@ function Projects() {
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Projects</h1>
           <p className="text-gray-500 mt-1">
-            Manage your projects, tasks, and link them to clients
+            Manage your projects and open a hub for tasks, time, and messages
           </p>
         </div>
         {isAdmin && (
@@ -512,20 +365,14 @@ function Projects() {
       ) : (
         <ProjectList
           projects={projects}
-          tasksByProject={tasksByProject}
+          hubPathPrefix="/projects"
           budgetBurnByProjectId={budgetBurnByProjectId}
           budgetBurnPeriodLabel={budgetBurnPeriodLabel}
           showBudget={isAdmin}
           canEdit={isAdmin}
-          canReorder={isAdmin}
-          onReorderTasks={handleReorderTasks}
           onEdit={handleEdit}
           onDelete={handleDelete}
           onArchive={handleArchive}
-          onCreateTask={handleCreateTask}
-          onUpdateTask={handleUpdateTask}
-          onToggleTaskStatus={handleToggleTaskStatus}
-          onDeleteTask={handleDeleteTask}
         />
       )}
 

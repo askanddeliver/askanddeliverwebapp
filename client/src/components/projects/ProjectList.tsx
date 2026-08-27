@@ -1,89 +1,55 @@
 import { FolderOpen } from 'lucide-react';
-import type { Project, ProjectBudgetBurn, ProjectTask } from '../../types';
+import type { Project, ProjectBudgetBurn } from '../../types';
 import { ProjectCard } from './ProjectCard';
 
 interface ProjectListProps {
   projects: Project[];
-  tasksByProject: Record<string, ProjectTask[]>;
+  hubPathPrefix: string;
   /** Admin: billed vs budget from API (HOURLY + budget only) */
   budgetBurnByProjectId?: Record<string, ProjectBudgetBurn>;
   budgetBurnPeriodLabel?: string;
   showBudget?: boolean;
   canEdit?: boolean;
-  canManageTasks?: boolean;
-  canDeleteTasks?: boolean;
   onEdit: (project: Project) => void;
   onDelete: (id: string) => void;
   onArchive: (id: string) => void;
-  onCreateTask: (data: {
-    projectId: string;
-    title: string;
-    description?: string;
-    status: 'TODO' | 'IN_PROGRESS' | 'COMPLETED';
-    estimatedHours?: number;
-  }) => void;
-  onUpdateTask: (id: string, data: Partial<ProjectTask>) => void;
-  onToggleTaskStatus: (id: string, status: string) => void;
-  onDeleteTask: (id: string) => void;
-  canReorder?: boolean;
-  onReorderTasks?: (projectId: string, taskIds: string[]) => void | Promise<void>;
 }
 
 export function ProjectList({
   projects,
-  tasksByProject,
+  hubPathPrefix,
   budgetBurnByProjectId,
   budgetBurnPeriodLabel,
   showBudget = true,
   canEdit = true,
-  canManageTasks,
-  canDeleteTasks,
   onEdit,
   onDelete,
   onArchive,
-  onCreateTask,
-  onUpdateTask,
-  onToggleTaskStatus,
-  onDeleteTask,
-  canReorder = false,
-  onReorderTasks,
 }: ProjectListProps) {
   if (projects.length === 0) {
     return (
-      <div className="text-center py-12">
-        <FolderOpen className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-        <h3 className="text-lg font-medium text-gray-500 mb-2">
-          No projects found
-        </h3>
-        <p className="text-gray-400">
-          Try adjusting your filters, or create a new project.
-        </p>
+      <div className="py-12 text-center">
+        <FolderOpen className="mx-auto mb-4 h-12 w-12 text-gray-300" />
+        <h3 className="mb-2 text-lg font-medium text-gray-500">No projects found</h3>
+        <p className="text-gray-400">Try adjusting your filters, or create a new project.</p>
       </div>
     );
   }
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+    <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
       {projects.map((project) => (
         <ProjectCard
           key={project._id}
           project={project}
-          tasks={tasksByProject[project._id] || []}
+          hubTo={`${hubPathPrefix}/${project._id}`}
           budgetBurn={budgetBurnByProjectId?.[project._id]}
           budgetBurnPeriodLabel={budgetBurnPeriodLabel}
           onEdit={onEdit}
           onDelete={onDelete}
           onArchive={onArchive}
-          onCreateTask={onCreateTask}
-          onUpdateTask={onUpdateTask}
-          onToggleTaskStatus={onToggleTaskStatus}
-          onDeleteTask={onDeleteTask}
           showBudget={showBudget}
           canEdit={canEdit}
-          canManageTasks={canManageTasks}
-          canDeleteTasks={canDeleteTasks}
-          canReorder={canReorder}
-          onReorderTasks={onReorderTasks}
         />
       ))}
     </div>

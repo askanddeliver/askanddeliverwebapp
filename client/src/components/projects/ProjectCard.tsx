@@ -1,12 +1,12 @@
-import { Pencil, Trash2, Archive } from 'lucide-react';
-import type { Project, Client, ProjectBudgetBurn, ProjectTask } from '../../types';
+import { Link } from 'react-router-dom';
+import { Pencil, Trash2, Archive, ArrowRight } from 'lucide-react';
+import type { Project, Client, ProjectBudgetBurn } from '../../types';
 import { formatCurrency } from '../../utils/calculations';
-import { ProjectTaskList } from '../projectTasks/ProjectTaskList';
-import ProjectMessagesPanel from './ProjectMessagesPanel';
+import { projectBillingSummary } from '../../utils/projectBilling';
 
 interface ProjectCardProps {
   project: Project;
-  tasks: ProjectTask[];
+  hubTo: string;
   /** Effective billed vs budget (admin); period set on Projects page */
   budgetBurn?: ProjectBudgetBurn;
   budgetBurnPeriodLabel?: string;
@@ -15,23 +15,6 @@ interface ProjectCardProps {
   onArchive: (id: string) => void;
   showBudget?: boolean;
   canEdit?: boolean;
-  /** Task create/edit on project cards (members: true without canEdit) */
-  canManageTasks?: boolean;
-  /** Allow deleting tasks (admin only) */
-  canDeleteTasks?: boolean;
-  onCreateTask: (data: {
-    projectId: string;
-    title: string;
-    description?: string;
-    status: 'TODO' | 'IN_PROGRESS' | 'COMPLETED';
-    estimatedHours?: number;
-    clientVisible?: boolean;
-  }) => void;
-  onUpdateTask: (id: string, data: Partial<ProjectTask>) => void;
-  onToggleTaskStatus: (id: string, status: string) => void;
-  onDeleteTask: (id: string) => void;
-  canReorder?: boolean;
-  onReorderTasks?: (projectId: string, taskIds: string[]) => void | Promise<void>;
 }
 
 const statusStyles: Record<string, string> = {
@@ -41,54 +24,19 @@ const statusStyles: Record<string, string> = {
   ARCHIVED: 'bg-gray-100 text-gray-400 border-gray-200',
 };
 
-function projectBillingSummary(project: Project, showAmounts: boolean): string {
-  const mode = project.billingMode ?? 'HOURLY';
-  if (!showAmounts) {
-    if (mode === 'FIXED_PRICE') return 'Fixed price';
-    if (mode === 'HOUR_RETAINER') return 'Hour retainer';
-    return 'Hourly';
-  }
-  if (mode === 'FIXED_PRICE' && project.agreedAmount != null) {
-    return `Fixed · $${project.agreedAmount.toLocaleString()}`;
-  }
-  if (mode === 'HOUR_RETAINER' && project.retainerHoursTotal != null) {
-    const adj =
-      project.retainerHoursAdjustment != null && project.retainerHoursAdjustment !== 0
-        ? ` · ${project.retainerHoursAdjustment > 0 ? '+' : ''}${project.retainerHoursAdjustment}h adj`
-        : '';
-    return `Retainer · ${project.retainerHoursTotal} hrs${adj}`;
-  }
-  if (mode === 'HOURLY' && project.budget) {
-    return `Hourly · Budget $${project.budget.toLocaleString()}`;
-  }
-  return 'Hourly';
-}
-
 export function ProjectCard({
   project,
-  tasks,
+  hubTo,
   budgetBurn,
   budgetBurnPeriodLabel,
   onEdit,
   onDelete,
   onArchive,
-  onCreateTask,
-  onUpdateTask,
-  onToggleTaskStatus,
-  onDeleteTask,
-  canReorder = false,
-  onReorderTasks,
   showBudget = true,
   canEdit = true,
-  canManageTasks,
-  canDeleteTasks,
 }: ProjectCardProps) {
-  const manageTasks = canManageTasks ?? canEdit;
-  const deleteTasks = canDeleteTasks ?? canEdit;
   const client =
-    typeof project.clientId === 'object'
-      ? (project.clientId as Client)
-      : null;
+    typeof project.clientId === 'object' ? (project.clientId as Client) : null;
 
   const isArchived = project.status === 'ARCHIVED';
 
@@ -106,66 +54,62 @@ export function ProjectCard({
   return (
     <div className={`card hover:shadow-md transition-shadow ${isArchived ? 'opacity-60' : ''}`}>
       <div className="flex items-start justify-between">
-        <div className="flex-1 min-w-0">
-          <h3 className="text-lg font-bold text-gray-900 truncate">
-            {project.title}
+        <div className="min-w-0 flex-1">
+          <h3 className="truncate text-lg font-bold text-gray-900">
+            <Link to={hubTo} className="hover:text-primary-700 hover:underline">
+              {project.title}
+            </Link>
           </h3>
-          {client && (
-            <p className="text-sm text-gray-500 mt-0.5">{client.name}</p>
-          )}
+          {client && <p className="mt-0.5 text-sm text-gray-500">{client.name}</p>}
           {preview && (
-            <p className="text-sm text-gray-400 mt-1 line-clamp-2">{preview}</p>
+            <p className="mt-1 line-clamp-2 text-sm text-gray-400">{preview}</p>
           )}
         </div>
 
         {canEdit && (
-        <div className="flex items-center gap-1 ml-4">
-          {project.status === 'COMPLETED' && (
+          <div className="ml-4 flex items-center gap-1">
+            {project.status === 'COMPLETED' && (
+              <button
+                onClick={() => {
+                  if (
+                    window.confirm(
+                      `Archive "${project.title}"? It will move to the Archived tab.`
+                    )
+                  ) {
+                    onArchive(project._id);
+                  }
+                }}
+                className="rounded-lg p-2 text-gray-400 transition-colors hover:bg-amber-50 hover:text-amber-600"
+                title="Archive project"
+              >
+                <Archive className="h-4 w-4" />
+              </button>
+            )}
+            <button
+              onClick={() => onEdit(project)}
+              className="rounded-lg p-2 text-gray-400 transition-colors hover:bg-primary-50 hover:text-primary-600"
+              title="Edit project"
+            >
+              <Pencil className="h-4 w-4" />
+            </button>
             <button
               onClick={() => {
-                if (
-                  window.confirm(
-                    `Archive "${project.title}"? It will move to the Archived tab.`
-                  )
-                ) {
-                  onArchive(project._id);
+                if (window.confirm(`Are you sure you want to delete "${project.title}"?`)) {
+                  onDelete(project._id);
                 }
               }}
-              className="p-2 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
-              title="Archive project"
+              className="rounded-lg p-2 text-gray-400 transition-colors hover:bg-red-50 hover:text-red-600"
+              title="Delete project"
             >
-              <Archive className="w-4 h-4" />
+              <Trash2 className="h-4 w-4" />
             </button>
-          )}
-          <button
-            onClick={() => onEdit(project)}
-            className="p-2 text-gray-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
-            title="Edit project"
-          >
-            <Pencil className="w-4 h-4" />
-          </button>
-          <button
-            onClick={() => {
-              if (
-                window.confirm(
-                  `Are you sure you want to delete "${project.title}"?`
-                )
-              ) {
-                onDelete(project._id);
-              }
-            }}
-            className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-            title="Delete project"
-          >
-            <Trash2 className="w-4 h-4" />
-          </button>
-        </div>
+          </div>
         )}
       </div>
 
-      <div className="flex items-center gap-3 mt-3 pt-3 border-t border-gray-100">
+      <div className="mt-3 flex items-center gap-3 border-t border-gray-100 pt-3">
         <span
-          className={`text-xs font-medium px-2.5 py-1 rounded-full border ${
+          className={`rounded-full border px-2.5 py-1 text-xs font-medium ${
             statusStyles[project.status]
           }`}
         >
@@ -181,8 +125,11 @@ export function ProjectCard({
         (project.billingMode ?? 'HOURLY') === 'HOURLY' &&
         project.budget != null &&
         project.budget > 0 && (
-          <div className="mt-2 px-0.5" title="Billable amount from time entries × effective rates (excludes fixed-price/retainer logic)">
-            <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+          <div
+            className="mt-2 px-0.5"
+            title="Billable amount from time entries × effective rates (excludes fixed-price/retainer logic)"
+          >
+            <div className="h-1.5 overflow-hidden rounded-full bg-gray-100">
               <div
                 className={`h-full rounded-full transition-all ${
                   budgetBurn.percentUsed >= 100
@@ -196,7 +143,7 @@ export function ProjectCard({
                 }}
               />
             </div>
-            <p className="text-[11px] text-gray-500 mt-1 leading-snug">
+            <p className="mt-1 text-[11px] leading-snug text-gray-500">
               Budget burn {budgetBurn.percentUsed.toFixed(0)}% · {formatCurrency(budgetBurn.billed)} /{' '}
               {formatCurrency(budgetBurn.budget)}
               {budgetBurnPeriodLabel ? ` · ${budgetBurnPeriodLabel}` : ''}
@@ -204,27 +151,15 @@ export function ProjectCard({
           </div>
         )}
 
-      {/* Project Task List */}
-      <div className="mt-3 pt-3 border-t border-gray-100">
-        <ProjectTaskList
-          tasks={tasks}
-          projectId={project._id}
-          projectTitle={project.title}
-          onCreateTask={onCreateTask}
-          onUpdateTask={onUpdateTask}
-          onToggleStatus={onToggleTaskStatus}
-          onDeleteTask={onDeleteTask}
-          canEdit={manageTasks}
-          canDelete={deleteTasks}
-          canReorder={canReorder}
-          onReorderTasks={onReorderTasks}
-          memberMode={manageTasks && !canEdit}
-        />
+      <div className="mt-3">
+        <Link
+          to={hubTo}
+          className="inline-flex items-center gap-1 text-sm font-medium text-primary-600 hover:text-primary-800"
+        >
+          Open project
+          <ArrowRight className="h-4 w-4" />
+        </Link>
       </div>
-
-      {manageTasks && (
-        <ProjectMessagesPanel projectId={project._id} memberMode={!canEdit} />
-      )}
     </div>
   );
 }

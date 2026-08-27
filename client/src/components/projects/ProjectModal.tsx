@@ -8,6 +8,7 @@ interface ProjectModalProps {
   project?: Project | null;
   clients: Client[];
   isOpen: boolean;
+  initialTab?: 'basic' | 'brief';
   onClose: () => void;
   onSave: (data: ProjectModalSaveData) => void;
 }
@@ -45,6 +46,7 @@ export function ProjectModal({
   project,
   clients,
   isOpen,
+  initialTab = 'basic',
   onClose,
   onSave,
 }: ProjectModalProps) {
@@ -144,8 +146,8 @@ export function ProjectModal({
       setAssignedMemberIds([]);
     }
     setBillingError(null);
-    setActiveTab('basic');
-  }, [project, isOpen]);
+    setActiveTab(initialTab);
+  }, [project, isOpen, initialTab]);
 
   const toggleCategory = (cat: string) => {
     setCategories((prev) =>

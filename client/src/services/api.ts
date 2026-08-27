@@ -189,6 +189,7 @@ export const projectsApi = {
     sort?: string;
     clientId?: string;
   }) => api.get<Project[]>('/projects', { params }),
+  get: (id: string) => api.get<Project>(`/projects/${id}`),
   getCounts: () => api.get<ProjectCounts>('/projects/counts'),
   getByClient: (clientId: string) =>
     api.get<Project[]>(`/projects/client/${clientId}`),
@@ -236,6 +237,7 @@ export const projectTasksApi = {
     status?: string;
     estimatedHours?: number;
     clientVisible?: boolean;
+    assigneeAuth0Id?: string;
   }) => api.post<ProjectTask>('/project-tasks', data),
   update: (id: string, data: Partial<ProjectTask>) =>
     api.put<ProjectTask>(`/project-tasks/${id}`, data),

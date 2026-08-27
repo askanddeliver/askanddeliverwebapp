@@ -108,12 +108,18 @@ router.get(
           : projectId
             ? [projectId]
             : [];
-    if (ids.length > 0 && admin) {
-      const valid = ids.filter((id) =>
-        typeof id === 'string' && mongoose.Types.ObjectId.isValid(id) &&
-        workspaceProjectIds.some((pid) => pid.toString() === id)
-      );
-      if (valid.length > 0) {
+    if (ids.length > 0) {
+      const valid = ids.filter(
+        (id) => typeof id === 'string' && mongoose.Types.ObjectId.isValid(id)
+      ) as string[];
+      if (admin) {
+        const allowed = valid.filter((id) =>
+          workspaceProjectIds.some((pid) => pid.toString() === id)
+        );
+        if (allowed.length > 0) {
+          query.projectId = { $in: allowed };
+        }
+      } else if (valid.length > 0) {
         query.projectId = { $in: valid };
       }
     }

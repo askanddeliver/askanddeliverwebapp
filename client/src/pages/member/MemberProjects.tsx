@@ -1,13 +1,11 @@
-import { useState, useEffect, useMemo } from 'react';
-import { memberApi, projectTasksApi } from '../../services/api';
+import { useState, useEffect } from 'react';
+import { memberApi } from '../../services/api';
 import { ProjectList } from '../../components/projects/ProjectList';
 import { AdminPageHeader } from '../../components/admin/AdminPageHeader';
-import type { Project, ProjectTask } from '../../types';
-import { sortProjectTasksByOrder } from '../../utils/projectTasks';
+import type { Project } from '../../types';
 
 function MemberProjects() {
   const [projects, setProjects] = useState<Project[]>([]);
-  const [projectTasks, setProjectTasks] = useState<ProjectTask[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -18,104 +16,14 @@ function MemberProjects() {
   const loadData = async () => {
     try {
       setLoading(true);
-      const [projectsRes, tasksRes] = await Promise.all([
-        memberApi.getProjects(),
-        projectTasksApi.getAll(),
-      ]);
+      const projectsRes = await memberApi.getProjects();
       setProjects(projectsRes.data || []);
-      setProjectTasks(tasksRes.data || []);
       setError(null);
     } catch (err) {
       console.error('Failed to load member projects:', err);
       setError('Failed to load projects');
     } finally {
       setLoading(false);
-    }
-  };
-
-  const tasksByProject = useMemo(() => {
-    const map: Record<string, ProjectTask[]> = {};
-    for (const task of projectTasks) {
-      const pid =
-        typeof task.projectId === 'object' ? task.projectId._id : task.projectId;
-      if (!map[pid]) map[pid] = [];
-      map[pid].push(task);
-    }
-    for (const pid of Object.keys(map)) {
-      map[pid] = sortProjectTasksByOrder(map[pid]);
-    }
-    return map;
-  }, [projectTasks]);
-
-  const handleCreateTask = async (data: {
-    projectId: string;
-    title: string;
-    description?: string;
-    status: 'TODO' | 'IN_PROGRESS' | 'COMPLETED';
-    estimatedHours?: number;
-  }) => {
-    try {
-      const res = await projectTasksApi.create(data);
-      const pid = data.projectId;
-      setProjectTasks((prev) => {
-        const bumped = prev.map((t) => {
-          const tPid =
-            typeof t.projectId === 'object' ? t.projectId._id : t.projectId;
-          return tPid === pid ? { ...t, order: (t.order ?? 0) + 1 } : t;
-        });
-        return sortProjectTasksByOrder([res.data, ...bumped]);
-      });
-      setError(null);
-    } catch (err) {
-      console.error('Failed to create task:', err);
-      setError('Failed to create task');
-    }
-  };
-
-  const handleUpdateTask = async (id: string, data: Partial<ProjectTask>) => {
-    try {
-      const res = await projectTasksApi.update(id, data);
-      setProjectTasks((prev) =>
-        prev.map((t) => (t._id === id ? res.data : t))
-      );
-      setError(null);
-    } catch (err) {
-      console.error('Failed to update task:', err);
-      setError('Failed to update task');
-    }
-  };
-
-  const handleToggleTaskStatus = async (id: string, status: string) => {
-    try {
-      const res = await projectTasksApi.updateStatus(id, status);
-      setProjectTasks((prev) =>
-        prev.map((t) => (t._id === id ? res.data : t))
-      );
-    } catch (err) {
-      console.error('Failed to toggle task status:', err);
-    }
-  };
-
-  const handleReorderTasks = async (projectId: string, taskIds: string[]) => {
-    try {
-      const res = await projectTasksApi.reorder(projectId, taskIds);
-      const proj = projects.find((p) => p._id === projectId);
-      const merged = (res.data || []).map((t: ProjectTask) => ({
-        ...t,
-        projectId: proj ?? t.projectId,
-      }));
-      setProjectTasks((prev) => {
-        const other = prev.filter((t) => {
-          const pid =
-            typeof t.projectId === 'object' ? t.projectId._id : t.projectId;
-          return pid !== projectId;
-        });
-        return sortProjectTasksByOrder([...other, ...merged]);
-      });
-      setError(null);
-    } catch (err) {
-      console.error('Failed to reorder tasks:', err);
-      setError('Failed to reorder tasks');
     }
   };
 
@@ -142,20 +50,12 @@ function MemberProjects() {
 
       <ProjectList
         projects={projects}
-        tasksByProject={tasksByProject}
+        hubPathPrefix="/member/projects"
         showBudget={false}
         canEdit={false}
-        canManageTasks
-        canDeleteTasks={false}
         onEdit={() => {}}
         onDelete={() => {}}
         onArchive={() => {}}
-        onCreateTask={handleCreateTask}
-        onUpdateTask={handleUpdateTask}
-        onToggleTaskStatus={handleToggleTaskStatus}
-        onDeleteTask={() => {}}
-        canReorder
-        onReorderTasks={handleReorderTasks}
       />
     </div>
   );

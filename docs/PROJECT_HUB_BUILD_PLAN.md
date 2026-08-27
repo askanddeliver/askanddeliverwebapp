@@ -1,6 +1,6 @@
 # Project Hub — Unified Project Detail View
 
-**Status:** Planning (July 2026)  
+**Status:** In progress (v1 — PH-1 through PH-5)  
 **Parent:** [PLATFORM_EXPANSION_BUILD_PLAN.md](./PLATFORM_EXPANSION_BUILD_PLAN.md)  
 **Related:** [CLIENT_PORTAL_DASHBOARD_BUILD_PLAN.md](./CLIENT_PORTAL_DASHBOARD_BUILD_PLAN.md) · [PROJECT_BILLING_MODES_BUILD_PLAN.md](./PROJECT_BILLING_MODES_BUILD_PLAN.md) · [RESEND_NOTIFICATIONS_BUILD_PLAN.md](./RESEND_NOTIFICATIONS_BUILD_PLAN.md)
 
@@ -42,7 +42,7 @@ A **Project Hub** route that opens one project in full context — the operation
 | Admin | `/projects/:id` |
 | Member | `/member/projects/:id` |
 
-The Projects **list page remains** for browse/filter/archive; cards link into the hub instead of expanding inline.
+The Projects **list page remains** for browse/filter/archive; cards are **slim summaries** that link into the hub.
 
 ---
 
@@ -51,26 +51,28 @@ The Projects **list page remains** for browse/filter/archive; cards link into th
 | Area | Behavior |
 |------|----------|
 | **Projects page** | `Projects.tsx` — filtered list of `ProjectCard` components |
-| **ProjectCard** | Inline: status, billing summary, budget burn bar (admin), `ProjectTaskList`, `ProjectMessagesPanel` |
+| **ProjectCard (pre-hub)** | Inline: status, billing summary, budget burn bar (admin), `ProjectTaskList`, `ProjectMessagesPanel` |
 | **Brief editing** | `ProjectModal` — brief field in create/edit modal, not on card |
 | **Time entries** | Separate `/time-entries` page; optional project filter |
-| **Budget burn** | `GET /api/projects/budget-burn` — batch on list page only |
+| **Budget burn** | `GET /api/projects/budget-burn` — batch on list page; HOURLY only |
 | **Team** | `Project.assignedMemberIds` on model; no dedicated UI on card |
 | **Messages** | `ProjectMessagesPanel` embedded in card |
+| **Single-project GET** | Missing — list is `GET /api/projects` only; `projectsApi` has no `get(id)` |
+| **Admin/member hub routes** | Missing — only portal has `/projects/:id` |
 | **Client portal** | Full detail at `/portal/projects/:id` — reference UX for brief/tasks/messages layout |
 
-**Gap:** No admin/member route that consolidates entries + budget + team + brief in one scrollable (or tabbed) view.
+**Gap:** No admin/member route that consolidates entries + budget + team + brief in one scrollable view.
 
 ---
 
 ## Target State
 
-1. **List → Hub navigation** — Click project title (or "Open" action) → project hub.
-2. **Single-page layout** with anchored sections or tabs (mobile: accordion).
+1. **List → Hub navigation** — Click project title or **Open project** → hub.
+2. **Single scrollable page** with anchored sections (`#team` `#brief` `#budget` `#tasks` `#entries` `#messages`). Not tabs.
 3. **Reuse existing components** — `ProjectTaskList`, `ProjectMessagesPanel`, `SanitizedBrief`, `EntryList` subset, budget burn widget.
 4. **Role-aware financials** — Budget, rates, and dollar amounts **admin only**; members see hours and tasks without billing totals.
 5. **Billing-mode aware budget panel** — HOURLY burn bar, FIXED_PRICE agreed fee summary, HOUR_RETAINER utilization (align with [PROJECT_BILLING_MODES_BUILD_PLAN.md](./PROJECT_BILLING_MODES_BUILD_PLAN.md)).
-6. **Projects list slimmed** — Cards show summary + link to hub; optional toggle to keep compact inline tasks for power users (Phase 2).
+6. **Projects list slimmed in v1** — Cards show summary + link to hub. Tasks and messages live only on the hub.
 
 ---
 
@@ -80,7 +82,7 @@ The Projects **list page remains** for browse/filter/archive; cards link into th
 Admin                          Member
 ────────                       ────────
 /projects                      /member/projects
-/projects/:id   ← NEW HUB      /member/projects/:id   ← NEW HUB
+/projects/:id   ← HUB          /member/projects/:id   ← HUB
 ```
 
 **Breadcrumb:** Dashboard → Projects → {Project title}
@@ -129,12 +131,14 @@ Layout order (desktop — single column, max-width ~960px):
 |-------|--------|
 | Title, status, excerpt | `Project` |
 | Client name | Populated `clientId` |
-| Billing summary | Reuse `projectBillingSummary()` from `ProjectCard.tsx` |
+| Billing summary | `projectBillingSummary()` (shared helper) |
 | Actions | Edit (modal), Archive (if COMPLETED), Delete — admin only |
+
+Back link returns to the list (`/projects` or `/member/projects`). Optional `location.state` preserves list filters.
 
 #### Team
 
-**Query:** Resolve `Project.assignedMemberIds` → workspace users (name, avatar, role).
+**Query:** `GET /api/projects/:id` includes `assignedMembers` resolved from `assignedMemberIds` (name, picture, role).
 
 **Optional enrichment (v1.1):** Contributors from distinct `TimeEntry.userId` on this project not in assign list — label "Also tracked time".
 
@@ -143,15 +147,15 @@ Layout order (desktop — single column, max-width ~960px):
 #### Brief
 
 - Display: `SanitizedBrief` with `Project.brief` / fallbacks (same as portal).
-- Admin edit: opens `ProjectModal` focused on brief tab/section.
+- Admin edit: opens `ProjectModal` focused on the brief tab.
 
 #### Budget & billing (admin only)
 
 | `billingMode` | Widget |
 |---------------|--------|
 | `HOURLY` | Budget burn bar + `billed / budget` + period label — `GET /api/projects/budget-burn?projectIds[]=:id` |
-| `FIXED_PRICE` | Agreed amount, invoiced-to-date if available from line items / invoices |
-| `HOUR_RETAINER` | Pool hours, used hours, adjustment — mirror retainer report logic |
+| `FIXED_PRICE` | Agreed amount (invoiced-to-date deferred) |
+| `HOUR_RETAINER` | Pool hours, used hours (from project time entries), adjustment |
 
 Members: **section hidden entirely**.
 
@@ -164,55 +168,44 @@ Reuse `ProjectTaskList` with existing props:
 
 #### Time entries
 
-- Fetch: `GET /api/time-entries?projectIds[]=:id` (existing array param pattern)
+- Fetch: `GET /api/time-entries?projectIds[]=:id` (existing array param pattern; members filtered to own `userId` **and** the project)
 - Reuse `EntryList` with `showRate={isAdmin}` / `showAmount={isAdmin}`
-- Header actions: **Start timer** (opens timer with project prefilled), **Add entry** (QuickEntry / EntryModal)
-- Sort: newest first; paginate or "load more" if >50 entries
+- Header actions: **Start timer** (project prefilled), **Add entry** (EntryModal)
+- Sort: newest first; "load more" if >50 entries
 
 #### Messages
 
-Reuse `ProjectMessagesPanel` — full thread including internal messages; compose with `clientVisible` toggle.
+Reuse `ProjectMessagesPanel` — expanded by default on the hub; full thread including internal messages; compose with `clientVisible` toggle.
 
 ---
 
 ## API & Server
 
-### Option A — Compose existing endpoints (recommended v1)
+### Option A — Compose existing endpoints (v1)
 
-No new aggregate endpoint. Hub page parallel-fetches:
+Hub page parallel-fetches:
 
 | Call | Purpose |
 |------|---------|
-| `GET /api/projects/:id` | Project + populated client |
+| `GET /api/projects/:id` | Project + populated client + `assignedMembers` |
 | `GET /api/project-tasks?projectId=:id` | Tasks |
 | `GET /api/time-entries?projectIds[]=:id` | Entries |
 | `GET /api/projects/budget-burn?projectIds[]=:id&startDate&endDate` | Burn (admin) |
 | `GET /api/projects/:id/messages` | Messages |
-| `GET /api/users/team` or workspace members | Resolve assignee display names |
+
+**`GET /api/projects/:id` rules:**
+
+- Workspace-scoped via `getWorkspaceOwnerId`.
+- Admin: full project (including billing fields).
+- Member: `memberHasProjectAccess`; `stripProjectFinancials`; client populate limited to `name company`.
+- Invalid id, other workspace, or member without access → **404** (not 403).
 
 **Pros:** Minimal server diff, reuses auth/scoping already on each route.  
 **Cons:** Multiple round-trips — acceptable for v1.
 
-### Option B — Aggregate hub endpoint (v1.1 optimization)
+### Option B — Aggregate hub endpoint (follow-up)
 
-`GET /api/projects/:id/hub`
-
-```typescript
-{
-  project: Project;           // populated clientId
-  tasks: ProjectTask[];
-  entries: TimeEntry[];       // capped, paginated
-  budgetBurn?: ProjectBudgetBurn;  // admin only — omitted for members
-  team: Array<{ auth0Id, name, avatar?, role }>;
-  messageCount: number;       // optional — full list still via messages route
-}
-```
-
-Server applies `getWorkspaceOwnerId`, member entry filter (own entries only for members), and **strips financial fields** for non-admin before respond.
-
-### New helper (either option)
-
-`GET /api/projects/:id/team` — returns sanitized member list for assignees + optional contributors. Workspace-scoped; member-accessible.
+`GET /api/projects/:id/hub` — not in v1.
 
 ---
 
@@ -222,31 +215,33 @@ Server applies `getWorkspaceOwnerId`, member entry filter (own entries only for 
 
 | File | Purpose |
 |------|---------|
-| `client/src/pages/ProjectHub.tsx` | Admin hub page |
-| `client/src/pages/member/MemberProjectHub.tsx` | Member hub (or shared component with role props) |
+| `client/src/pages/ProjectHub.tsx` | Shared hub page (role-aware) |
 | `client/src/components/projects/ProjectHubHeader.tsx` | Title, client, status, actions |
 | `client/src/components/projects/ProjectTeamStrip.tsx` | Assigned member avatars |
 | `client/src/components/projects/ProjectBudgetPanel.tsx` | Billing-mode aware budget section |
 | `client/src/components/projects/ProjectEntriesSection.tsx` | Filtered EntryList + timer actions |
+| `client/src/utils/projectBilling.ts` | Shared billing summary + burn period helpers |
 
 ### Routing (`App.tsx`)
 
 ```tsx
 // Admin layout
-<Route path="projects/:id" element={<ProjectHub />} />
+<Route path="/projects/:id" element={<ProjectHub />} />
 
 // Member layout
-<Route path="projects/:id" element={<MemberProjectHub />} />
+<Route path="projects/:id" element={<ProjectHub />} />
 ```
 
-### Projects list changes
+Shared `ProjectHub` infers list path from `/member` vs `/projects`.
 
-- `ProjectCard`: add **Open project** link (`/projects/:id` or `/member/projects/:id`)
-- Phase 2: collapse inline task/message panels behind feature flag or remove after hub adoption
+### Projects list changes (v1)
+
+- Slim `ProjectCard`: title, client, preview, status, billing chip, HOURLY burn (admin), **Open project** link.
+- Remove inline `ProjectTaskList` and `ProjectMessagesPanel` from admin **and** member lists.
 
 ### Design tokens
 
-Use admin redesign panels (`AdminPanel`, `AdminPageHeader`) where the hub lives under admin layout; member layout uses existing member shell styling.
+Use admin redesign panels (`AdminPanel`, `AdminPageHeader`) where the hub lives under admin layout; member layout uses the same tokens via `AdminThemeProvider`.
 
 ---
 
@@ -270,28 +265,28 @@ Existing middleware on routes enforces this — hub is primarily a **composition
 
 | Source | Target |
 |--------|--------|
-| Dashboard To-Do task row | `/projects/:id#tasks` |
+| Dashboard To-Do project title | `/projects/:id#tasks` (member: `/member/projects/:id#tasks`) |
 | Lead conversion | `/projects/:id` after create |
 | Resend email (client message) | `/projects/:id#messages` |
 | Reports invoice line | `/projects/:id#entries` |
 | Client portal (admin view) | Admin opens same project at `/projects/:id` — not portal route |
 
-Use URL hash or query `?section=messages` for scroll-to-section.
+Use URL hash for scroll-to-section.
 
 ---
 
 ## Phased Delivery
 
-| Phase | Name | Outcome | Depends on |
-|-------|------|---------|------------|
-| **PH-1** | Hub page v1 | Route + header + brief + tasks + messages | — |
-| **PH-2** | Entries + timer | Project-scoped EntryList + start timer prefill | PH-1 |
-| **PH-3** | Budget panel | Admin billing-mode widgets + period selector | PH-1 |
-| **PH-4** | Team strip | Assignee display + edit via modal | PH-1 |
-| **PH-5** | List page UX | Cards link to hub; slim inline panels | PH-1–4 |
-| **PH-6** | Hub API aggregate | Optional `GET /api/projects/:id/hub` | PH-1–4 |
+| Phase | Name | Outcome | v1 |
+|-------|------|---------|----|
+| **PH-1** | Hub page | Route + header + brief + tasks + messages | Yes |
+| **PH-2** | Entries + timer | Project-scoped EntryList + start timer prefill | Yes |
+| **PH-3** | Budget panel | Admin billing-mode widgets + period selector | Yes |
+| **PH-4** | Team strip | Assignee display + edit via modal | Yes |
+| **PH-5** | List page UX | Slim cards + Open project | Yes (same ship) |
+| **PH-6** | Hub API aggregate | Optional `GET /api/projects/:id/hub` | Follow-up |
 
-**Recommendation:** One PR for PH-1–4 (single user-facing feature); PH-5 as follow-up cleanup.
+**v1 ships PH-1–5 together.** Follow-up: aggregate endpoint, contributor enrichment, invoiced-to-date for fixed-price.
 
 ---
 
@@ -304,7 +299,8 @@ Use URL hash or query `?section=messages` for scroll-to-section.
 - [ ] Messages clientVisible toggle still controls portal visibility
 - [ ] Budget burn matches Projects list card for same period filters
 - [ ] Deep link `#messages` scrolls to messages section
-- [ ] Breadcrumb and back link return to filtered Projects list state (optional: `location.state`)
+- [ ] Breadcrumb and back link return to Projects / My projects
+- [ ] Slim list cards no longer show inline tasks or messages
 
 ---
 
@@ -313,12 +309,13 @@ Use URL hash or query `?section=messages` for scroll-to-section.
 | Layer | Location |
 |-------|----------|
 | Projects list | `client/src/pages/Projects.tsx` |
-| Project card (current inline UX) | `client/src/components/projects/ProjectCard.tsx` |
+| Project hub | `client/src/pages/ProjectHub.tsx` |
+| Project card (slim) | `client/src/components/projects/ProjectCard.tsx` |
 | Project modal | `client/src/components/projects/ProjectModal.tsx` |
 | Task list | `client/src/components/projectTasks/ProjectTaskList.tsx` |
 | Messages | `client/src/components/projects/ProjectMessagesPanel.tsx` |
 | Brief render | `client/src/components/portal/SanitizedBrief.tsx` |
-| Budget burn API | `server/src/routes/projects.ts` (`/budget-burn`) |
+| Budget burn API | `server/src/routes/projects.ts` (`/budget-burn`, `GET /:id`) |
 | Project model | `server/src/models/Project.ts` |
 | Member projects | `client/src/pages/member/MemberProjects.tsx` |
 | Client portal detail (reference) | `client/src/pages/portal/PortalProjectDetail.tsx` |
@@ -330,3 +327,4 @@ Use URL hash or query `?section=messages` for scroll-to-section.
 | Date | Change |
 |------|--------|
 | 2026-07-17 | Initial build plan — admin/member unified project hub |
+| 2026-08-26 | v1 locked: scrollable sections (not tabs); slim list cards in same ship; `GET /api/projects/:id` required; PH-1–5 together |

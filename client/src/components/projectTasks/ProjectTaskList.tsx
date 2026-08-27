@@ -43,6 +43,8 @@ interface ProjectTaskListProps {
   memberMode?: boolean;
   /** Admin-only: drag to set priority (persisted via reorder API). */
   canReorder?: boolean;
+  /** Skip collapsible "Tasks" chrome when nested in a section heading. */
+  embedded?: boolean;
   onReorderTasks?: (projectId: string, taskIds: string[]) => void | Promise<void>;
   onCreateTask: (data: {
     projectId: string;
@@ -284,6 +286,7 @@ export function ProjectTaskList({
   canDelete,
   memberMode = false,
   canReorder = false,
+  embedded = false,
   onReorderTasks,
   onCreateTask,
   onUpdateTask,
@@ -427,26 +430,32 @@ export function ProjectTaskList({
   );
 
   return (
-    <div className="mt-4">
+    <div className={embedded ? '' : 'mt-4'}>
       <div className="flex items-center justify-between mb-3">
-        <button
-          type="button"
-          onClick={() => setExpanded(!expanded)}
-          className="flex items-center gap-2 text-sm font-bold text-gray-700 hover:text-gray-900 transition-colors"
-        >
-          {expanded ? (
-            <ChevronUp className="w-4 h-4" />
-          ) : (
-            <ChevronDown className="w-4 h-4" />
-          )}
-          <ListTodo className="w-4 h-4" />
-          Tasks
-          {totalCount > 0 && (
-            <span className="text-xs font-normal text-gray-500">
-              ({completedCount}/{totalCount})
-            </span>
-          )}
-        </button>
+        {embedded ? (
+          <span className="text-xs font-normal text-gray-500">
+            {totalCount > 0 ? `${completedCount}/${totalCount} complete` : 'No tasks yet'}
+          </span>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setExpanded(!expanded)}
+            className="flex items-center gap-2 text-sm font-bold text-gray-700 hover:text-gray-900 transition-colors"
+          >
+            {expanded ? (
+              <ChevronUp className="w-4 h-4" />
+            ) : (
+              <ChevronDown className="w-4 h-4" />
+            )}
+            <ListTodo className="w-4 h-4" />
+            Tasks
+            {totalCount > 0 && (
+              <span className="text-xs font-normal text-gray-500">
+                ({completedCount}/{totalCount})
+              </span>
+            )}
+          </button>
+        )}
         {canEdit && (
           <button
             type="button"
@@ -479,7 +488,7 @@ export function ProjectTaskList({
         </div>
       )}
 
-      {expanded && (
+      {(embedded || expanded) && (
         <>
           {items.length === 0 && (
             <p className="text-xs text-gray-400 py-2">

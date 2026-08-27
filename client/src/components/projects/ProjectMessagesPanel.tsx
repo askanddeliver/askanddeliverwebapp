@@ -7,12 +7,19 @@ import type { ProjectMessage } from '../../types';
 interface ProjectMessagesPanelProps {
   projectId: string;
   memberMode?: boolean;
+  defaultExpanded?: boolean;
+  hideToggle?: boolean;
 }
 
-function ProjectMessagesPanel({ projectId, memberMode = false }: ProjectMessagesPanelProps) {
+function ProjectMessagesPanel({
+  projectId,
+  memberMode = false,
+  defaultExpanded = false,
+  hideToggle = false,
+}: ProjectMessagesPanelProps) {
   const [messages, setMessages] = useState<ProjectMessage[]>([]);
   const [loading, setLoading] = useState(true);
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(defaultExpanded || hideToggle);
 
   const loadMessages = useCallback(async () => {
     setLoading(true);
@@ -27,8 +34,8 @@ function ProjectMessagesPanel({ projectId, memberMode = false }: ProjectMessages
   }, [projectId]);
 
   useEffect(() => {
-    if (expanded) loadMessages();
-  }, [expanded, loadMessages]);
+    if (expanded || hideToggle) loadMessages();
+  }, [expanded, hideToggle, loadMessages]);
 
   const handleSend = async (body: string, clientVisible: boolean) => {
     const res = await projectMessagesApi.create(projectId, {
@@ -39,21 +46,23 @@ function ProjectMessagesPanel({ projectId, memberMode = false }: ProjectMessages
   };
 
   return (
-    <div className="mt-4 border-t border-gray-100 pt-4">
-      <button
-        type="button"
-        onClick={() => setExpanded(!expanded)}
-        className="flex items-center gap-2 text-sm font-bold text-gray-700 hover:text-gray-900"
-      >
-        <MessageSquare className="h-4 w-4" />
-        Messages
-        {messages.length > 0 && (
-          <span className="text-xs font-normal text-gray-500">({messages.length})</span>
-        )}
-      </button>
+    <div className={hideToggle ? '' : 'mt-4 border-t border-gray-100 pt-4'}>
+      {!hideToggle && (
+        <button
+          type="button"
+          onClick={() => setExpanded(!expanded)}
+          className="flex items-center gap-2 text-sm font-bold text-gray-700 hover:text-gray-900"
+        >
+          <MessageSquare className="h-4 w-4" />
+          Messages
+          {messages.length > 0 && (
+            <span className="text-xs font-normal text-gray-500">({messages.length})</span>
+          )}
+        </button>
+      )}
 
-      {expanded && (
-        <div className="mt-3">
+      {(expanded || hideToggle) && (
+        <div className={hideToggle ? '' : 'mt-3'}>
           <ProjectMessageThread
             messages={messages}
             loading={loading}

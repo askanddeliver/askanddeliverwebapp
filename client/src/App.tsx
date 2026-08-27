@@ -25,6 +25,7 @@ import Leads from './pages/Leads';
 import Clients from './pages/Clients';
 import Users from './pages/Users';
 import Projects from './pages/Projects';
+import ProjectHub from './pages/ProjectHub';
 import TaskTypes from './pages/TaskTypes';
 import TimeEntries from './pages/TimeEntries';
 import Reports from './pages/Reports';
@@ -161,6 +162,7 @@ function App() {
       >
         <Route index element={<MemberHub />} />
         <Route path="projects" element={<MemberProjects />} />
+        <Route path="projects/:id" element={<ProjectHub />} />
         <Route path="entries" element={<MemberEntries />} />
         <Route path="schedule" element={<MemberSchedule />} />
         <Route path="profile" element={<MemberProfile />} />
@@ -245,6 +247,18 @@ function App() {
           <Layout>
             <ProtectedRoute>
               <Projects />
+            </ProtectedRoute>
+          </Layout>
+        }
+      />
+      <Route
+        path="/projects/:id"
+        element={
+          <Layout>
+            <ProtectedRoute>
+              <MemberOrAdminRoute>
+                <ProjectHub />
+              </MemberOrAdminRoute>
             </ProtectedRoute>
           </Layout>
         }

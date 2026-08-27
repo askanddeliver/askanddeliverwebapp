@@ -307,6 +307,7 @@ function MemberHub() {
               onPlay={(project, task) => setStartTaskContext({ project, task })}
               onToggleStatus={handleToggleTaskStatus}
               projectsLink="/member/projects"
+              projectHubBase="/member/projects"
             />
           )}
         </div>
