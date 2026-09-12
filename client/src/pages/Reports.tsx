@@ -6,8 +6,9 @@ import { InvoicePreview } from '../components/reports/InvoicePreview';
 import { ExportButtons } from '../components/reports/ExportButtons';
 import { LineItemsPanel } from '../components/reports/LineItemsPanel';
 import { MemberContributionsPanel } from '../components/reports/MemberContributionsPanel';
+import { ReportFilterRail } from '../components/reports/ReportFilterRail';
+import { ReportEntriesTable } from '../components/reports/ReportEntriesTable';
 import { CreateInvoiceModal } from '../components/invoices/CreateInvoiceModal';
-import { EntryRow } from '../components/entries/EntryRow';
 import { EntryModal } from '../components/entries/EntryModal';
 import {
   clientsApi,
@@ -19,6 +20,7 @@ import {
   usersApi,
   taskTypesApi,
   projectTasksApi,
+  filterPresetsApi,
 } from '../services/api';
 import {
   getDaysAgoString,
@@ -28,11 +30,20 @@ import {
   getEffectiveRate,
   toUTCStartOfDay,
   toUTCEndOfDay,
+  getReportDateRange,
+  matchReportDatePreset,
 } from '../utils/calculations';
 import { projectClientId } from '../utils/projectClient';
+import {
+  DEFAULT_REPORT_COLUMN_IDS,
+  sanitizeReportColumnIds,
+  visibleReportColumns,
+  type ReportColumnId,
+} from '../utils/reportColumns';
 import type {
   Client,
   Project,
+  ProjectBillingMode,
   Invoice,
   TimeEntry,
   LineItem,
@@ -40,62 +51,29 @@ import type {
   TaskType,
   ProjectTask,
   ExpandedTimeBlock,
+  FilterPreset,
+  FilterPresetPayload,
+  InvoiceDocumentKind,
 } from '../types';
 
 type TabId = 'invoice' | 'entries' | 'members';
 
-function CheckboxMultiSelect<T extends { _id: string }>({
-  items,
-  selectedIds,
-  onChange,
-  getLabel,
-}: {
-  items: T[];
-  selectedIds: string[];
-  onChange: (ids: string[]) => void;
-  getLabel: (item: T) => string;
-}) {
-  return (
-    <div className="border border-gray-300 rounded-lg p-2 max-h-32 overflow-y-auto bg-white">
-      {items.map((item) => (
-        <label key={item._id} className="flex items-center gap-2 py-1 cursor-pointer hover:bg-gray-50 rounded px-1">
-          <input
-            type="checkbox"
-            checked={selectedIds.includes(item._id)}
-            onChange={(e) => {
-              if (e.target.checked) {
-                onChange([...selectedIds, item._id]);
-              } else {
-                onChange(selectedIds.filter((id) => id !== item._id));
-              }
-            }}
-            className="rounded border-gray-300"
-          />
-          <span className="text-sm">{getLabel(item)}</span>
-        </label>
-      ))}
-      {items.length > 0 && (
-        <div className="flex gap-2 mt-1 pt-1 border-t border-gray-100">
-          <button
-            type="button"
-            onClick={() => onChange(items.map((item) => item._id))}
-            className="text-xs text-primary-600 hover:text-primary-700"
-          >
-            Select All
-          </button>
-          <button
-            type="button"
-            onClick={() => onChange([])}
-            className="text-xs text-gray-500 hover:text-gray-700"
-          >
-            Clear
-          </button>
-        </div>
-      )}
-    </div>
+type EntrySortKey = 'date' | 'client' | 'amount' | 'member';
+
+function apiErrorMessage(err: unknown, fallback: string): string {
+  if (err && typeof err === 'object' && 'response' in err) {
+    const msg = (err as { response?: { data?: { message?: string } } }).response?.data?.message;
+    if (msg) return msg;
+  }
+  return fallback;
+}
+
+function asBillingModes(modes: string[]): ProjectBillingMode[] {
+  return modes.filter(
+    (m): m is ProjectBillingMode =>
+      m === 'HOURLY' || m === 'FIXED_PRICE' || m === 'HOUR_RETAINER'
   );
 }
-type EntrySortKey = 'date' | 'client' | 'amount' | 'member';
 
 function Reports() {
   const navigate = useNavigate();
@@ -106,6 +84,7 @@ function Reports() {
   const [taskTypes, setTaskTypes] = useState<TaskType[]>([]);
   const [projectTasks, setProjectTasks] = useState<ProjectTask[]>([]);
   const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [saveKind, setSaveKind] = useState<InvoiceDocumentKind>('INVOICE');
   const [editingEntry, setEditingEntry] = useState<TimeEntry | null>(null);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -121,12 +100,18 @@ function Reports() {
   // Filter state
   const [clientIds, setClientIds] = useState<string[]>([]);
   const [projectIds, setProjectIds] = useState<string[]>([]);
+  const [billingModes, setBillingModes] = useState<ProjectBillingMode[]>([]);
+  const [memberAuth0Ids, setMemberAuth0Ids] = useState<string[]>([]);
   const [startDate, setStartDate] = useState(getDaysAgoString(30));
   const [endDate, setEndDate] = useState(getTodayString());
 
   // Invoice PDF display options
   const [includeTimeEntries, setIncludeTimeEntries] = useState(true);
   const [includeEntryDescriptions, setIncludeEntryDescriptions] = useState(false);
+  const [columnIds, setColumnIds] = useState<ReportColumnId[]>([...DEFAULT_REPORT_COLUMN_IDS]);
+  const [filterPresets, setFilterPresets] = useState<FilterPreset[]>([]);
+  const [selectedPresetId, setSelectedPresetId] = useState('');
+  const [presetBusy, setPresetBusy] = useState(false);
 
   // Invoice + entries + line items data
   const [invoice, setInvoice] = useState<Invoice | null>(null);
@@ -140,18 +125,20 @@ function Reports() {
   const loadData = async () => {
     try {
       setLoading(true);
-      const [clientsRes, projectsRes, usersRes, taskTypesRes, projectTasksRes] = await Promise.all([
+      const [clientsRes, projectsRes, usersRes, taskTypesRes, projectTasksRes, presetsRes] = await Promise.all([
         clientsApi.getAll(),
         projectsApi.getAll(),
         usersApi.getAll().catch(() => ({ data: [] })),
         taskTypesApi.getAll().catch(() => ({ data: [] })),
         projectTasksApi.getAll().catch(() => ({ data: [] })),
+        filterPresetsApi.getAll({ kind: 'REPORT' }).catch(() => ({ data: [] })),
       ]);
       setClients(clientsRes.data || []);
       setProjects(projectsRes.data || []);
       setUsers(usersRes.data || []);
       setTaskTypes(taskTypesRes.data || []);
       setProjectTasks(projectTasksRes.data || []);
+      setFilterPresets(presetsRes.data || []);
       setError(null);
     } catch (err) {
       console.error('Failed to load data:', err);
@@ -206,35 +193,54 @@ function Reports() {
     }
   };
 
-  const handleGenerate = useCallback(async () => {
-    if (!startDate || !endDate) return;
+  const handleGenerate = useCallback(async (overrides?: {
+    clientIds?: string[];
+    projectIds?: string[];
+    billingModes?: ProjectBillingMode[];
+    memberAuth0Ids?: string[];
+    startDate?: string;
+    endDate?: string;
+  }) => {
+    const nextClientIds = overrides?.clientIds ?? clientIds;
+    const nextProjectIds = overrides?.projectIds ?? projectIds;
+    const nextBillingModes = overrides?.billingModes ?? billingModes;
+    const nextMemberIds = overrides?.memberAuth0Ids ?? memberAuth0Ids;
+    const nextStart = overrides?.startDate ?? startDate;
+    const nextEnd = overrides?.endDate ?? endDate;
+    const allTime = !nextStart && !nextEnd;
+    if (!allTime && (!nextStart || !nextEnd)) return;
 
     try {
       setGenerating(true);
       setError(null);
 
-      const utcStart = toUTCStartOfDay(startDate);
-      const utcEnd = toUTCEndOfDay(endDate);
+      const utcStart = allTime ? undefined : toUTCStartOfDay(nextStart);
+      const utcEnd = allTime ? undefined : toUTCEndOfDay(nextEnd);
 
       const [invoiceRes, entriesRes, lineItemsRes, blocksRes] = await Promise.all([
         reportsApi.generateInvoice({
-          clientIds: clientIds.length > 0 ? clientIds : undefined,
-          projectIds: projectIds.length > 0 ? projectIds : undefined,
+          clientIds: nextClientIds.length > 0 ? nextClientIds : undefined,
+          projectIds: nextProjectIds.length > 0 ? nextProjectIds : undefined,
+          billingModes: nextBillingModes.length > 0 ? nextBillingModes : undefined,
+          memberAuth0Ids: nextMemberIds.length > 0 ? nextMemberIds : undefined,
           startDate: utcStart,
           endDate: utcEnd,
         }),
         timeEntriesApi.getAll({
           startDate: utcStart,
           endDate: utcEnd,
-          projectIds: projectIds.length > 0 ? projectIds : undefined,
+          projectIds: nextProjectIds.length > 0 ? nextProjectIds : undefined,
+          userIds: nextMemberIds.length > 0 ? nextMemberIds : undefined,
         }),
         lineItemsApi.getAll({
-          clientIds: clientIds.length > 0 ? clientIds : undefined,
-          projectIds: projectIds.length > 0 ? projectIds : undefined,
+          clientIds: nextClientIds.length > 0 ? nextClientIds : undefined,
+          projectIds: nextProjectIds.length > 0 ? nextProjectIds : undefined,
           startDate: utcStart,
           endDate: utcEnd,
         }),
-        timeBlocksApi.getAll({ start: utcStart, end: utcEnd }).catch(() => ({ data: [] })),
+        utcStart && utcEnd
+          ? timeBlocksApi.getAll({ start: utcStart, end: utcEnd }).catch(() => ({ data: [] }))
+          : Promise.resolve({ data: [] as ExpandedTimeBlock[] }),
       ]);
 
       setInvoice(invoiceRes.data);
@@ -243,8 +249,8 @@ function Reports() {
       let entries = (entriesRes.data || []).filter(
         (e: TimeEntry) => !e.isRunning
       );
-      if (clientIds.length > 0) {
-        const allowed = new Set(clientIds);
+      if (nextClientIds.length > 0) {
+        const allowed = new Set(nextClientIds);
         entries = entries.filter((e: TimeEntry) => {
           const project = typeof e.projectId === 'object' ? e.projectId : null;
           const entryClient =
@@ -254,10 +260,22 @@ function Reports() {
           return entryClient && allowed.has(entryClient._id);
         });
       }
+      if (nextBillingModes.length > 0) {
+        const allowedModes = new Set(nextBillingModes);
+        entries = entries.filter((e: TimeEntry) => {
+          const project = typeof e.projectId === 'object' ? e.projectId : null;
+          const mode = (project?.billingMode ?? 'HOURLY') as ProjectBillingMode;
+          return allowedModes.has(mode);
+        });
+      }
       setFilteredEntries(entries);
       setPlannedBlocks(blocksRes.data || []);
     } catch (err: unknown) {
       console.error('Failed to generate report:', err);
+      setInvoice(null);
+      setFilteredEntries([]);
+      setLineItems([]);
+      setPlannedBlocks([]);
       const serverMsg =
         err && typeof err === 'object' && 'response' in err
           ? (err as { response?: { data?: { message?: string } } }).response?.data?.message
@@ -266,7 +284,7 @@ function Reports() {
     } finally {
       setGenerating(false);
     }
-  }, [clientIds, projectIds, startDate, endDate]);
+  }, [clientIds, projectIds, billingModes, memberAuth0Ids, startDate, endDate]);
 
   const userMap = useMemo(() => {
     const m = new Map<string, string>();
@@ -346,19 +364,6 @@ function Reports() {
     return Array.from(names).sort();
   }, [filteredEntries, userMap]);
 
-  const sortedClients = useMemo(
-    () => [...clients].sort((a, b) => a.name.localeCompare(b.name)),
-    [clients]
-  );
-
-  const filteredProjects = useMemo(
-    () =>
-      clientIds.length > 0
-        ? projects.filter((p) => clientIds.includes(projectClientId(p)))
-        : projects,
-    [projects, clientIds]
-  );
-
   const handleClientIdsChange = (ids: string[]) => {
     setClientIds(ids);
     if (ids.length === 0) return;
@@ -367,6 +372,238 @@ function Reports() {
     );
     setProjectIds((prev) => prev.filter((id) => allowed.has(id)));
   };
+
+  const handleBillingModesChange = (modes: ProjectBillingMode[]) => {
+    setBillingModes(modes);
+    if (modes.length === 0) return;
+    const allowed = new Set(
+      projects
+        .filter((p) => modes.includes(p.billingMode ?? 'HOURLY'))
+        .map((p) => p._id)
+    );
+    setProjectIds((prev) => prev.filter((id) => allowed.has(id)));
+  };
+
+  const handleClearFilters = () => {
+    setClientIds([]);
+    setProjectIds([]);
+    setBillingModes([]);
+    setMemberAuth0Ids([]);
+    setSelectedPresetId('');
+  };
+
+  const buildPresetPayload = (name: string): FilterPresetPayload => ({
+    name,
+    kind: 'REPORT',
+    clientIds,
+    projectIds,
+    billingModes,
+    memberAuth0Ids,
+    datePreset: matchReportDatePreset(startDate, endDate),
+    startDate,
+    endDate,
+    columnIds,
+    includeTimeEntries,
+    includeEntryDescriptions,
+  });
+
+  const applyPreset = (id: string) => {
+    if (!id) {
+      setSelectedPresetId('');
+      return;
+    }
+    const preset = filterPresets.find((p) => p._id === id);
+    if (!preset) return;
+    setError(null);
+
+    const nextClientIds = preset.clientIds.filter((cid) => clients.some((c) => c._id === cid));
+    const nextBillingModes = asBillingModes(preset.billingModes);
+    const memberIds = new Set(
+      users.filter((u) => u.role === 'admin' || u.role === 'member').map((u) => u.auth0Id)
+    );
+    const nextMemberIds = preset.memberAuth0Ids.filter((mid) => memberIds.has(mid));
+    let nextProjectIds = preset.projectIds.filter((pid) => projects.some((p) => p._id === pid));
+    if (nextClientIds.length > 0) {
+      const allowed = new Set(
+        projects.filter((p) => nextClientIds.includes(projectClientId(p))).map((p) => p._id)
+      );
+      nextProjectIds = nextProjectIds.filter((pid) => allowed.has(pid));
+    }
+    if (nextBillingModes.length > 0) {
+      const allowed = new Set(
+        projects
+          .filter((p) => nextBillingModes.includes(p.billingMode ?? 'HOURLY'))
+          .map((p) => p._id)
+      );
+      nextProjectIds = nextProjectIds.filter((pid) => allowed.has(pid));
+    }
+
+    let nextStart = preset.startDate || '';
+    let nextEnd = preset.endDate || '';
+    if (preset.datePreset) {
+      const range = getReportDateRange(preset.datePreset);
+      nextStart = range.startDate;
+      nextEnd = range.endDate;
+    }
+
+    const nextColumns = sanitizeReportColumnIds(preset.columnIds);
+
+    setSelectedPresetId(preset._id);
+    setClientIds(nextClientIds);
+    setProjectIds(nextProjectIds);
+    setBillingModes(nextBillingModes);
+    setMemberAuth0Ids(nextMemberIds);
+    setStartDate(nextStart);
+    setEndDate(nextEnd);
+    setIncludeTimeEntries(preset.includeTimeEntries);
+    setIncludeEntryDescriptions(preset.includeEntryDescriptions);
+    setColumnIds(nextColumns);
+
+    if (preset.clientIds.length > 0 && nextClientIds.length === 0) {
+      setError('This preset’s clients are no longer in the workspace.');
+      setInvoice(null);
+      setFilteredEntries([]);
+      setLineItems([]);
+      return;
+    }
+    if (preset.projectIds.length > 0 && nextProjectIds.length === 0) {
+      setError('This preset’s projects are no longer in the workspace.');
+      setInvoice(null);
+      setFilteredEntries([]);
+      setLineItems([]);
+      return;
+    }
+
+    void handleGenerate({
+      clientIds: nextClientIds,
+      projectIds: nextProjectIds,
+      billingModes: nextBillingModes,
+      memberAuth0Ids: nextMemberIds,
+      startDate: nextStart,
+      endDate: nextEnd,
+    });
+  };
+
+  const handleSavePresetAs = async (name: string) => {
+    try {
+      setPresetBusy(true);
+      setError(null);
+      const res = await filterPresetsApi.create(buildPresetPayload(name));
+      setFilterPresets((prev) =>
+        [...prev, res.data].sort((a, b) => a.name.localeCompare(b.name))
+      );
+      setSelectedPresetId(res.data._id);
+    } catch (err) {
+      setError(apiErrorMessage(err, 'Failed to save preset'));
+      throw err;
+    } finally {
+      setPresetBusy(false);
+    }
+  };
+
+  const handleUpdatePreset = async () => {
+    const current = filterPresets.find((p) => p._id === selectedPresetId);
+    if (!current) return;
+    try {
+      setPresetBusy(true);
+      setError(null);
+      const res = await filterPresetsApi.update(
+        current._id,
+        buildPresetPayload(current.name)
+      );
+      setFilterPresets((prev) =>
+        prev.map((p) => (p._id === res.data._id ? res.data : p))
+      );
+    } catch (err) {
+      setError(apiErrorMessage(err, 'Failed to update preset'));
+    } finally {
+      setPresetBusy(false);
+    }
+  };
+
+  const handleDeletePreset = async () => {
+    const current = filterPresets.find((p) => p._id === selectedPresetId);
+    if (!current) return;
+    if (!window.confirm(`Delete preset “${current.name}”?`)) return;
+    try {
+      setPresetBusy(true);
+      setError(null);
+      await filterPresetsApi.delete(current._id);
+      setFilterPresets((prev) => prev.filter((p) => p._id !== current._id));
+      setSelectedPresetId('');
+    } catch (err) {
+      setError(apiErrorMessage(err, 'Failed to delete preset'));
+    } finally {
+      setPresetBusy(false);
+    }
+  };
+
+  const teamMembers = useMemo(
+    () =>
+      users
+        .filter((u) => u.role === 'admin' || u.role === 'member')
+        .sort((a, b) => a.name.localeCompare(b.name)),
+    [users]
+  );
+
+  const isMixedPreview =
+    invoice?.mixedBillingModes === true || invoice?.invoiceKind === 'MIXED';
+  const hasInvoiceDocument = Boolean(invoice && invoice.items.length > 0 && !isMixedPreview);
+  const canSavePayableInvoice =
+    hasInvoiceDocument &&
+    invoice?.invoiceKind !== 'RETAINER_REPORT' &&
+    (clientIds.length === 1 || Boolean(invoice?.client?._id));
+  const canSaveRetainerReport =
+    hasInvoiceDocument &&
+    invoice?.invoiceKind === 'RETAINER_REPORT' &&
+    (clientIds.length === 1 || Boolean(invoice?.client?._id));
+  const canSaveDataReport = Boolean(invoice);
+
+  const openSaveModal = (kind: InvoiceDocumentKind) => {
+    setSaveKind(kind);
+    setCreateModalOpen(true);
+  };
+
+  const scopedProjects = useMemo(() => {
+    return projects.filter((p) => {
+      if (clientIds.length > 0 && !clientIds.includes(projectClientId(p))) return false;
+      if (billingModes.length > 0 && !billingModes.includes(p.billingMode ?? 'HOURLY')) return false;
+      return true;
+    });
+  }, [projects, clientIds, billingModes]);
+
+  const exportProjectIds = useMemo(() => {
+    if (projectIds.length > 0) return projectIds;
+    if (clientIds.length > 0 || billingModes.length > 0) {
+      return scopedProjects.map((p) => p._id);
+    }
+    return undefined;
+  }, [projectIds, clientIds, billingModes, scopedProjects]);
+
+  const entryColumns = useMemo(
+    () => visibleReportColumns(columnIds, { includeDescriptions: includeEntryDescriptions }),
+    [columnIds, includeEntryDescriptions]
+  );
+  const pdfEntryColumns = useMemo(
+    () =>
+      visibleReportColumns(columnIds, {
+        includeDescriptions: includeEntryDescriptions,
+        forClientPdf: true,
+      }),
+    [columnIds, includeEntryDescriptions]
+  );
+
+  const splitModes = useMemo(() => {
+    const byMode = invoice?.projectsByMode;
+    if (!byMode) return [];
+    return (
+      [
+        { id: 'HOURLY' as const, label: 'Hourly', projects: byMode.HOURLY },
+        { id: 'FIXED_PRICE' as const, label: 'Fixed price', projects: byMode.FIXED_PRICE },
+        { id: 'HOUR_RETAINER' as const, label: 'Hour retainer', projects: byMode.HOUR_RETAINER },
+      ] as const
+    ).filter((row) => row.projects.length > 0);
+  }, [invoice?.projectsByMode]);
 
   if (loading) {
     return (
@@ -389,176 +626,133 @@ function Reports() {
           Reports & Invoicing
         </h1>
         <p className="text-gray-500 mt-1">
-          Preview billing, create invoices, and view member contributions
+          Filter a slice of workspace data, then preview an invoice or utilization report
         </p>
       </div>
 
       {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6">
+        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6 print:hidden">
           {error}
         </div>
       )}
 
-      {/* Filters & Export */}
+      <div className="flex flex-col lg:flex-row gap-6 items-start">
+        <ReportFilterRail
+          clients={clients}
+          projects={projects}
+          members={teamMembers}
+          clientIds={clientIds}
+          projectIds={projectIds}
+          billingModes={billingModes}
+          memberAuth0Ids={memberAuth0Ids}
+          startDate={startDate}
+          endDate={endDate}
+          includeTimeEntries={includeTimeEntries}
+          includeEntryDescriptions={includeEntryDescriptions}
+          columnIds={columnIds}
+          onClientIdsChange={handleClientIdsChange}
+          onProjectIdsChange={setProjectIds}
+          onBillingModesChange={handleBillingModesChange}
+          onMemberAuth0IdsChange={setMemberAuth0Ids}
+          onDateRangeChange={(nextStart, nextEnd) => {
+            setStartDate(nextStart);
+            setEndDate(nextEnd);
+            handleGenerate({ startDate: nextStart, endDate: nextEnd });
+          }}
+          onIncludeTimeEntriesChange={setIncludeTimeEntries}
+          onIncludeEntryDescriptionsChange={setIncludeEntryDescriptions}
+          onColumnIdsChange={(ids) => setColumnIds(sanitizeReportColumnIds(ids))}
+          onClearFilters={handleClearFilters}
+          presets={filterPresets}
+          selectedPresetId={selectedPresetId}
+          presetBusy={presetBusy}
+          onApplyPreset={applyPreset}
+          onSavePresetAs={handleSavePresetAs}
+          onUpdatePreset={handleUpdatePreset}
+          onDeletePreset={handleDeletePreset}
+        />
+
+        <div className="min-w-0 flex-1 w-full">
       <div className="card space-y-4 mb-6 print:hidden">
-        <h3 className="text-lg font-bold text-gray-900">Filter & Export</h3>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Clients</label>
-            <CheckboxMultiSelect
-              items={sortedClients}
-              selectedIds={clientIds}
-              onChange={handleClientIdsChange}
-              getLabel={(c) => c.name}
-            />
-            <p className="text-xs text-gray-500 mt-0.5">Leave empty for all clients</p>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Projects</label>
-            <CheckboxMultiSelect
-              items={filteredProjects}
-              selectedIds={projectIds}
-              onChange={setProjectIds}
-              getLabel={(p) => {
-                const name = typeof p.clientId === 'object' ? p.clientId.name : null;
-                return name && clientIds.length !== 1 ? `${name} — ${p.title}` : p.title;
-              }}
-            />
-            <p className="text-xs text-gray-500 mt-0.5">Leave empty for all projects</p>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
-            <input
-              type="date"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              className="input"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">End Date</label>
-            <input
-              type="date"
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-              className="input"
-            />
-          </div>
-        </div>
-
-        {projectIds.some((id) => {
-          const p = projects.find((x) => x._id === id);
-          return p?.billingMode === 'FIXED_PRICE';
-        }) && (
-          <div className="rounded-lg border border-teal-200 bg-teal-50/90 px-4 py-3 text-sm text-teal-950">
-            <p className="font-medium">Fixed-price project in selection</p>
-            <p className="mt-1 text-teal-900/90">
-              The client-facing total is the agreed project fee for each selected fixed project (plus any additional
-              charges in this period), not the sum of hours × rates. Cost and margin from time entries still appear
-              under Cost &amp; Margin for internal use. Payment links use the same invoice total.
-            </p>
-          </div>
-        )}
-
-        {projectIds.some((id) => {
-          const p = projects.find((x) => x._id === id);
-          return p?.billingMode === 'HOUR_RETAINER';
-        }) && (
-          <div className="rounded-lg border border-violet-200 bg-violet-50/90 px-4 py-3 text-sm text-violet-950">
-            <p className="font-medium">Hour retainer project in selection</p>
-            <p className="mt-1 text-violet-900/90">
-              Preview switches to a <strong>retainer utilization report</strong>: hours in this period by task type,
-              remaining hours against the block (using all-time usage), and optional pass-through line items only.
-              Dollar totals are not the client story unless you add charges below.
-            </p>
-          </div>
-        )}
-
-        <div className="border-t border-gray-100 pt-4">
-          <h4 className="text-sm font-semibold text-gray-700 mb-2">PDF options</h4>
-          <div className="flex flex-wrap gap-6 items-center">
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={includeTimeEntries}
-                onChange={(e) => setIncludeTimeEntries(e.target.checked)}
-                className="rounded border-gray-300"
-              />
-              <span className="text-sm">Include time entries on invoice PDF</span>
-            </label>
-            <label className={`flex items-center gap-2 cursor-pointer ${!includeTimeEntries ? 'opacity-50' : ''}`}>
-              <input
-                type="checkbox"
-                checked={includeEntryDescriptions}
-                onChange={(e) => setIncludeEntryDescriptions(e.target.checked)}
-                disabled={!includeTimeEntries}
-                className="rounded border-gray-300"
-              />
-              <span className="text-sm">Include entry descriptions</span>
-            </label>
-            {!includeEntryDescriptions && includeTimeEntries && (
-              <span className="text-xs text-gray-500 self-center">
-                (Descriptions often contain internal notes—uncheck to hide from clients)
-              </span>
-            )}
-          </div>
-        </div>
-
         <div className="flex flex-wrap items-center gap-3">
           <ExportButtons
             clientIds={clientIds.length > 0 ? clientIds : undefined}
-            projectIds={projectIds.length > 0 ? projectIds : undefined}
-            startDate={startDate}
-            endDate={endDate}
-            disabled={!invoice || invoice.items.length === 0}
+            projectIds={exportProjectIds}
+            startDate={startDate || undefined}
+            endDate={endDate || undefined}
+            billingModes={billingModes.length > 0 ? billingModes : undefined}
+            memberAuth0Ids={memberAuth0Ids.length > 0 ? memberAuth0Ids : undefined}
+            columns={columnIds}
+            includeEntryDescriptions={includeEntryDescriptions}
+            csvDisabled={generating}
+            printDisabled={!hasInvoiceDocument}
           />
 
           <button
-            onClick={handleGenerate}
-            disabled={generating || !startDate || !endDate}
+            onClick={() => handleGenerate()}
+            disabled={generating || (!!startDate !== !!endDate)}
             className="btn-primary disabled:opacity-50"
           >
             {generating ? 'Loading...' : 'Preview'}
           </button>
 
-          <div className="flex gap-2 text-xs">
+          {canSaveDataReport && (
             <button
-              onClick={() => { setStartDate(getDaysAgoString(7)); setEndDate(getTodayString()); }}
-              className="px-3 py-1.5 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 transition-colors"
+              type="button"
+              onClick={() => openSaveModal('DATA_REPORT')}
+              className="btn-secondary"
             >
-              Last 7 days
+              Save data report
             </button>
-            <button
-              onClick={() => { setStartDate(getDaysAgoString(30)); setEndDate(getTodayString()); }}
-              className="px-3 py-1.5 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 transition-colors"
-            >
-              Last 30 days
-            </button>
-            <button
-              onClick={() => {
-                const now = new Date();
-                const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
-                setStartDate(firstDay.toISOString().split('T')[0]);
-                setEndDate(getTodayString());
-              }}
-              className="px-3 py-1.5 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 transition-colors"
-            >
-              This month
-            </button>
-            {(clientIds.length > 0 || projectIds.length > 0) && (
-              <button
-                onClick={() => { setClientIds([]); setProjectIds([]); }}
-                className="px-3 py-1.5 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 transition-colors"
-              >
-                Clear Filters
-              </button>
+          )}
+        </div>
+
+        {hasInvoiceDocument && invoice?.invoiceKind === 'FIXED_PRICE' && (
+          <div className="rounded-lg border border-teal-200 bg-teal-50/90 px-4 py-3 text-sm text-teal-950">
+            <p className="font-medium">Fixed-price preview</p>
+            <p className="mt-1 text-teal-900/90">
+              The client-facing total is the agreed project fee (plus any additional charges in this period),
+              not the sum of hours × rates.
+            </p>
+          </div>
+        )}
+
+        {hasInvoiceDocument && invoice?.invoiceKind === 'RETAINER_REPORT' && (
+          <div className="rounded-lg border border-violet-200 bg-violet-50/90 px-4 py-3 text-sm text-violet-950">
+            <p className="font-medium">Hour retainer preview</p>
+            <p className="mt-1 text-violet-900/90">
+              Utilization report: hours in this period by task type, remaining hours as of the period end,
+              and optional pass-through line items only.
+            </p>
+          </div>
+        )}
+
+        {isMixedPreview && (
+          <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+            <p className="font-medium">Mixed billing types in this slice</p>
+            <p className="mt-1 text-amber-900/90">
+              CSV still exports the combined time entries. Save a data report of this slice, or split into
+              one billing type to preview a payable invoice or retainer report.
+            </p>
+            {splitModes.length > 0 && (
+              <div className="flex flex-wrap gap-2 mt-3">
+                {splitModes.map((row) => (
+                  <button
+                    key={row.id}
+                    type="button"
+                    onClick={() => {
+                      setBillingModes([row.id]);
+                      handleGenerate({ billingModes: [row.id] });
+                    }}
+                    className="btn-secondary text-sm py-1.5"
+                  >
+                    Preview {row.label.toLowerCase()} ({row.projects.length})
+                  </button>
+                ))}
+              </div>
             )}
           </div>
-        </div>
+        )}
       </div>
 
       {/* Collapsible Fixed-Cost Line Items */}
@@ -583,14 +777,14 @@ function Reports() {
               clients={clients}
               projects={projects}
               selectedClientId={clientIds.length === 1 ? clientIds[0] : ''}
-              onChanged={handleGenerate}
+              onChanged={() => { void handleGenerate(); }}
             />
           </div>
         )}
       </div>
 
       {/* Summary Cards */}
-      {invoice && invoice.items.length > 0 && (
+      {hasInvoiceDocument && invoice && (
         <div
           className={`grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 print:hidden ${
             invoice.invoiceKind === 'RETAINER_REPORT' && invoice.retainerSummary?.projects?.length
@@ -610,18 +804,48 @@ function Reports() {
             </div>
           </div>
           {invoice.invoiceKind === 'RETAINER_REPORT' && invoice.retainerSummary && invoice.retainerSummary.projects.length > 0 && (
-            <div className="card flex items-center gap-4">
+            <div className="card flex items-start gap-4">
               <div className="w-10 h-10 bg-violet-100 rounded-lg flex items-center justify-center flex-shrink-0">
                 <Hourglass className="w-5 h-5 text-violet-600" />
               </div>
-              <div>
-                <p className="text-sm text-gray-500">Remaining (min pool)</p>
-                <p className="text-2xl font-bold text-violet-900 tabular-nums">
-                  {Math.min(
-                    ...invoice.retainerSummary.projects.map((p) => p.remainingHours)
-                  ).toFixed(2)}{' '}
-                  h
-                </p>
+              <div className="min-w-0">
+                <p className="text-sm text-gray-500">Remaining (as of period end)</p>
+                {invoice.retainerSummary.projects.length === 1 ? (
+                  <p className="text-2xl font-bold text-violet-900 tabular-nums">
+                    {(
+                      invoice.retainerSummary.projects[0].remainingHoursAsOfEnd ??
+                      invoice.retainerSummary.projects[0].remainingHours
+                    ).toFixed(2)}{' '}
+                    h
+                  </p>
+                ) : (
+                  <ul className="mt-1 space-y-1">
+                    {invoice.retainerSummary.projects.map((p) => (
+                      <li key={p.projectId} className="flex items-baseline justify-between gap-3 text-sm">
+                        <span className="text-gray-700 truncate">{p.title}</span>
+                        <span className="font-bold text-violet-900 tabular-nums flex-shrink-0">
+                          {(p.remainingHoursAsOfEnd ?? p.remainingHours).toFixed(2)} h
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                {invoice.retainerSummary.projects.some((p) => {
+                  const asOfEnd = p.remainingHoursAsOfEnd ?? p.remainingHours;
+                  return p.remainingHoursLive != null && Math.abs(p.remainingHoursLive - asOfEnd) >= 0.005;
+                }) && (
+                  <p className="text-xs text-gray-500 mt-2">
+                    Live remaining:{' '}
+                    {invoice.retainerSummary.projects.length === 1
+                      ? `${invoice.retainerSummary.projects[0].remainingHoursLive?.toFixed(2)} h`
+                      : invoice.retainerSummary.projects
+                          .map(
+                            (p) =>
+                              `${p.title}: ${(p.remainingHoursLive ?? p.remainingHours).toFixed(2)} h`
+                          )
+                          .join(' · ')}
+                  </p>
+                )}
               </div>
             </div>
           )}
@@ -692,22 +916,24 @@ function Reports() {
       </div>
 
       {/* Tab content (hidden when printing - use print block below) */}
-      {activeTab === 'invoice' && invoice && invoice.items.length > 0 && (
+      {activeTab === 'invoice' && hasInvoiceDocument && invoice && (
         <div className="mb-6 print:hidden">
-          {(clientIds.length === 1 || invoice.client?._id) && (
+          {(canSavePayableInvoice || canSaveRetainerReport) && (
             <div className="flex justify-end mb-3">
               <button
-                onClick={() => setCreateModalOpen(true)}
+                onClick={() =>
+                  openSaveModal(canSaveRetainerReport ? 'RETAINER_REPORT' : 'INVOICE')
+                }
                 className="btn-primary flex items-center gap-2"
               >
                 <Plus className="w-4 h-4" />
-                {invoice.invoiceKind === 'RETAINER_REPORT' ? 'Save retainer report' : 'Create Invoice'}
+                {canSaveRetainerReport ? 'Save retainer report' : 'Create Invoice'}
               </button>
             </div>
           )}
-          {clientIds.length > 1 && (
+          {clientIds.length > 1 && !canSavePayableInvoice && !canSaveRetainerReport && (
             <p className="text-sm text-gray-500 mb-3">
-              Previewing multiple clients. Select a single client to create an invoice.
+              Previewing multiple clients. Select a single client to create an invoice, or save a data report of this slice.
             </p>
           )}
           <InvoicePreview invoice={invoice} />
@@ -794,17 +1020,13 @@ function Reports() {
                 No entries match the selected filters.
               </p>
             ) : (
-              <div className="divide-y divide-gray-100">
-                {sortedEntries.map((entry) => (
-                  <EntryRow
-                    key={entry._id}
-                    entry={entry}
-                    onEdit={handleEditEntry}
-                    onDelete={handleDeleteEntry}
-                    showAmount={isAdmin}
-                  />
-                ))}
-              </div>
+              <ReportEntriesTable
+                entries={sortedEntries}
+                columns={entryColumns}
+                users={users}
+                onEdit={handleEditEntry}
+                onDelete={handleDeleteEntry}
+              />
             )}
           </div>
         </div>
@@ -821,15 +1043,17 @@ function Reports() {
         </div>
       )}
 
-      {invoice && invoice.items.length === 0 && (
+      {invoice && invoice.items.length === 0 && !isMixedPreview && (
         <div className="card text-center py-12 mb-6 print:hidden">
           <p className="text-gray-500">No time entries found for the selected filters.</p>
           <p className="text-gray-400 text-sm mt-1">Try adjusting your date range or filters.</p>
         </div>
       )}
+        </div>
+      </div>
 
       {/* Invoice print view: summary + entries on page 2 (when includeTimeEntries) */}
-      {invoice && invoice.items.length > 0 && (
+      {hasInvoiceDocument && invoice && (
         <div className="hidden print:block print:overflow-visible print:bg-white">
           <InvoicePreview invoice={invoice} />
           {includeTimeEntries && filteredEntries.length > 0 && (
@@ -837,18 +1061,12 @@ function Reports() {
               <h3 className="text-lg font-bold text-gray-900 mb-4">
                 Time Entries ({filteredEntries.length})
               </h3>
-              <div className="divide-y divide-gray-100">
-                {filteredEntries.map((entry) => (
-                  <EntryRow
-                    key={entry._id}
-                    entry={entry}
-                    onEdit={() => {}}
-                    onDelete={() => {}}
-                    showAmount={isAdmin}
-                    showDescription={includeEntryDescriptions}
-                  />
-                ))}
-              </div>
+              <ReportEntriesTable
+                entries={filteredEntries}
+                columns={pdfEntryColumns}
+                users={users}
+                printMode
+              />
             </div>
           )}
         </div>
@@ -862,10 +1080,13 @@ function Reports() {
           filteredEntries={filteredEntries}
           lineItems={lineItems}
           reportProjectIds={projectIds}
+          saveKind={saveKind}
           onClose={() => setCreateModalOpen(false)}
           onCreated={(id) => {
             setCreateModalOpen(false);
-            navigate(`/invoices?created=${id}`);
+            navigate(
+              saveKind === 'INVOICE' ? `/invoices?created=${id}` : `/reports/saved?created=${id}`
+            );
           }}
         />
       )}

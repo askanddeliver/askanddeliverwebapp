@@ -7,7 +7,7 @@ This document provides a comprehensive technical reference for the Ask And Deliv
 **Baseline:** Production MERN app with Auth0 multi-tenant workspaces (admin / member / client / pending), MongoDB persistence, and Vercel + Railway split deployment.
 
 - **Time & projects** — Live/resume timer, manual entries, project tasks, dashboard to-dos; workspace-scoped data with role-based visibility (members hide financials).
-- **Billing** — Reports-driven preview; persistent `Invoice` records (`documentKind`: **INVOICE** or **RETAINER_REPORT**) with DRAFT → SENT → PAID; **project billing modes** (HOURLY, FIXED_PRICE, HOUR_RETAINER); optional **Stripe Payment Links**; optional **HOURLY budget burn** via `GET /api/projects/budget-burn`; CSV export and full JSON backup.
+- **Billing** — Reports-driven preview; persistent `Invoice` records (`documentKind`: **INVOICE**, **RETAINER_REPORT**, **DATA_REPORT**, **BUDGET_REPORT**). `/invoices` is payable **INVOICE** only; `/reports/saved` is the library for the other kinds. DRAFT → SENT → PAID applies to invoices; **project billing modes** (HOURLY, FIXED_PRICE, HOUR_RETAINER); optional **Stripe Payment Links** (INVOICE only); optional **HOURLY budget burn** via `GET /api/projects/budget-burn`; CSV export and JSON backups (`/backups`: full + filter-preset graph).
 - **Commercial** — Client proposals (`Proposal` model); **workspace-scoped lead pipeline** with configurable intake forms, dynamic public renderer, and conversion to client + project.
 - **Platform expansion (Phases 1–9)** — **Member hub** (`/member/*`) with profile, disciplines, availability; **client portal** (`/portal/*`) with project briefs, client-visible tasks, per-project messaging; **admin command center** (pipeline, WIP, capacity widgets); **member assignment** on projects/tasks/leads; team capacity dashboard.
 - **Public site** — Portfolio (case studies, media, themes), marketing pages, dynamic or legacy contact intake, post-checkout `/invoices/paid` for Stripe returns.
@@ -249,16 +249,17 @@ User (auth0Id)
  │     │
  │     └──< LineItem (clientId, no projectId)
  │
- ├──> Invoice (userId, clientId)
+ ├──> Invoice (userId, optional clientId)
  │     ├── invoiceNumber, status: DRAFT | SENT | PAID
- │     ├── documentKind: INVOICE | RETAINER_REPORT (retainer utilization docs; no Stripe payment link)
+ │     ├── documentKind: INVOICE | RETAINER_REPORT | DATA_REPORT | BUDGET_REPORT
+ │     ├── payable INVOICE on /invoices; other kinds on /reports/saved (no Stripe)
  │     ├── dateRange, companyInfo (snapshot), clientInfo (snapshot)
  │     ├── items (snapshot of line items at creation)
  │     ├── total, totalHours, totalEarned, totalMargin
  │     ├── timeEntryIds[] → TimeEntry, lineItemIds[] → LineItem
- │     ├── paymentLinkUrl?, stripePaymentLinkId? (Stripe Payment Links)
+ │     ├── paymentLinkUrl?, stripePaymentLinkId? (Stripe Payment Links; INVOICE only)
  │     ├── sentAt?, paidAt?, notes?
- │     └── Status transitions: DRAFT→SENT→PAID (reversible)
+ │     └── Status transitions: DRAFT→SENT→PAID (reversible; library kinds stay drafts)
  │
  ├──> Proposal (userId, clientId)
  │     ├── proposalNumber, title, status: DRAFT | FINALIZED
@@ -343,10 +344,10 @@ isRunning: boolean (true = active timer)
 ```
 userId: string (workspace owner)
 invoiceNumber: string (auto-generated, e.g. 260322-1)
-clientId: ObjectId → Client
+clientId?: ObjectId → Client (optional on DATA_REPORT)
 projectIds: ObjectId[] → Project[]
 status: 'DRAFT' | 'SENT' | 'PAID'
-documentKind: 'INVOICE' | 'RETAINER_REPORT' (default INVOICE; retainer reports are non-payment utilization docs)
+documentKind: 'INVOICE' | 'RETAINER_REPORT' | 'DATA_REPORT' | 'BUDGET_REPORT' (default INVOICE; non-INVOICE kinds file in /reports/saved; Stripe refused)
 dateRange: { start: Date, end: Date }
 companyInfo: { name, address, phone, email } (snapshot at creation)
 clientInfo: { name, company, email, businessEntity, address, paymentPreference } (snapshot)
@@ -510,7 +511,9 @@ The `POST /api/reports/generate-invoice` endpoint:
 
 - **HOURLY** — Time-and-materials: task-type rollups, discounts, margin; optional `budget` supports **budget burn** (billed vs budget for a date range or all time) via `GET /api/projects/budget-burn?projectIds=…` (HOURLY + positive budget only).
 - **FIXED_PRICE** — Single line from `agreedAmount` (optional label); no hourly rollups for that project in the same run; Stripe totals align with the fixed fee when persisting.
-- **HOUR_RETAINER** — **Retainer utilization report**: hours by task type, no client dollar line items; remaining hours = pool (`retainerHoursTotal` + `retainerAdjustmentHours`) minus all-time consumed on that project. Response uses `invoiceKind: 'RETAINER_REPORT'`, `documentKind: 'RETAINER_REPORT'`, and `retainerSummary` for UI; items may set `isRetainerUtilizationRow`. Stripe payment links are not created for `RETAINER_REPORT`.
+- **HOUR_RETAINER** — **Retainer utilization report**: hours by task type, no client dollar line items. Remaining on the document = pool (`retainerHoursTotal` + `retainerHoursAdjustment`) minus consumed **through the report `endDate`** (`remainingHours` / `remainingHoursAsOfEnd`). Live remaining (`remainingHoursLive`) is workbench-only. Existing saved reports keep their original snapshot until regenerated. Response uses `invoiceKind: 'RETAINER_REPORT'`, `documentKind: 'RETAINER_REPORT'`, and `retainerSummary` for UI; items may set `isRetainerUtilizationRow`. Saving files the snapshot in `/reports/saved`. Stripe payment links are not created for non-`INVOICE` kinds. See [docs/REPORTS_WORKBENCH_BUILD_PLAN.md](docs/REPORTS_WORKBENCH_BUILD_PLAN.md).
+- **Mixed billing types** — HTTP 200 with `invoiceKind: 'MIXED'`, empty `items`, `projectsByMode`, and `compatibleOutputs: ['csv', 'data_report']`. The workbench gates Invoice / Print, offers Split by mode, and can save a data report. Do not 400 the page.
+- **CSV** (`POST /api/export/csv`) — Same client / project / date / billing-type / member filters as the workbench. Optional `columns[]` selects fields; `includeEntryDescriptions: false` omits Description. Internal earned/margin columns are available on CSV when selected; they are never printed on the client invoice PDF.
 
 ### Invoice Lifecycle
 
@@ -641,7 +644,7 @@ askanddeliver.com (Vercel)  ──HTTPS──>  Railway (server)
 
 ## File Index
 
-### Server Routes (22 + webhook)
+### Server Routes (23 + webhook)
 
 | File | Mount | Auth Pattern |
 |------|-------|-------------|
@@ -658,6 +661,7 @@ askanddeliver.com (Vercel)  ──HTTPS──>  Railway (server)
 | `routes/proposals.ts` | `/api/proposals` | checkJwt + requireAdmin |
 | `routes/export.ts` | `/api/export` | checkJwt + requireAdmin |
 | `routes/lineItems.ts` | `/api/line-items` | checkJwt + requireAdmin |
+| `routes/filterPresets.ts` | `/api/filter-presets` | checkJwt + requireAdmin |
 | `routes/portfolio.ts` | `/api/portfolio` | Mixed (3 public, rest checkJwt + requireAdmin) |
 | `routes/uploads.ts` | `/api/uploads` | checkJwt + requireAdmin |
 | `routes/leads.ts` | `/api/leads` | Mixed (1 public, rest workspace-scoped admin) |
@@ -682,6 +686,7 @@ askanddeliver.com (Vercel)  ──HTTPS──>  Railway (server)
 | `models/Proposal.ts` | proposals | `{ userId, status }`, `{ userId, proposalNumber }` |
 | `models/ProjectTask.ts` | projecttasks | `{ projectId, order }`, `userId` |
 | `models/LineItem.ts` | lineitems | `{ userId, clientId }`, `{ userId, date }` |
+| `models/FilterPreset.ts` | filterpresets | `{ userId, kind, name }` (unique), `{ userId, kind, updatedAt }` |
 | `models/Lead.ts` | leads | `{ status, createdAt }`, `email`, `createdAt` |
 | `models/PortfolioProject.ts` | portfolioprojects | `{ userId, slug }` (unique), `{ userId, published, order }`, `{ userId, published, featured }` |
 | `models/SiteConfig.ts` | siteconfigs | `userId` (unique) |
@@ -695,7 +700,7 @@ askanddeliver.com (Vercel)  ──HTTPS──>  Railway (server)
 | `contexts/UserContext.tsx` | Role management | `isAdmin`, `isMember`, `isPending`, `user`, `refetch()` |
 | `contexts/AdminThemeContext.tsx` | Dynamic theming | `refresh()` (re-fetches and applies colors) |
 
-### Client Pages (19)
+### Client Pages (20)
 
 | Page | Route | Protection | Key Features |
 |------|-------|------------|-------------|
@@ -719,8 +724,10 @@ askanddeliver.com (Vercel)  ──HTTPS──>  Railway (server)
 | Profile | `/profile` | Auth | User profile management |
 | Clients | `/clients` | Admin | Client CRUD with discounts |
 | TaskTypes | `/task-types` | Admin | Task type CRUD + seeding |
-| Reports | `/reports` | Admin | Billing preview, create invoices, line items, export |
-| Invoices | `/invoices` | Admin | Invoice list, status, payment links, detail |
+| Reports | `/reports` | Admin | Filter-rail workbench, billing preview, column catalog, named presets, CSV/PDF, create invoices, save data/retainer reports |
+| Saved reports | `/reports/saved` | Admin | Library of RETAINER_REPORT / DATA_REPORT / BUDGET_REPORT; unfiled retainer-hours banner |
+| Backups | `/backups` | Admin | Full workspace JSON + preset-scoped related-graph downloads |
+| Invoices | `/invoices` | Admin | Payable INVOICE list, status, payment links, detail |
 | Proposals | `/proposals` | Admin | Proposal list, editor, preview, finalize |
 | Leads | `/leads` | Admin | Lead pipeline, conversion |
 | PortfolioAdmin | `/portfolio-admin` | Admin | Portfolio CRUD, media uploads, video embeds |

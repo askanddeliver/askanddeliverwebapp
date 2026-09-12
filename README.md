@@ -35,17 +35,19 @@ A full-featured time tracking, client management, and invoicing application buil
 - **Default seeding** — Pre-populate common task types on first use (Design $75, Development $100, Strategy $125, Meeting $50, Admin $0)
 
 ### Invoicing & Reports
-- **Persistent invoices** — Create invoices from Reports preview; list, filter, and manage status (DRAFT → SENT → PAID) on the Invoices page; auto-numbering and draft editing; stored `documentKind` is **INVOICE** or **RETAINER_REPORT** (utilization-only; no Stripe link)
+- **Persistent invoices** — Create invoices from Reports preview; list, filter, and manage status (DRAFT → SENT → PAID) on the Invoices page (`documentKind: INVOICE` only). Auto-numbering and draft editing. Utilization, data, and budget snapshots live in **Saved reports** (`/reports/saved`)
 - **Online payment links (optional)** — When Stripe is configured, create a shareable Payment Link for a SENT invoice; successful checkout marks the invoice PAID via webhook; customers land on `/invoices/paid` after paying
-- **Invoice generation** — `POST /api/reports/generate-invoice` builds preview data from filters; **HOURLY** projects use task-type rollups with discounts and margin. **FIXED_PRICE** adds an agreed-fee line (no T&M for that project in the same document). **HOUR_RETAINER** produces a **retainer utilization** document (`documentKind` / preview `invoiceKind`: **RETAINER_REPORT**): hours and remaining pool, no client dollar line items; Stripe payment links are not offered for these. See [docs/PROJECT_BILLING_MODES_BUILD_PLAN.md](docs/PROJECT_BILLING_MODES_BUILD_PLAN.md)
+- **Invoice generation** — `POST /api/reports/generate-invoice` builds preview data from filters; **HOURLY** projects use task-type rollups with discounts and margin. **FIXED_PRICE** adds an agreed-fee line (no T&M for that project in the same document). **HOUR_RETAINER** produces a **retainer utilization** document (`documentKind` / preview `invoiceKind`: **RETAINER_REPORT**): hours in period and remaining pool **as of the report end date** (live remaining is workbench-only); saving files it in Saved reports. Stripe payment links are not offered for non-invoice kinds. See [docs/PROJECT_BILLING_MODES_BUILD_PLAN.md](docs/PROJECT_BILLING_MODES_BUILD_PLAN.md)
 - **Company branding** — Company name, address, phone, and email appear in invoice headers (configured in Site Config)
 - **Client billing details** — Business entity, address, and payment preference (ACH/mailed check) on invoices
 - **Fixed-cost line items** — Add third-party costs (plugins, hosting, subcontractors, etc.) as flat-fee charges on invoices, separate from hourly time entries
 - **Profit margin tracking** — Per-member earned rates allow tracking billed amount vs. earned amount per task type, with margin calculations and cost breakdown per entry
 - **Date range filtering** — Filter entries by date range, client, and project
 - **Summary statistics** — Overview of total hours, total billed, and effective rates
-- **CSV export** — Export time entries and fixed-cost line items for external accounting
-- **Full data backup** — Export entire workspace as JSON (clients, projects, task types, project tasks, time entries, line items)
+- **CSV export** — Export time entries and fixed-cost line items; honors Reports filters (including billing type, members, All Time) and the column catalog
+- **Filter presets** — Save and re-apply named Reports filter sets (clients, projects, billing type, dates, people, columns, entry options)
+- **Backups** — `/backups` downloads a full workspace JSON (now including invoices, filter presets, and sanitized users) or a smaller dump from a saved filter set. Files are not stored in Mongo.
+- **Saved reports** — `/reports/saved` lists utilization, data, and budget snapshots. Payable invoices stay on `/invoices`.
 
 ### Proposals (Admin)
 - **Client-linked proposals** — Create proposals tied to a client and optional project, with auto-numbering and DRAFT / FINALIZED status
@@ -193,6 +195,7 @@ askanddeliverwebapp/
 │   │   │   ├── TaskTypes.tsx     # Task type configuration
 │   │   │   ├── TimeEntries.tsx   # Time entry list and management
 │   │   │   ├── Reports.tsx       # Invoice generation and reports
+│   │   │   ├── Backups.tsx       # Full + preset-scoped JSON backups
 │   │   │   ├── Invoices.tsx      # Invoice list, detail, status, payment links
 │   │   │   ├── Proposals.tsx     # Proposal list and editor (admin)
 │   │   │   ├── InvoicePaid.tsx   # Public post–Stripe-checkout thank-you
@@ -474,9 +477,14 @@ See [SETUP.md](SETUP.md) for detailed MongoDB Atlas, Auth0, Cloudinary, and Stri
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | `POST` | `/api/reports/generate-invoice` | Invoice or retainer report preview (project `billingMode`: HOURLY / FIXED_PRICE / HOUR_RETAINER); see build plan doc |
+| `GET` | `/api/reports/unfiled-retainer-hours` | Retainer project hours not covered by a saved utilization report |
 | `GET` | `/api/reports/summary` | Summary statistics |
-| `POST` | `/api/export/csv` | Export time entries and line items as CSV |
-| `POST` | `/api/export/backup` | Full workspace JSON backup download |
+| `POST` | `/api/export/csv` | Export time entries and line items as CSV (optional `columns`, `billingModes`, `memberAuth0Ids`) |
+| `GET` | `/api/filter-presets` | List named filter presets (`kind=REPORT` or `BACKUP`) |
+| `POST` | `/api/filter-presets` | Create a filter preset |
+| `PUT` | `/api/filter-presets/:id` | Replace a filter preset |
+| `DELETE` | `/api/filter-presets/:id` | Delete a filter preset |
+| `POST` | `/api/export/backup` | Full workspace JSON, or `{ presetId }` related-graph dump |
 
 #### Line Items
 | Method | Endpoint | Description |
@@ -489,9 +497,9 @@ See [SETUP.md](SETUP.md) for detailed MongoDB Atlas, Auth0, Cloudinary, and Stri
 #### Invoices (Admin)
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| `GET` | `/api/invoices` | List invoices (filters: status, clientId, startDate, endDate, search) |
+| `GET` | `/api/invoices` | List documents (default: payable INVOICE; `documentKind=library` or a library kind; filters: status, clientId, startDate, endDate, search) |
 | `GET` | `/api/invoices/next-number` | Next auto-generated invoice number |
-| `GET` | `/api/invoices/stats` | Counts/totals by status |
+| `GET` | `/api/invoices/stats` | Counts/totals by status (payable invoices only) |
 | `GET` | `/api/invoices/payment-link-config` | `{ enabled }` — whether Stripe payment links are configured |
 | `POST` | `/api/invoices/:id/create-payment-link` | Create Stripe Payment Link for a SENT invoice (503 if Stripe unset) |
 | `GET` | `/api/invoices/:id` | Single invoice with populated client/projects |

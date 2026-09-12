@@ -11,8 +11,11 @@ import type {
   TimeEntry,
   ExpandedTimeBlock,
   LineItem,
+  FilterPreset,
+  FilterPresetPayload,
   Invoice,
   InvoiceDocumentKind,
+  UnfiledRetainerHoursRow,
   InvoiceStatus,
   ProjectBudgetBurnResponse,
   SavedInvoice,
@@ -256,6 +259,7 @@ export const timeEntriesApi = {
     projectId?: string;
     projectIds?: string[];
     billingStatus?: 'unbilled' | 'paid' | 'all';
+    userIds?: string[];
   }) => api.get<TimeEntry[]>('/time-entries', { params }),
   getByIds: (ids: string[]) => api.post<TimeEntry[]>('/time-entries/by-ids', { ids }),
   getActive: () => api.get<TimeEntry | null>('/time-entries/active'),
@@ -392,6 +396,17 @@ export const lineItemsApi = {
   delete: (id: string) => api.delete(`/line-items/${id}`),
 };
 
+// Filter presets (admin, Pattern A)
+export const filterPresetsApi = {
+  getAll: (params?: { kind?: 'REPORT' | 'BACKUP' }) =>
+    api.get<FilterPreset[]>('/filter-presets', { params }),
+  create: (data: FilterPresetPayload) =>
+    api.post<FilterPreset>('/filter-presets', data),
+  update: (id: string, data: FilterPresetPayload) =>
+    api.put<FilterPreset>(`/filter-presets/${id}`, data),
+  delete: (id: string) => api.delete(`/filter-presets/${id}`),
+};
+
 // Reports
 export const reportsApi = {
   generateInvoice: (data: {
@@ -399,11 +414,15 @@ export const reportsApi = {
     clientIds?: string[];
     projectId?: string;
     projectIds?: string[];
-    startDate: string;
-    endDate: string;
+    startDate?: string;
+    endDate?: string;
+    billingModes?: string[];
+    memberAuth0Ids?: string[];
   }) => api.post<Invoice>('/reports/generate-invoice', data),
   getSummary: (params?: { startDate?: string; endDate?: string }) =>
     api.get('/reports/summary', { params }),
+  getUnfiledRetainerHours: () =>
+    api.get<UnfiledRetainerHoursRow[]>('/reports/unfiled-retainer-hours'),
 };
 
 // Export
@@ -415,12 +434,20 @@ export const exportApi = {
     projectIds?: string[];
     startDate?: string;
     endDate?: string;
+    billingModes?: string[];
+    memberAuth0Ids?: string[];
+    columns?: string[];
+    includeEntryDescriptions?: boolean;
   }) =>
     api.post('/export/csv', data, {
       responseType: 'blob',
     }),
-  backup: () =>
-    api.post('/export/backup', {}, {
+  backup: (data?: {
+    presetId?: string;
+    startDate?: string;
+    endDate?: string;
+  }) =>
+    api.post('/export/backup', data || {}, {
       responseType: 'json',
     }),
 };
@@ -433,13 +460,14 @@ export const invoicesApi = {
     startDate?: string;
     endDate?: string;
     search?: string;
+    documentKind?: InvoiceDocumentKind | 'library';
   }) => api.get<SavedInvoice[]>('/invoices', { params }),
   getOne: (id: string) => api.get<SavedInvoice>(`/invoices/${id}`),
   getStats: () => api.get<InvoiceStats>('/invoices/stats'),
   getNextNumber: () => api.get<{ invoiceNumber: string }>('/invoices/next-number'),
   create: (data: {
     invoiceNumber?: string;
-    clientId: string;
+    clientId?: string;
     projectIds?: string[];
     dateRange: { start: string; end: string };
     items: Invoice['items'];

@@ -93,7 +93,7 @@ function Invoices() {
       <div className="mb-6">
         <h1 className="text-3xl font-bold text-gray-900">Invoices</h1>
         <p className="text-gray-500 mt-1">
-          Manage invoice records, track payment status, and view history
+          Manage payable invoices, track payment status, and view history
         </p>
       </div>
 
@@ -193,7 +193,7 @@ function Invoices() {
           <Clock className="w-10 h-10 text-gray-300 mx-auto mb-3" />
           <p className="text-gray-500">No invoices found.</p>
           <p className="text-gray-400 text-sm mt-1">
-            Create invoices from the Reports page.
+            Create invoices from the Reports page. Utilization and data reports are in Saved reports.
           </p>
         </div>
       ) : (

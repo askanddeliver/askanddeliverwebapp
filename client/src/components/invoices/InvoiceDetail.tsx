@@ -18,16 +18,30 @@ import { InvoicePreview } from '../reports/InvoicePreview';
 import { EntryRow } from '../entries/EntryRow';
 import { invoicesApi, timeEntriesApi } from '../../services/api';
 import { formatCurrency, formatDate } from '../../utils/calculations';
-import type { SavedInvoice, Invoice, InvoiceStatus, TimeEntry } from '../../types';
+import type { SavedInvoice, Invoice, InvoiceDocumentKind, InvoiceStatus, TimeEntry } from '../../types';
+
+function documentKindLabel(kind?: InvoiceDocumentKind): string {
+  switch (kind) {
+    case 'RETAINER_REPORT':
+      return 'Utilization report';
+    case 'DATA_REPORT':
+      return 'Data report';
+    case 'BUDGET_REPORT':
+      return 'Budget report';
+    default:
+      return 'Invoice';
+  }
+}
 
 interface InvoiceDetailProps {
   invoice: SavedInvoice;
   onClose: () => void;
   onUpdated: (invoice: SavedInvoice) => void;
   onDeleted: (id: string) => void;
+  libraryMode?: boolean;
 }
 
-export function InvoiceDetail({ invoice, onClose, onUpdated, onDeleted }: InvoiceDetailProps) {
+export function InvoiceDetail({ invoice, onClose, onUpdated, onDeleted, libraryMode = false }: InvoiceDetailProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [editingNumber, setEditingNumber] = useState(false);
@@ -47,7 +61,7 @@ export function InvoiceDetail({ invoice, onClose, onUpdated, onDeleted }: Invoic
   const [includeDescriptions, setIncludeDescriptions] = useState(false);
 
   useEffect(() => {
-    if (invoice.status !== 'SENT') {
+    if (libraryMode || invoice.status !== 'SENT') {
       setStripePaymentLinksEnabled(null);
       return;
     }
@@ -63,7 +77,7 @@ export function InvoiceDetail({ invoice, onClose, onUpdated, onDeleted }: Invoic
     return () => {
       cancelled = true;
     };
-  }, [invoice.status, invoice._id]);
+  }, [invoice.status, invoice._id, libraryMode]);
 
   useEffect(() => {
     if (invoice.timeEntryIds.length > 0) {
@@ -173,7 +187,12 @@ export function InvoiceDetail({ invoice, onClose, onUpdated, onDeleted }: Invoic
     invoiceKind:
       invoice.documentKind === 'RETAINER_REPORT' ? 'RETAINER_REPORT' : undefined,
     client: {
-      _id: typeof invoice.clientId === 'object' ? invoice.clientId._id : invoice.clientId,
+      _id:
+        typeof invoice.clientId === 'object' && invoice.clientId
+          ? invoice.clientId._id
+          : typeof invoice.clientId === 'string'
+            ? invoice.clientId
+            : '',
       name: invoice.clientInfo.name,
       company: invoice.clientInfo.company,
       email: invoice.clientInfo.email,
@@ -246,7 +265,13 @@ export function InvoiceDetail({ invoice, onClose, onUpdated, onDeleted }: Invoic
                   {invoice.clientInfo.name} &middot; Created {formatDate(invoice.createdAt)}
                 </p>
               </div>
-              <InvoiceStatusBadge status={invoice.status} />
+              {libraryMode ? (
+                <span className="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-700">
+                  {documentKindLabel(invoice.documentKind)}
+                </span>
+              ) : (
+                <InvoiceStatusBadge status={invoice.status} />
+              )}
             </div>
             <button
               onClick={onClose}
@@ -274,14 +299,16 @@ export function InvoiceDetail({ invoice, onClose, onUpdated, onDeleted }: Invoic
 
             {invoice.status === 'DRAFT' && (
               <>
-                <button
-                  onClick={() => handleStatusChange('SENT')}
-                  disabled={loading}
-                  className="btn-primary flex items-center gap-2 text-sm"
-                >
-                  <Send className="w-4 h-4" />
-                  Mark as Sent
-                </button>
+                {!libraryMode && (
+                  <button
+                    onClick={() => handleStatusChange('SENT')}
+                    disabled={loading}
+                    className="btn-primary flex items-center gap-2 text-sm"
+                  >
+                    <Send className="w-4 h-4" />
+                    Mark as Sent
+                  </button>
+                )}
                 {!confirmDelete ? (
                   <button
                     onClick={() => setConfirmDelete(true)}
@@ -311,7 +338,7 @@ export function InvoiceDetail({ invoice, onClose, onUpdated, onDeleted }: Invoic
               </>
             )}
 
-            {invoice.status === 'SENT' && (
+            {!libraryMode && invoice.status === 'SENT' && (
               <>
                 <button
                   onClick={() => handleStatusChange('PAID')}
@@ -347,7 +374,8 @@ export function InvoiceDetail({ invoice, onClose, onUpdated, onDeleted }: Invoic
                     </button>
                   </div>
                 )}
-                {stripePaymentLinksEnabled === true && invoice.documentKind !== 'RETAINER_REPORT' && (
+                {stripePaymentLinksEnabled === true &&
+                  (!invoice.documentKind || invoice.documentKind === 'INVOICE') && (
                   <div className="w-full flex flex-wrap items-center gap-2 mt-2 pt-3 border-t border-gray-100">
                     <span className="text-sm font-medium text-gray-700 flex items-center gap-1.5">
                       <Link2 className="w-4 h-4 text-gray-500" />
@@ -392,7 +420,7 @@ export function InvoiceDetail({ invoice, onClose, onUpdated, onDeleted }: Invoic
               </>
             )}
 
-            {invoice.status === 'PAID' && (
+            {!libraryMode && invoice.status === 'PAID' && (
               <>
                 {confirmRevert !== 'SENT' ? (
                   <button

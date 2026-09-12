@@ -19,6 +19,8 @@ import {
   Briefcase,
   PanelLeft,
   PanelLeftClose,
+  Database,
+  Library,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { useUserRole } from '../contexts/UserContext';
@@ -52,7 +54,9 @@ const navSections: NavSection[] = [
       { to: '/entries', label: 'Entries', icon: FileText },
       { to: '/time-blocks', label: 'Block Time', icon: CalendarClock, adminOnly: true },
       { to: '/reports', label: 'Reports', icon: BarChart3, adminOnly: true },
+      { to: '/reports/saved', label: 'Saved reports', icon: Library, adminOnly: true },
       { to: '/invoices', label: 'Invoices', icon: Receipt, adminOnly: true },
+      { to: '/backups', label: 'Backups', icon: Database, adminOnly: true },
       { to: '/proposals', label: 'Proposals', icon: FileStack, adminOnly: true },
     ],
   },

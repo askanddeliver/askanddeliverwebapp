@@ -313,7 +313,7 @@ export interface TimeEntry {
   taskTypeId: string | TaskType;
   projectTaskId?: string | ProjectTask;
   blockId?: string;
-  invoiceId?: string;
+  invoiceId?: string | { _id: string; invoiceNumber?: string };
   description?: string;
   startTime: string;
   endTime?: string;
@@ -335,6 +335,51 @@ export interface LineItem {
   date: string;
   createdAt: string;
   updatedAt: string;
+}
+
+export type FilterPresetKind = 'REPORT' | 'BACKUP';
+
+export type FilterPresetDatePreset =
+  | 'all_time'
+  | 'this_month'
+  | 'last_month'
+  | 'this_week'
+  | 'last_week'
+  | 'last_7'
+  | 'last_30';
+
+export interface FilterPreset {
+  _id: string;
+  userId: string;
+  name: string;
+  kind: FilterPresetKind;
+  clientIds: string[];
+  projectIds: string[];
+  billingModes: ProjectBillingMode[];
+  memberAuth0Ids: string[];
+  datePreset?: FilterPresetDatePreset | null;
+  startDate: string;
+  endDate: string;
+  columnIds: string[];
+  includeTimeEntries: boolean;
+  includeEntryDescriptions: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface FilterPresetPayload {
+  name: string;
+  kind?: FilterPresetKind;
+  clientIds: string[];
+  projectIds: string[];
+  billingModes: ProjectBillingMode[];
+  memberAuth0Ids: string[];
+  datePreset?: FilterPresetDatePreset | null;
+  startDate: string;
+  endDate: string;
+  columnIds: string[];
+  includeTimeEntries: boolean;
+  includeEntryDescriptions: boolean;
 }
 
 // Computed types
@@ -360,8 +405,13 @@ export interface RetainerProjectSummary {
   title: string;
   poolHours: number;
   adjustmentHours: number;
+  /** Live (uncapped) consumption at generate time */
   consumedHoursAllTime: number;
+  /** Remaining as of period end (document figure) */
   remainingHours: number;
+  consumedHoursThroughEnd?: number;
+  remainingHoursAsOfEnd?: number;
+  remainingHoursLive?: number;
 }
 
 export interface CostBreakdownEntry {
@@ -399,8 +449,15 @@ export interface Invoice {
   /** Stripe Payment Link URL when set (for PDF / client copy) */
   paymentLinkUrl?: string;
   /** Preview generator mode */
-  invoiceKind?: 'HOURLY' | 'FIXED_PRICE' | 'RETAINER_REPORT';
-  /** Hour retainer: pool vs consumption (all-time) */
+  invoiceKind?: 'HOURLY' | 'FIXED_PRICE' | 'RETAINER_REPORT' | 'MIXED';
+  mixedBillingModes?: boolean;
+  projectsByMode?: {
+    HOURLY: Array<{ projectId: string; title: string }>;
+    FIXED_PRICE: Array<{ projectId: string; title: string }>;
+    HOUR_RETAINER: Array<{ projectId: string; title: string }>;
+  };
+  compatibleOutputs?: string[];
+  /** Hour retainer: pool vs consumption (remainingHours = as of period end) */
   retainerSummary?: {
     projects: RetainerProjectSummary[];
   };
@@ -409,13 +466,21 @@ export interface Invoice {
 // Saved Invoice (persisted record)
 export type InvoiceStatus = 'DRAFT' | 'SENT' | 'PAID';
 
-export type InvoiceDocumentKind = 'INVOICE' | 'RETAINER_REPORT';
+export type InvoiceDocumentKind = 'INVOICE' | 'RETAINER_REPORT' | 'DATA_REPORT' | 'BUDGET_REPORT';
+
+export interface UnfiledRetainerHoursRow {
+  projectId: string;
+  title: string;
+  clientName: string;
+  unfiledHours: number;
+  unfiledEntryCount: number;
+}
 
 export interface SavedInvoice {
   _id: string;
   userId: string;
   invoiceNumber: string;
-  clientId: string | Client;
+  clientId?: string | Client;
   projectIds: string[];
   status: InvoiceStatus;
   documentKind?: InvoiceDocumentKind;

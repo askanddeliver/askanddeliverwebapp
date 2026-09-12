@@ -2,7 +2,7 @@ import mongoose, { Document, Schema } from 'mongoose';
 
 export type InvoiceStatus = 'DRAFT' | 'SENT' | 'PAID';
 
-export type InvoiceDocumentKind = 'INVOICE' | 'RETAINER_REPORT';
+export type InvoiceDocumentKind = 'INVOICE' | 'RETAINER_REPORT' | 'DATA_REPORT' | 'BUDGET_REPORT';
 
 export interface IInvoiceCompanyInfo {
   name?: string;
@@ -26,8 +26,13 @@ export interface IInvoiceRetainerSummaryProject {
   title: string;
   poolHours: number;
   adjustmentHours: number;
+  /** Live (uncapped) consumption at generate/save time — workbench only */
   consumedHoursAllTime: number;
+  /** Document remaining: as of period end (legacy field; same as remainingHoursAsOfEnd) */
   remainingHours: number;
+  consumedHoursThroughEnd?: number;
+  remainingHoursAsOfEnd?: number;
+  remainingHoursLive?: number;
 }
 
 export interface IInvoiceRetainerSummary {
@@ -54,7 +59,7 @@ export interface IInvoiceItem {
 export interface IInvoice extends Document {
   userId: string;
   invoiceNumber: string;
-  clientId: mongoose.Types.ObjectId;
+  clientId?: mongoose.Types.ObjectId;
   projectIds: mongoose.Types.ObjectId[];
   status: InvoiceStatus;
   /** Defaults to INVOICE; omitted on legacy records until re-saved */
@@ -91,6 +96,9 @@ const RetainerSummaryProjectSchema = new Schema<IInvoiceRetainerSummaryProject>(
     adjustmentHours: { type: Number, required: true },
     consumedHoursAllTime: { type: Number, required: true },
     remainingHours: { type: Number, required: true },
+    consumedHoursThroughEnd: { type: Number, required: false },
+    remainingHoursAsOfEnd: { type: Number, required: false },
+    remainingHoursLive: { type: Number, required: false },
   },
   { _id: false }
 );
@@ -128,7 +136,7 @@ const InvoiceSchema = new Schema<IInvoice>(
     clientId: {
       type: Schema.Types.ObjectId,
       ref: 'Client',
-      required: [true, 'Client is required'],
+      required: false,
     },
     projectIds: [
       {
@@ -143,7 +151,7 @@ const InvoiceSchema = new Schema<IInvoice>(
     },
     documentKind: {
       type: String,
-      enum: ['INVOICE', 'RETAINER_REPORT'],
+      enum: ['INVOICE', 'RETAINER_REPORT', 'DATA_REPORT', 'BUDGET_REPORT'],
       default: 'INVOICE',
     },
     retainerSummary: {
@@ -204,6 +212,7 @@ const InvoiceSchema = new Schema<IInvoice>(
 
 InvoiceSchema.index({ userId: 1, status: 1 });
 InvoiceSchema.index({ userId: 1, createdAt: -1 });
+InvoiceSchema.index({ userId: 1, documentKind: 1 });
 InvoiceSchema.index({ userId: 1, invoiceNumber: 1 }, { unique: true });
 
 export const Invoice = mongoose.model<IInvoice>('Invoice', InvoiceSchema);

@@ -9,6 +9,8 @@ const ROUTE_CRUMB: Record<string, string> = {
   '/entries': 'Entries',
   '/time-blocks': 'Block Time',
   '/reports': 'Reports',
+  '/reports/saved': 'Saved reports',
+  '/backups': 'Backups',
   '/invoices': 'Invoices',
   '/proposals': 'Proposals',
   '/clients': 'Clients',

@@ -13,6 +13,8 @@ export {
 } from './ProjectMessage';
 export { PortfolioProject, IPortfolioProject } from './PortfolioProject';
 export { LineItem, ILineItem } from './LineItem';
+export { FilterPreset, IFilterPreset } from './FilterPreset';
+export type { FilterPresetKind, FilterPresetDatePreset } from './FilterPreset';
 export { Lead, ILead, ILeadNote } from './Lead';
 export {
   IntakeForm,

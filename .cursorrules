@@ -59,8 +59,8 @@ client/                        # React frontend (Vite)
       index.css                # Tailwind base + theme CSS variables
 server/                        # Express backend
   src/
-    routes/                    # 17 route modules + Stripe webhook (see below)
-    models/                    # 12 active Mongoose models (+ Item.ts stub, unexported; see Models)
+    routes/                    # 23 route modules + Stripe webhook (see below)
+    models/                    # 17 active Mongoose models (+ Item.ts stub, unexported; see Models)
     middleware/
       auth.ts                  # checkJwt, extractUserId, requireAdmin, getWorkspaceOwnerId, optionalAuth, loadUser
       errorHandler.ts          # asyncHandler, createError, notFoundHandler, errorHandler
@@ -97,15 +97,17 @@ This enables tracking what you charge clients vs. what you pay team members per 
 Each `Project` has `billingMode`: **HOURLY** (default), **FIXED_PRICE**, or **HOUR_RETAINER** — plus fields `agreedAmount` (fixed price), `retainerHoursTotal` / `retainerAdjustmentHours` (retainer pool), optional `fixedPriceInvoiceLabel`. Validation lives in `routes/projects.ts` (`assertProjectBillingValid`).
 
 - **Reports / `POST /api/reports/generate-invoice`** branches on selected projects’ modes (see `reports.ts`). HOURLY = existing T&M rollups. FIXED_PRICE = agreed-fee line (`isAgreedProjectFee`). HOUR_RETAINER = utilization-only rows (`isRetainerUtilizationRow`), `invoiceKind` / persisted **`documentKind`: `RETAINER_REPORT`**, `retainerSummary` in the JSON response for UI — no dollar billing lines for the client.
-- **`Invoice.documentKind`**: `INVOICE` | `RETAINER_REPORT`. Stripe Payment Links (`invoices.ts`) must refuse **`RETAINER_REPORT`**.
+- **`Invoice.documentKind`**: `INVOICE` | `RETAINER_REPORT` | `DATA_REPORT` | `BUDGET_REPORT`. `/invoices` lists payable `INVOICE` only (legacy rows with missing kind count as invoices). Utilization, data, and budget snapshots file in `/reports/saved`. Stripe Payment Links must refuse any non-`INVOICE` kind.
 - **HOURLY budget burn**: `GET /api/projects/budget-burn` — eligible only for HOURLY projects with a positive `budget`; sums effective-rate billed amounts from time entries (optional date range).
+- **Retainer remaining:** remaining on a utilization **document** is **as of the report end date** (`pool + adjustment − consumed through endDate`). Live remaining (`remainingHoursLive`) may appear on the Reports workbench only, separately labeled. Do not use `Math.min` across projects for a remaining summary. Existing saved reports keep their original snapshot until regenerated.
+- **Reports workbench (Phase 1–5):** `/reports` uses a left **filter rail** (Client, Project, Billing type, Date range including All Time, People, column catalog, named presets). Mixed billing types return a split preview (no 400) and can save a **data report**. Invoice / retainer save is gated to a single billing type; retainer and data reports go to **Saved reports** (`/reports/saved`). Weeks are Sunday–Saturday; This month is through today. CSV / Time Entries tab / PDF appendix honor selected columns; earned / margin never print on the client PDF. Filter presets are admin-only Pattern A (`GET/POST /api/filter-presets`). **Backups** live at `/backups` (full JSON + preset-scoped related graph). Do not put Backup on the Reports invoice toolbar. See [docs/REPORTS_WORKBENCH_BUILD_PLAN.md](docs/REPORTS_WORKBENCH_BUILD_PLAN.md).
 
-Reference: [docs/PROJECT_BILLING_MODES_BUILD_PLAN.md](docs/PROJECT_BILLING_MODES_BUILD_PLAN.md).
+Reference: [docs/PROJECT_BILLING_MODES_BUILD_PLAN.md](docs/PROJECT_BILLING_MODES_BUILD_PLAN.md), [docs/REPORTS_WORKBENCH_BUILD_PLAN.md](docs/REPORTS_WORKBENCH_BUILD_PLAN.md).
 
 ### Workspace / Multi-Tenant Model
 Two data scoping patterns coexist:
 
-**Pattern A — Direct userId scoping**: The entity's `userId` field equals `extractUserId(req)`. Used for: Clients, Portfolio, Uploads, Line Items, SiteConfig (most endpoints).
+**Pattern A — Direct userId scoping**: The entity's `userId` field equals `extractUserId(req)`. Used for: Clients, Portfolio, Uploads, Line Items, SiteConfig (most endpoints), FilterPreset.
 
 **Pattern B — Workspace-scoped via `getWorkspaceOwnerId`**: Resolves the workspace owner (admin = self, member = their admin's auth0Id), then queries `{ userId: workspaceOwnerId }`. Allows members to access shared data. Used for: Projects, Task Types, Project Tasks, Time Entries, Reports, Export, Leads, IntakeForms, Dashboard aggregates, ProjectMessages.
 
@@ -297,7 +299,7 @@ NewModelSchema.index({ userId: 1, createdAt: -1 });
 export const NewModel = mongoose.model<INewModel>('NewModel', NewModelSchema);
 ```
 
-## Models (16 active; Item.ts is an unexported starter stub)
+## Models (17 active; Item.ts is an unexported starter stub)
 
 | Model | Key Fields | Scoping |
 |-------|-----------|---------|
@@ -310,6 +312,7 @@ export const NewModel = mongoose.model<INewModel>('NewModel', NewModelSchema);
 | ProjectMessage | projectId, authorAuth0Id, body, clientVisible | userId (Pattern B) |
 | TimeBlock | startTime, endTime, kind, projectId, recurrenceRule | userId (Pattern A) |
 | LineItem | clientId, projectId, description, amount, category, date, invoiceId | userId (Pattern A) |
+| FilterPreset | name, kind REPORT\|BACKUP, clientIds, projectIds, billingModes, memberAuth0Ids, datePreset, startDate/endDate, columnIds, entry options | userId (Pattern A) |
 | Invoice | invoiceNumber, status, clientId, projectIds, items, totals, documentKind, paymentLinkUrl | userId (Pattern A) |
 | Proposal | proposalNumber, title, clientId, projectId, status, phases, investment | userId (Pattern A) |
 | Lead | userId, responses, status, priority, notes, suggestedMemberAuth0Id, convertedClientId | userId (Pattern B) |
@@ -318,7 +321,7 @@ export const NewModel = mongoose.model<INewModel>('NewModel', NewModelSchema);
 | SiteConfig | colors, palettes, disciplines, companyName, companyAddress | userId (Pattern A) |
 | *(Item.ts)* | — | Not in `models/index` exports — remove or ignore; MERN-starter stub |
 
-## Routes (22 modules + webhook)
+## Routes (23 modules + webhook)
 
 | Mount Path | Module | Auth | Key Features |
 |-----------|--------|------|-------------|
@@ -330,11 +333,12 @@ export const NewModel = mongoose.model<INewModel>('NewModel', NewModelSchema);
 | `/api/time-entries` | timeEntries.ts | checkJwt | Timer start/stop/continue, manual entry, workspace-scoped reads |
 | `/api/project-tasks` | projectTasks.ts | checkJwt; requireAdmin on writes | CRUD + reorder + assigneeAuth0Id |
 | `/api/time-blocks` | timeBlocks.ts | checkJwt | Calendar blocks, recurrence, launch-to-timer |
-| `/api/reports` | reports.ts | checkJwt + requireAdmin | Invoice preview data (discount + margin), summary stats |
-| `/api/invoices` | invoices.ts | checkJwt + requireAdmin | Invoice CRUD, status transitions, Stripe Payment Links |
+| `/api/reports` | reports.ts | checkJwt + requireAdmin | Invoice preview data (discount + margin), unfiled retainer hours, summary stats |
+| `/api/invoices` | invoices.ts | checkJwt + requireAdmin | Payable invoice CRUD by default; `?documentKind=library` for saved reports; Stripe Payment Links on INVOICE only |
 | `/api/proposals` | proposals.ts | checkJwt + requireAdmin | Proposal CRUD, DRAFT/FINALIZED |
 | `/api/export` | export.ts | checkJwt + requireAdmin | CSV export + full JSON workspace backup |
 | `/api/line-items` | lineItems.ts | checkJwt + requireAdmin | Fixed-cost item CRUD with date/project filtering |
+| `/api/filter-presets` | filterPresets.ts | checkJwt + requireAdmin | Named Reports/backup filter sets (Pattern A) |
 | `/api/portfolio` | portfolio.ts | Mixed (3 public, rest admin) | CRUD, publish/feature toggle, reorder, seed, slug routing |
 | `/api/uploads` | uploads.ts | checkJwt + requireAdmin | Cloudinary image + video upload/list/delete |
 | `/api/leads` | leads.ts | Mixed (1 public, rest admin) | Workspace-scoped pipeline, notes, conversion, suggestedMember |

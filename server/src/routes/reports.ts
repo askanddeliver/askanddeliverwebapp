@@ -1,7 +1,7 @@
 import { Router, Response } from 'express';
 import { checkJwt, AuthRequest, extractUserId, getWorkspaceOwnerId, requireAdmin } from '../middleware/auth';
 import { asyncHandler, createError } from '../middleware/errorHandler';
-import { TimeEntry, Client, IClient, ITimeEntry, IProject, ITaskType, LineItem, Project, User, SiteConfig } from '../models';
+import { TimeEntry, Client, IClient, ITimeEntry, IProject, ITaskType, LineItem, Project, User, SiteConfig, Invoice } from '../models';
 import {
   parseDateStart,
   parseDateEnd,
@@ -38,32 +38,41 @@ router.post(
     const workspaceOwnerId = await getWorkspaceOwnerId(req);
     if (!workspaceOwnerId) throw createError('Workspace access required', 403);
 
-    const { clientId, clientIds, projectId, projectIds, startDate, endDate } = req.body;
+    const {
+      clientId,
+      clientIds,
+      projectId,
+      projectIds,
+      startDate,
+      endDate,
+      billingModes,
+      memberAuth0Ids,
+    } = req.body;
     const requestedClientIds = normalizeIdList(clientIds, clientId);
     const hasClientFilter = requestedClientIds.length > 0;
     const singleClientId = requestedClientIds.length === 1 ? requestedClientIds[0] : undefined;
+    const requestedBillingModes = normalizeIdList(billingModes).filter(
+      (m): m is 'HOURLY' | 'FIXED_PRICE' | 'HOUR_RETAINER' =>
+        m === 'HOURLY' || m === 'FIXED_PRICE' || m === 'HOUR_RETAINER'
+    );
+    const requestedMemberIds = normalizeIdList(memberAuth0Ids);
 
-    if (!startDate || !endDate) {
-      throw createError('Start date and end date are required', 400);
+    const hasStart = typeof startDate === 'string' && startDate.trim().length > 0;
+    const hasEnd = typeof endDate === 'string' && endDate.trim().length > 0;
+    if (hasStart !== hasEnd) {
+      throw createError('Start date and end date are both required, or omit both for all time', 400);
     }
+    const unboundedDates = !hasStart && !hasEnd;
 
     const workspaceProjectIds = await Project.find({ userId: workspaceOwnerId }).distinct('_id');
 
-    // Filter by project(s): projectIds array, or legacy single projectId
-    let effectiveProjectIds = workspaceProjectIds;
     const requestedIds = Array.isArray(projectIds) && projectIds.length > 0
-      ? projectIds
+      ? projectIds.map(String).filter(Boolean)
       : projectId
-        ? [projectId]
+        ? [String(projectId)]
         : [];
-    if (requestedIds.length > 0) {
-      const valid = requestedIds.filter((id) =>
-        workspaceProjectIds.some((pid) => pid.toString() === id)
-      );
-      if (valid.length > 0) effectiveProjectIds = valid as unknown as typeof workspaceProjectIds;
-    }
 
-    let selectedProjectDocs: Array<{
+    type SelectedProjectDoc = {
       _id: unknown;
       title: string;
       clientId: { toString(): string };
@@ -72,27 +81,44 @@ router.post(
       fixedPriceInvoiceLabel?: string;
       retainerHoursTotal?: number;
       retainerHoursAdjustment?: number;
-    }> = [];
+    };
+
+    let selectedProjectDocs: SelectedProjectDoc[] = await Project.find({
+      userId: workspaceOwnerId,
+      ...(requestedIds.length > 0 ? { _id: { $in: requestedIds } } : {}),
+    }).lean();
+
+    if (requestedIds.length > 0 && selectedProjectDocs.length !== requestedIds.length) {
+      throw createError('One or more projects not found', 400);
+    }
+
+    if (hasClientFilter) {
+      const allowed = new Set(requestedClientIds);
+      selectedProjectDocs = selectedProjectDocs.filter((p) => allowed.has(p.clientId.toString()));
+    }
+
+    if (requestedBillingModes.length > 0) {
+      const allowedModes = new Set(requestedBillingModes);
+      selectedProjectDocs = selectedProjectDocs.filter((p) =>
+        allowedModes.has((p.billingMode ?? 'HOURLY') as 'HOURLY' | 'FIXED_PRICE' | 'HOUR_RETAINER')
+      );
+    }
+
+    let effectiveProjectIds =
+      selectedProjectDocs.length > 0
+        ? selectedProjectDocs.map((p) => p._id)
+        : requestedIds.length > 0 || hasClientFilter || requestedBillingModes.length > 0
+          ? []
+          : workspaceProjectIds;
+
     let isFixedPriceInvoice = false;
     let isRetainerReport = false;
+    let mixedBillingModes = false;
 
-    if (requestedIds.length > 0) {
-      selectedProjectDocs = await Project.find({
-        _id: { $in: requestedIds },
-        userId: workspaceOwnerId,
-      }).lean();
-      if (selectedProjectDocs.length !== requestedIds.length) {
-        throw createError('One or more projects not found', 400);
-      }
-      const modes = new Set(
-        selectedProjectDocs.map((p) => p.billingMode ?? 'HOURLY')
-      );
-      if (modes.size > 1) {
-        throw createError(
-          'Selected projects use different billing modes. Use one billing mode per invoice, or run separate previews.',
-          400
-        );
-      }
+    const modes = new Set(selectedProjectDocs.map((p) => p.billingMode ?? 'HOURLY'));
+    mixedBillingModes = selectedProjectDocs.length > 0 && modes.size > 1;
+
+    if (!mixedBillingModes && selectedProjectDocs.length > 0) {
       const mode = [...modes][0];
       if (mode === 'FIXED_PRICE') {
         isFixedPriceInvoice = true;
@@ -153,11 +179,13 @@ router.post(
     const query: any = {
       projectId: { $in: effectiveProjectIds },
       isRunning: false,
-      startTime: {
+    };
+    if (!unboundedDates) {
+      query.startTime = {
         $gte: parseDateStart(startDate),
         $lte: parseDateEnd(endDate),
-      },
-    };
+      };
+    }
 
     const entries = await TimeEntry.find(query)
       .populate({
@@ -185,6 +213,13 @@ router.post(
       const c = project?.clientId;
       return c && c.isInternal !== true;
     });
+
+    if (requestedMemberIds.length > 0) {
+      const allowedMembers = new Set(requestedMemberIds);
+      filteredEntries = filteredEntries.filter((entry) =>
+        allowedMembers.has((entry as ITimeEntry).userId)
+      );
+    }
 
     // Build a cache of client documents (with full Mongoose doc for Map access)
     // We need the actual Mongoose documents to reliably read the Map field
@@ -342,18 +377,20 @@ router.post(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const lineItemQuery: any = {
       userId: workspaceOwnerId,
-      date: {
+    };
+    if (!unboundedDates) {
+      lineItemQuery.date = {
         $gte: parseDateStart(startDate),
         $lte: parseDateEnd(endDate),
-      },
-    };
+      };
+    }
     if (hasClientFilter) lineItemQuery.clientId = { $in: requestedClientIds };
 
     // Filter by selected projects: include line items assigned to one of
     // the selected projects OR line items with no project (client-level charges)
-    if (requestedIds.length > 0) {
+    if (requestedIds.length > 0 || requestedBillingModes.length > 0 || hasClientFilter) {
       lineItemQuery.$or = [
-        { projectId: { $in: requestedIds } },
+        { projectId: { $in: effectiveProjectIds } },
         { projectId: { $exists: false } },
         { projectId: null },
       ];
@@ -406,7 +443,7 @@ router.post(
     );
 
     let allItems = [...items, ...fixedItems];
-    let invoiceKind: 'HOURLY' | 'FIXED_PRICE' | 'RETAINER_REPORT' = 'HOURLY';
+    let invoiceKind: 'HOURLY' | 'FIXED_PRICE' | 'RETAINER_REPORT' | 'MIXED' = 'HOURLY';
 
     let total = Math.round(
       allItems.reduce((sum, item) => sum + item.amount, 0) * 100
@@ -457,6 +494,9 @@ router.post(
             adjustmentHours: number;
             consumedHoursAllTime: number;
             remainingHours: number;
+            consumedHoursThroughEnd: number;
+            remainingHoursAsOfEnd: number;
+            remainingHoursLive: number;
           }>;
         }
       | undefined;
@@ -464,35 +504,47 @@ router.post(
     if (isRetainerReport && selectedProjectDocs.length > 0) {
       invoiceKind = 'RETAINER_REPORT';
 
-      const allTimeEntries = await TimeEntry.find({
+      const periodEnd = unboundedDates ? new Date() : parseDateEnd(endDate);
+
+      const consumptionEntries = await TimeEntry.find({
         projectId: { $in: requestedIds },
         isRunning: false,
       })
-        .select('duration projectId')
+        .select('duration projectId startTime')
         .lean();
 
-      const consumedByProject = new Map<string, number>();
-      for (const e of allTimeEntries) {
+      const throughEndByProject = new Map<string, number>();
+      const liveByProject = new Map<string, number>();
+      for (const e of consumptionEntries) {
         const pid = e.projectId.toString();
         const h = (e.duration || 0) / 3600;
-        consumedByProject.set(pid, (consumedByProject.get(pid) || 0) + h);
+        liveByProject.set(pid, (liveByProject.get(pid) || 0) + h);
+        if (new Date(e.startTime) <= periodEnd) {
+          throughEndByProject.set(pid, (throughEndByProject.get(pid) || 0) + h);
+        }
       }
+
+      const roundHours = (n: number) => Math.round(n * 100) / 100;
 
       retainerSummary = {
         projects: selectedProjectDocs.map((p) => {
           const pid = (p._id as { toString(): string }).toString();
-          const consumedRaw = consumedByProject.get(pid) || 0;
-          const consumed = Math.round(consumedRaw * 100) / 100;
+          const consumedThroughEnd = roundHours(throughEndByProject.get(pid) || 0);
+          const consumedLive = roundHours(liveByProject.get(pid) || 0);
           const adj = Number(p.retainerHoursAdjustment ?? 0);
           const pool = Number(p.retainerHoursTotal) + adj;
-          const remaining = Math.round((pool - consumed) * 100) / 100;
+          const remainingAsOfEnd = roundHours(pool - consumedThroughEnd);
+          const remainingLive = roundHours(pool - consumedLive);
           return {
             projectId: pid,
             title: p.title,
             poolHours: Number(p.retainerHoursTotal),
             adjustmentHours: adj,
-            consumedHoursAllTime: consumed,
-            remainingHours: remaining,
+            consumedHoursThroughEnd: consumedThroughEnd,
+            remainingHoursAsOfEnd: remainingAsOfEnd,
+            consumedHoursAllTime: consumedLive,
+            remainingHoursLive: remainingLive,
+            remainingHours: remainingAsOfEnd,
           };
         }),
       };
@@ -532,6 +584,39 @@ router.post(
       totalEarned = Math.round(tmEarnedUnrounded * 100) / 100;
       totalMargin = Math.round((total - totalEarned) * 100) / 100;
     }
+
+    if (mixedBillingModes) {
+      invoiceKind = 'MIXED';
+      allItems = [];
+      retainerSummary = undefined;
+    }
+
+    const projectsByMode = {
+      HOURLY: selectedProjectDocs
+        .filter((p) => (p.billingMode ?? 'HOURLY') === 'HOURLY')
+        .map((p) => ({
+          projectId: (p._id as { toString(): string }).toString(),
+          title: p.title,
+        })),
+      FIXED_PRICE: selectedProjectDocs
+        .filter((p) => p.billingMode === 'FIXED_PRICE')
+        .map((p) => ({
+          projectId: (p._id as { toString(): string }).toString(),
+          title: p.title,
+        })),
+      HOUR_RETAINER: selectedProjectDocs
+        .filter((p) => p.billingMode === 'HOUR_RETAINER')
+        .map((p) => ({
+          projectId: (p._id as { toString(): string }).toString(),
+          title: p.title,
+        })),
+    };
+
+    const compatibleOutputs = mixedBillingModes
+      ? (['csv', 'data_report'] as string[])
+      : invoiceKind === 'RETAINER_REPORT'
+        ? ['csv', 'print', 'retainer_report', 'data_report']
+        : ['csv', 'print', 'invoice', 'data_report'];
 
     const roundedBreakdown = costBreakdown.map((r) => ({
       ...r,
@@ -577,11 +662,98 @@ router.post(
       totalMargin,
       costBreakdown: roundedBreakdown,
       entryCount: filteredEntries.length,
-      lineItemCount: fixedItems.length,
-      dateRange: { start: startDate, end: endDate },
+      lineItemCount: mixedBillingModes ? 0 : fixedItems.length,
+      dateRange: {
+        start: unboundedDates ? '' : String(startDate),
+        end: unboundedDates ? '' : String(endDate),
+      },
       invoiceKind,
       retainerSummary,
+      mixedBillingModes,
+      projectsByMode,
+      compatibleOutputs,
     });
+  })
+);
+
+// GET /api/reports/unfiled-retainer-hours — retainer hours not covered by a saved utilization report
+router.get(
+  '/unfiled-retainer-hours',
+  asyncHandler(async (req: AuthRequest, res: Response) => {
+    const workspaceOwnerId = await getWorkspaceOwnerId(req);
+    if (!workspaceOwnerId) throw createError('Workspace access required', 403);
+
+    const retainerProjects = await Project.find({
+      userId: workspaceOwnerId,
+      billingMode: 'HOUR_RETAINER',
+    })
+      .populate('clientId', 'name')
+      .lean();
+
+    if (retainerProjects.length === 0) {
+      res.json([]);
+      return;
+    }
+
+    const projectIds = retainerProjects.map((p) => p._id);
+    const [entries, reports] = await Promise.all([
+      TimeEntry.find({
+        projectId: { $in: projectIds },
+        isRunning: false,
+      })
+        .select('projectId startTime duration')
+        .lean(),
+      Invoice.find({
+        userId: workspaceOwnerId,
+        documentKind: 'RETAINER_REPORT',
+        projectIds: { $in: projectIds },
+      })
+        .select('projectIds dateRange')
+        .lean(),
+    ]);
+
+    const reportsByProject = new Map<string, Array<{ start: Date; end: Date }>>();
+    for (const report of reports) {
+      const start = new Date(report.dateRange.start);
+      const end = new Date(report.dateRange.end);
+      for (const pid of report.projectIds || []) {
+        const key = pid.toString();
+        const list = reportsByProject.get(key) || [];
+        list.push({ start, end });
+        reportsByProject.set(key, list);
+      }
+    }
+
+    const rows = retainerProjects
+      .map((project) => {
+        const pid = project._id.toString();
+        const ranges = reportsByProject.get(pid) || [];
+        let unfiledSeconds = 0;
+        let unfiledEntryCount = 0;
+        for (const entry of entries) {
+          if (entry.projectId.toString() !== pid) continue;
+          const t = new Date(entry.startTime).getTime();
+          const filed = ranges.some((r) => t >= r.start.getTime() && t <= r.end.getTime());
+          if (!filed) {
+            unfiledSeconds += entry.duration || 0;
+            unfiledEntryCount += 1;
+          }
+        }
+        const client =
+          project.clientId && typeof project.clientId === 'object'
+            ? (project.clientId as { name?: string }).name
+            : undefined;
+        return {
+          projectId: pid,
+          title: project.title,
+          clientName: client || '',
+          unfiledHours: Math.round((unfiledSeconds / 3600) * 100) / 100,
+          unfiledEntryCount,
+        };
+      })
+      .filter((row) => row.unfiledHours > 0);
+
+    res.json(rows);
   })
 );
 

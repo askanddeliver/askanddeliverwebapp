@@ -4,6 +4,12 @@ import { asyncHandler, createError } from '../middleware/errorHandler';
 import { Invoice, TimeEntry, LineItem, Client, Project, SiteConfig } from '../models';
 import type { InvoiceDocumentKind, InvoiceStatus, IInvoiceRetainerSummary } from '../models';
 import { parseDateStart, parseDateEnd } from '../utils/calculations';
+import {
+  isPayableDocumentKind,
+  libraryDocumentKindMatch,
+  parseDocumentKind,
+  payableDocumentKindMatch,
+} from '../utils/invoiceKinds';
 import { createPaymentLink, isStripeEnabled } from '../lib/stripeClient';
 import { notifyInvoiceSentToClient } from '../lib/email';
 
@@ -61,10 +67,19 @@ router.get(
     const workspaceOwnerId = await getWorkspaceOwnerId(req);
     if (!workspaceOwnerId) throw createError('Workspace access required', 403);
 
-    const { status, clientId, startDate, endDate, search } = req.query;
+    const { status, clientId, startDate, endDate, search, documentKind } = req.query;
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const query: any = { userId: workspaceOwnerId };
+
+    const kindParam = typeof documentKind === 'string' ? documentKind : 'INVOICE';
+    if (kindParam === 'library') {
+      Object.assign(query, libraryDocumentKindMatch);
+    } else if (kindParam === 'RETAINER_REPORT' || kindParam === 'DATA_REPORT' || kindParam === 'BUDGET_REPORT') {
+      query.documentKind = kindParam;
+    } else {
+      Object.assign(query, payableDocumentKindMatch);
+    }
 
     if (status && status !== 'ALL') {
       query.status = status;
@@ -78,10 +93,18 @@ router.get(
       if (endDate) query.createdAt.$lte = parseDateEnd(endDate as string);
     }
     if (search) {
-      query.$or = [
-        { invoiceNumber: { $regex: search as string, $options: 'i' } },
-        { 'clientInfo.name': { $regex: search as string, $options: 'i' } },
-      ];
+      const searchMatch = {
+        $or: [
+          { invoiceNumber: { $regex: search as string, $options: 'i' } },
+          { 'clientInfo.name': { $regex: search as string, $options: 'i' } },
+        ],
+      };
+      if (query.$or) {
+        query.$and = [{ $or: query.$or }, searchMatch];
+        delete query.$or;
+      } else {
+        Object.assign(query, searchMatch);
+      }
     }
 
     const invoices = await Invoice.find(query)
@@ -100,14 +123,16 @@ router.get(
     const workspaceOwnerId = await getWorkspaceOwnerId(req);
     if (!workspaceOwnerId) throw createError('Workspace access required', 403);
 
+    const payable = { userId: workspaceOwnerId, ...payableDocumentKindMatch };
+
     const [draft, sent, paid] = await Promise.all([
-      Invoice.countDocuments({ userId: workspaceOwnerId, status: 'DRAFT' }),
+      Invoice.countDocuments({ ...payable, status: 'DRAFT' }),
       Invoice.aggregate([
-        { $match: { userId: workspaceOwnerId, status: 'SENT' } },
+        { $match: { ...payable, status: 'SENT' } },
         { $group: { _id: null, count: { $sum: 1 }, total: { $sum: '$total' } } },
       ]),
       Invoice.aggregate([
-        { $match: { userId: workspaceOwnerId, status: 'PAID' } },
+        { $match: { ...payable, status: 'PAID' } },
         { $group: { _id: null, count: { $sum: 1 }, total: { $sum: '$total' } } },
       ]),
     ]);
@@ -149,8 +174,8 @@ router.post(
     if (invoice.status !== 'SENT') {
       throw createError('Payment links can only be created for sent invoices', 400);
     }
-    if (invoice.documentKind === 'RETAINER_REPORT') {
-      throw createError('Payment links are not available for retainer utilization reports', 400);
+    if (!isPayableDocumentKind(invoice.documentKind)) {
+      throw createError('Payment links are only available for invoices', 400);
     }
     if (invoice.paymentLinkUrl) {
       res.json(invoice);
@@ -225,7 +250,7 @@ router.post(
       retainerSummary: bodyRetainerSummary,
     } = req.body as {
       invoiceNumber?: string;
-      clientId: string;
+      clientId?: string;
       projectIds?: string[];
       dateRange: { start: string; end: string };
       items: unknown[];
@@ -241,12 +266,22 @@ router.post(
       retainerSummary?: IInvoiceRetainerSummary;
     };
 
-    if (!clientId) throw createError('Client is required for invoices', 400);
-    if (!dateRange?.start || !dateRange?.end) throw createError('Date range is required', 400);
-    if (!items || items.length === 0) throw createError('Invoice must have at least one item', 400);
+    const documentKind = parseDocumentKind(rawDocumentKind);
+    const payable = isPayableDocumentKind(documentKind);
 
-    const client = await Client.findOne({ _id: clientId, userId: workspaceOwnerId });
-    if (!client) throw createError('Client not found', 404);
+    if (payable && !clientId) throw createError('Client is required for invoices', 400);
+    if (documentKind === 'RETAINER_REPORT' && !clientId) {
+      throw createError('A client is required to save a retainer report', 400);
+    }
+    if (!dateRange?.start || !dateRange?.end) throw createError('Date range is required', 400);
+    if (documentKind !== 'DATA_REPORT' && (!items || (items as unknown[]).length === 0)) {
+      throw createError('Invoice must have at least one item', 400);
+    }
+
+    const client = clientId
+      ? await Client.findOne({ _id: clientId, userId: workspaceOwnerId })
+      : null;
+    if (clientId && !client) throw createError('Client not found', 404);
 
     const siteConfig = await SiteConfig.findOne({ userId: workspaceOwnerId })
       .select('companyName companyAddress companyPhone companyEmail')
@@ -256,9 +291,6 @@ router.post(
 
     const existing = await Invoice.findOne({ userId: workspaceOwnerId, invoiceNumber: finalNumber });
     if (existing) throw createError(`Invoice number ${finalNumber} already exists`, 400);
-
-    const documentKind: InvoiceDocumentKind =
-      rawDocumentKind === 'RETAINER_REPORT' ? 'RETAINER_REPORT' : 'INVOICE';
 
     const retainerSummary: IInvoiceRetainerSummary | undefined =
       documentKind === 'RETAINER_REPORT' &&
@@ -289,7 +321,7 @@ router.post(
     const invoice = await Invoice.create({
       userId: workspaceOwnerId,
       invoiceNumber: finalNumber,
-      clientId,
+      clientId: client?._id,
       projectIds: projectIdsList,
       status: 'DRAFT',
       documentKind,
@@ -307,14 +339,18 @@ router.post(
           }
         : {},
       clientInfo: {
-        name: client.name,
-        company: client.company,
-        email: client.email,
-        businessEntity: (client as typeof client & { businessEntity?: string }).businessEntity,
-        address: (client as typeof client & { address?: string }).address,
-        paymentPreference: (client as typeof client & { paymentPreference?: string }).paymentPreference,
+        name: client?.name || 'Multiple clients',
+        company: client?.company,
+        email: client?.email,
+        businessEntity: client
+          ? (client as typeof client & { businessEntity?: string }).businessEntity
+          : undefined,
+        address: client ? (client as typeof client & { address?: string }).address : undefined,
+        paymentPreference: client
+          ? (client as typeof client & { paymentPreference?: string }).paymentPreference
+          : undefined,
       },
-      items,
+      items: Array.isArray(items) ? items : [],
       subtotal: subtotal ?? total,
       total,
       totalHours: totalHours ?? 0,
@@ -357,6 +393,9 @@ router.patch(
 
     // Forward transitions: link entries
     if (currentStatus === 'DRAFT' && status === 'SENT') {
+      if (!isPayableDocumentKind(invoice.documentKind)) {
+        throw createError('Library reports cannot be sent as invoices', 400);
+      }
       invoice.sentAt = new Date();
       // Link time entries and line items to this invoice
       if (invoice.timeEntryIds.length > 0) {

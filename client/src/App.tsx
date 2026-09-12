@@ -29,6 +29,8 @@ import ProjectHub from './pages/ProjectHub';
 import TaskTypes from './pages/TaskTypes';
 import TimeEntries from './pages/TimeEntries';
 import Reports from './pages/Reports';
+import SavedReports from './pages/SavedReports';
+import Backups from './pages/Backups';
 import Invoices from './pages/Invoices';
 import Proposals from './pages/Proposals';
 import PortfolioAdmin from './pages/PortfolioAdmin';
@@ -286,12 +288,36 @@ function App() {
         }
       />
       <Route
+        path="/reports/saved"
+        element={
+          <Layout>
+            <ProtectedRoute>
+              <AdminRoute>
+                <SavedReports />
+              </AdminRoute>
+            </ProtectedRoute>
+          </Layout>
+        }
+      />
+      <Route
         path="/reports"
         element={
           <Layout>
             <ProtectedRoute>
               <AdminRoute>
                 <Reports />
+              </AdminRoute>
+            </ProtectedRoute>
+          </Layout>
+        }
+      />
+      <Route
+        path="/backups"
+        element={
+          <Layout>
+            <ProtectedRoute>
+              <AdminRoute>
+                <Backups />
               </AdminRoute>
             </ProtectedRoute>
           </Layout>

@@ -69,11 +69,13 @@ export function InvoicePreview({ invoice }: InvoicePreviewProps) {
               )}
             </div>
           )}
-          {invoice.dateRange && (
+          {invoice.dateRange && (invoice.dateRange.start && invoice.dateRange.end ? (
             <p className="text-sm text-gray-500 mt-2">
               {formatDate(invoice.dateRange.start)} &mdash; {formatDate(invoice.dateRange.end)}
             </p>
-          )}
+          ) : (
+            <p className="text-sm text-gray-500 mt-2">All time</p>
+          ))}
         </div>
       </div>
 
@@ -86,10 +88,14 @@ export function InvoicePreview({ invoice }: InvoicePreviewProps) {
         {isRetainerDoc && invoice.retainerSummary && invoice.retainerSummary.projects.length > 0 && (
           <div className="mb-4 space-y-3">
             <p className="text-xs text-gray-500">
-              Hours remaining use the full block plus adjustments minus <strong>all</strong> time logged on the
-              project. Activity below is limited to the selected date range.
+              Hours remaining are the block plus adjustments minus time logged through the{' '}
+              <strong>end of this report’s date range</strong>. Activity below is limited to the selected period.
             </p>
-            {invoice.retainerSummary.projects.map((p) => (
+            {invoice.retainerSummary.projects.map((p) => {
+              const usedThroughEnd = p.consumedHoursThroughEnd ?? p.consumedHoursAllTime;
+              const remainingAsOfEnd = p.remainingHoursAsOfEnd ?? p.remainingHours;
+              const hasPeriodEndSnapshot = p.consumedHoursThroughEnd != null || p.remainingHoursAsOfEnd != null;
+              return (
               <div
                 key={p.projectId}
                 className="rounded-lg border border-violet-200 bg-violet-50/80 px-4 py-3 text-sm"
@@ -107,16 +113,19 @@ export function InvoicePreview({ invoice }: InvoicePreviewProps) {
                     </p>
                   </div>
                   <div>
-                    <span className="text-violet-600/90">Used (all-time)</span>
-                    <p className="font-bold tabular-nums">{p.consumedHoursAllTime.toFixed(2)} h</p>
+                    <span className="text-violet-600/90">
+                      {hasPeriodEndSnapshot ? 'Used (through period end)' : 'Used (all-time)'}
+                    </span>
+                    <p className="font-bold tabular-nums">{usedThroughEnd.toFixed(2)} h</p>
                   </div>
                   <div>
                     <span className="text-violet-600/90">Remaining</span>
-                    <p className="font-bold tabular-nums text-violet-950">{p.remainingHours.toFixed(2)} h</p>
+                    <p className="font-bold tabular-nums text-violet-950">{remainingAsOfEnd.toFixed(2)} h</p>
                   </div>
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
         )}
 
@@ -385,7 +394,7 @@ export function InvoicePreview({ invoice }: InvoicePreviewProps) {
             ? ` | ${invoice.lineItemCount} additional charge${invoice.lineItemCount === 1 ? '' : 's'}`
             : ''}{' '}
           | {invoice.totalHours.toFixed(2)} hours in period
-          {isRetainerDoc ? ' (pool balance uses all-time usage)' : ''}
+          {isRetainerDoc ? ' (pool remaining is as of the period end)' : ''}
         </p>
       </div>
 

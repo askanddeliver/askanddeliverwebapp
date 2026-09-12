@@ -138,6 +138,66 @@ export function getStartOfWeekString(): string {
   return formatLocalYmd(d);
 }
 
+/** Reports workbench date chips. Weeks are Sunday–Saturday (same as Dashboard). This month is through today. */
+export type ReportDatePreset =
+  | 'all_time'
+  | 'this_month'
+  | 'last_month'
+  | 'this_week'
+  | 'last_week'
+  | 'last_7'
+  | 'last_30';
+
+export function getReportDateRange(preset: ReportDatePreset): { startDate: string; endDate: string } {
+  const today = getTodayString();
+  const now = new Date();
+  switch (preset) {
+    case 'all_time':
+      return { startDate: '', endDate: '' };
+    case 'this_month': {
+      const first = new Date(now.getFullYear(), now.getMonth(), 1);
+      return { startDate: formatLocalYmd(first), endDate: today };
+    }
+    case 'last_month': {
+      const first = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      const last = new Date(now.getFullYear(), now.getMonth(), 0);
+      return { startDate: formatLocalYmd(first), endDate: formatLocalYmd(last) };
+    }
+    case 'this_week':
+      return { startDate: getStartOfWeekString(), endDate: today };
+    case 'last_week': {
+      const thisWeekStart = getStartOfWeekString();
+      return {
+        startDate: addDaysToDateString(thisWeekStart, -7),
+        endDate: addDaysToDateString(thisWeekStart, -1),
+      };
+    }
+    case 'last_7':
+      return { startDate: getDaysAgoString(7), endDate: today };
+    case 'last_30':
+      return { startDate: getDaysAgoString(30), endDate: today };
+    default:
+      return { startDate: getDaysAgoString(30), endDate: today };
+  }
+}
+
+export function matchReportDatePreset(startDate: string, endDate: string): ReportDatePreset | null {
+  const presets: ReportDatePreset[] = [
+    'all_time',
+    'this_month',
+    'last_month',
+    'this_week',
+    'last_week',
+    'last_7',
+    'last_30',
+  ];
+  for (const preset of presets) {
+    const range = getReportDateRange(preset);
+    if (range.startDate === startDate && range.endDate === endDate) return preset;
+  }
+  return null;
+}
+
 /**
  * Local-timezone day/week bounds as UTC ISO strings for dashboard aggregates.
  * The server runs in UTC; without these, "today" rolls over at midnight UTC

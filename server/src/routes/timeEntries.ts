@@ -73,7 +73,7 @@ router.get(
     const workspaceOwnerId = await getWorkspaceOwnerId(req);
     if (!workspaceOwnerId) throw createError('Workspace access required', 403);
 
-    const { startDate, endDate, projectId, projectIds, billingStatus } = req.query;
+    const { startDate, endDate, projectId, projectIds, billingStatus, userIds } = req.query;
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const query: any = {};
@@ -124,6 +124,15 @@ router.get(
       }
     }
 
+    const memberIds = Array.isArray(userIds)
+      ? userIds.map(String).filter(Boolean)
+      : typeof userIds === 'string' && userIds.trim()
+        ? userIds.split(',').map((s) => s.trim()).filter(Boolean)
+        : [];
+    if (admin && memberIds.length > 0) {
+      query.userId = memberIds.length === 1 ? memberIds[0] : { $in: memberIds };
+    }
+
     // billingStatus filter: unbilled (no paid invoice), billed, paid, all
     if (billingStatus === 'unbilled') {
       const paidInvoiceIds = await Invoice.find({
@@ -143,6 +152,7 @@ router.get(
       .populate({ path: 'projectId', populate: { path: 'clientId' } })
       .populate('taskTypeId')
       .populate('projectTaskId')
+      .populate({ path: 'invoiceId', select: 'invoiceNumber' })
       .sort({ startTime: -1 })
       .lean();
 

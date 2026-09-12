@@ -158,7 +158,7 @@ Prefer **minimal change:** store retainer reports as **invoices with a flag** so
 1. **Do not** use ∑(hours × rate) as the client total unless you explicitly add extra T&M line items.
 2. **Generate “Retainer period report”:**
    - **Date range** = the reporting period (e.g. this month): filter time entries to show **hours in period** by task type (discipline).
-   - **Standing balance** = **not** reset each month: **hours remaining** = `retainerHoursTotal + adjustments − all hours logged on this project` (cumulative). Monthly reports show both period activity and **current remaining** against the pre-purchased block.
+   - **Standing balance** = **not** reset each month. **Hours remaining on a generated or saved report** = `retainerHoursTotal + adjustments − hours logged on this project with start ≤ period end` (cumulative through the report’s end date — not “all time as of generation”). The Reports workbench may also show **live remaining** (no date cap) as a separate, labeled figure. See [Known issue — remaining hours](#known-issue--remaining-hours-as-of-generation) and [docs/REPORTS_WORKBENCH_BUILD_PLAN.md](./REPORTS_WORKBENCH_BUILD_PLAN.md).
    - When the client buys another block, record via **adjustment** or a `reloads[]` entry (see [Open Decisions](#open-decisions)) — out of band (discussion), not automated billing in v1.
 3. **Persist** as invoice-like record with `documentKind: RETAINER_REPORT` or equivalent; **total** may be **0** or hidden for PDF; payment link **disabled** for this kind unless you add a separate fee line.
 
@@ -220,6 +220,7 @@ When implementing, update these in lockstep:
 - [ ] Default **HOURLY** projects behave exactly as before (invoice totals unchanged).
 - [ ] **FIXED_PRICE:** Preview and saved invoice total = `agreedAmount`; Stripe link uses same amount; internal margin still visible to admin.
 - [ ] **HOUR_RETAINER:** Hours decrement correctly; report shows disciplines/task types; no erroneous dollar total.
+- [ ] **HOUR_RETAINER remaining as-of-end:** Generating a prior-month utilization report *after* later-month hours exist does **not** pull those later hours into that month’s remaining (Battle Sports July vs August fixture in the workbench plan).
 - [ ] **Migration:** Existing projects load; no undefined `billingMode` errors.
 - [ ] **Mixed mode:** UI blocks combining incompatible projects on one invoice (per [Decided product rules](#decided-product-rules)).
 
@@ -233,7 +234,15 @@ These are locked for implementation unless requirements change.
 
 2. **One invoice / report per billing story** — Do not merge incompatible modes on a single invoice. Different projects (or different modes) → **separate** invoices or retainer reports. UI should avoid multi-project selection when it would mix modes.
 
-3. **Retainer hours (standing block + monthly reporting)** — The client pre-purchases a block (e.g. 40h). Time entries consume from that **standing total** over time. **Each month** (or any chosen date range), you generate a report that shows **activity in that period** (hours by discipline/task type) and **remaining hours** against the **current pool** (block + adjustments − **all** time logged on the project while in retainer mode, or equivalent rule). When hours run low, the **re-up** is a business conversation; the app supports recording additional hours via adjustment or reload history — not automated charging in v1.
+3. **Retainer hours (standing block + monthly reporting)** — The client pre-purchases a block (e.g. 40h). Time entries consume from that **standing total** over time. **Each month** (or any chosen date range), you generate a report that shows **activity in that period** (hours by discipline/task type) and **remaining hours as of the period end** (block + adjustments − time logged on the project **through that end date**). Live remaining (through now) belongs on the workbench, not as the number printed on a historical report. When hours run low, the **re-up** is a business conversation; the app supports recording additional hours via adjustment or reload history — not automated charging in v1.
+
+---
+
+## Known issue — remaining hours as of generation
+
+**Found:** September 2026. **Fix shipped in Phase 0** of [REPORTS_WORKBENCH_BUILD_PLAN.md](./REPORTS_WORKBENCH_BUILD_PLAN.md): `generate-invoice` subtracts stopped entries with `startTime` ≤ report `endDate`. `remainingHours` / `remainingHoursAsOfEnd` on new previews and saves are period-end. Live remaining is `remainingHoursLive` (workbench only). Existing saved reports (e.g. 260813-2) keep their original snapshot until regenerated.
+
+**Still open (product, decided include-all):** Oct 8, 2025 3.75 h counts against the 40 h block. June 2026 3.50 h is consumed but never filed on a monthly utilization report.
 
 ---
 
@@ -242,7 +251,7 @@ These are locked for implementation unless requirements change.
 1. **Fixed price internal display:** Show full T&M “what it would have been” on a second PDF page vs. admin-only Reports screen.
 2. **`budget` on FIXED_PRICE:** Same as client agreed amount vs. separate internal cap (avoid double meaning).
 3. **Retainer reload:** New Mongo subdocument `reloads: [{ hours, date, note }]` vs. single `adjustment` number.
-4. **Invoice vs. report collection:** One `Invoice` collection with `documentKind` vs. separate `RetainerReport` collection.
+4. **Invoice vs. report collection:** One `Invoice` collection with `documentKind`. Utilization, data, and budget reports file in `/reports/saved`; `/invoices` is payable-only. See [REPORTS_WORKBENCH_BUILD_PLAN.md](./REPORTS_WORKBENCH_BUILD_PLAN.md) (Phase 5 shipped).
 
 ---
 
@@ -255,6 +264,7 @@ These are locked for implementation unless requirements change.
 | **3** | **HOUR_RETAINER:** Hour pool math; retainer summary endpoint or embedded in project; **utilization report** PDF/preview; optional reload/adjustment. |
 | **4** | **HOURLY burn:** Optional dashboard / card progress vs. dollar `budget`; warnings only. |
 | **5** | **Docs pass:** ARCHITECTURE, README, `.cursorrules`; polish copy; testing checklist sign-off. |
+| **Follow-on** | **Reports workbench** (filter rail, libraries, backups, payroll) is **not** part of billing-modes phases — see [REPORTS_WORKBENCH_BUILD_PLAN.md](./REPORTS_WORKBENCH_BUILD_PLAN.md). Remaining-hours as-of-end can ship as a billing-modes hotfix before that rebuild. |
 
 ---
 

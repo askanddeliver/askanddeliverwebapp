@@ -9,6 +9,7 @@ import {
   type DashboardPeriodBounds,
 } from '../utils/calculations';
 import { expandTimeBlocksForRange } from './expandTimeBlocks';
+import { payableDocumentKindMatch } from '../utils/invoiceKinds';
 
 export async function computeTimeTotals(
   workspaceOwnerId: string,
@@ -106,10 +107,10 @@ export async function computeOpenTaskCount(workspaceOwnerId: string) {
 export async function computeInvoiceSummary(workspaceOwnerId: string) {
   const [sentAgg, oldestSent] = await Promise.all([
     Invoice.aggregate([
-      { $match: { userId: workspaceOwnerId, status: 'SENT' } },
+      { $match: { userId: workspaceOwnerId, status: 'SENT', ...payableDocumentKindMatch } },
       { $group: { _id: null, count: { $sum: 1 }, total: { $sum: '$total' } } },
     ]),
-    Invoice.findOne({ userId: workspaceOwnerId, status: 'SENT' })
+    Invoice.findOne({ userId: workspaceOwnerId, status: 'SENT', ...payableDocumentKindMatch })
       .sort({ createdAt: 1 })
       .select('createdAt')
       .lean(),

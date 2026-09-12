@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { X, FileText } from 'lucide-react';
 import { invoicesApi } from '../../services/api';
 import { formatCurrency } from '../../utils/calculations';
-import type { Invoice, TimeEntry, LineItem } from '../../types';
+import type { Invoice, InvoiceDocumentKind, TimeEntry, LineItem } from '../../types';
 
 interface CreateInvoiceModalProps {
   isOpen: boolean;
@@ -11,6 +11,7 @@ interface CreateInvoiceModalProps {
   lineItems: LineItem[];
   /** Reports filter: ensures fixed-price (or other) invoices persist correct projectIds when there are no time entries */
   reportProjectIds?: string[];
+  saveKind?: InvoiceDocumentKind;
   onClose: () => void;
   onCreated: (invoiceId: string) => void;
 }
@@ -21,6 +22,7 @@ export function CreateInvoiceModal({
   filteredEntries,
   lineItems,
   reportProjectIds = [],
+  saveKind = 'INVOICE',
   onClose,
   onCreated,
 }: CreateInvoiceModalProps) {
@@ -43,11 +45,17 @@ export function CreateInvoiceModal({
 
   if (!isOpen) return null;
 
-  const isRetainer = invoice.invoiceKind === 'RETAINER_REPORT';
+  const isRetainer = saveKind === 'RETAINER_REPORT';
+  const isDataReport = saveKind === 'DATA_REPORT';
+  const isLibrary = isRetainer || isDataReport;
 
   const clientId =
     typeof invoice.client?._id === 'string' ? invoice.client._id : '';
-  const clientName = invoice.client?.name || 'Unknown Client';
+  const clientName = invoice.client?.name || (isDataReport ? 'Multiple clients' : 'Unknown Client');
+  const dateStart = invoice.dateRange?.start;
+  const dateEnd = invoice.dateRange?.end;
+  const dateLabel =
+    dateStart && dateEnd ? `${dateStart} — ${dateEnd}` : 'All Time';
 
   const entryProjectIds = [
     ...new Set(
@@ -64,7 +72,7 @@ export function CreateInvoiceModal({
   ];
 
   const handleCreate = async () => {
-    if (!clientId) {
+    if (!isDataReport && !clientId) {
       setError(
         isRetainer
           ? 'A client must be associated with this preview to save a report.'
@@ -73,7 +81,7 @@ export function CreateInvoiceModal({
       return;
     }
     if (!invoiceNumber.trim()) {
-      setError('Invoice number is required.');
+      setError('Document number is required.');
       return;
     }
 
@@ -81,12 +89,15 @@ export function CreateInvoiceModal({
       setSaving(true);
       setError(null);
 
+      const rangeStart = invoice.dateRange?.start || filteredEntries[0]?.startTime || new Date(0).toISOString();
+      const rangeEnd = invoice.dateRange?.end || new Date().toISOString();
+
       const res = await invoicesApi.create({
         invoiceNumber: invoiceNumber.trim(),
-        clientId,
+        clientId: clientId || undefined,
         projectIds,
-        dateRange: invoice.dateRange,
-        items: invoice.items,
+        dateRange: { start: rangeStart, end: rangeEnd },
+        items: invoice.items || [],
         subtotal: invoice.total,
         total: invoice.total,
         totalHours: invoice.totalHours,
@@ -95,7 +106,7 @@ export function CreateInvoiceModal({
         timeEntryIds: filteredEntries.map((e) => e._id),
         lineItemIds: lineItems.map((li) => li._id),
         notes: notes.trim() || undefined,
-        documentKind: isRetainer ? 'RETAINER_REPORT' : 'INVOICE',
+        documentKind: saveKind,
         retainerSummary: isRetainer ? invoice.retainerSummary : undefined,
       });
 
@@ -105,11 +116,29 @@ export function CreateInvoiceModal({
         err && typeof err === 'object' && 'response' in err
           ? (err as { response?: { data?: { message?: string } } }).response?.data?.message
           : undefined;
-      setError(msg || 'Failed to create invoice');
+      setError(msg || 'Failed to save document');
     } finally {
       setSaving(false);
     }
   };
+
+  const title = isRetainer
+    ? 'Save retainer report'
+    : isDataReport
+      ? 'Save data report'
+      : 'Create Invoice';
+  const subtitle = isRetainer
+    ? 'Files in the Reports library (no payment link)'
+    : isDataReport
+      ? 'Snapshot of this slice in the Reports library'
+      : 'Save as a draft invoice record';
+  const submitLabel = saving
+    ? 'Saving...'
+    : isRetainer
+      ? 'Save draft report'
+      : isDataReport
+        ? 'Save data report'
+        : 'Create Draft Invoice';
 
   return (
     <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
@@ -120,14 +149,8 @@ export function CreateInvoiceModal({
               <FileText className="w-5 h-5 text-primary-600" />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-gray-900">
-                {isRetainer ? 'Save retainer report' : 'Create Invoice'}
-              </h2>
-              <p className="text-sm text-gray-500">
-                {isRetainer
-                  ? 'Stored like an invoice for PDF and history (no payment link)'
-                  : 'Save as a draft invoice record'}
-              </p>
+              <h2 className="text-lg font-bold text-gray-900">{title}</h2>
+              <p className="text-sm text-gray-500">{subtitle}</p>
             </div>
           </div>
           <button
@@ -152,9 +175,7 @@ export function CreateInvoiceModal({
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-gray-500">Date Range</span>
-              <span className="text-gray-700">
-                {invoice.dateRange.start} &mdash; {invoice.dateRange.end}
-              </span>
+              <span className="text-gray-700">{dateLabel}</span>
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-gray-500">Entries</span>
@@ -165,7 +186,7 @@ export function CreateInvoiceModal({
             </div>
             <div className="flex justify-between text-sm pt-2 border-t border-gray-200">
               <span className="font-medium text-gray-700">
-                {isRetainer ? 'Pass-through total' : 'Total'}
+                {isLibrary ? (isRetainer ? 'Pass-through total' : 'Snapshot total') : 'Total'}
               </span>
               <span className="text-lg font-bold text-gray-900">
                 {isRetainer && invoice.total === 0 ? '—' : formatCurrency(invoice.total)}
@@ -183,7 +204,7 @@ export function CreateInvoiceModal({
 
           <div>
             <label htmlFor="create-inv-number" className="block text-sm font-medium text-gray-700 mb-1">
-              {isRetainer ? 'Document number' : 'Invoice Number'}
+              {isLibrary ? 'Document number' : 'Invoice Number'}
             </label>
             <input
               id="create-inv-number"
@@ -204,7 +225,7 @@ export function CreateInvoiceModal({
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               rows={2}
-              placeholder="Internal notes about this invoice..."
+              placeholder={isLibrary ? 'Internal notes about this report...' : 'Internal notes about this invoice...'}
               className="input resize-none"
             />
           </div>
@@ -223,11 +244,7 @@ export function CreateInvoiceModal({
             disabled={saving || !invoiceNumber.trim()}
             className="btn-primary disabled:opacity-50"
           >
-            {saving
-              ? 'Saving...'
-              : isRetainer
-                ? 'Save draft report'
-                : 'Create Draft Invoice'}
+            {submitLabel}
           </button>
         </div>
       </div>

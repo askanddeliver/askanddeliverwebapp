@@ -16,6 +16,8 @@ Ask And Deliver is **Tenant #1** of a reusable **creative agency platform**. Mul
 - `docs/PLATFORM_EXPANSION_CONTEXTS.md`
 - `docs/PLATFORM_EXPANSION_PROMPTS.md`
 - `docs/SAAS_CONVERSION_BUILD_PLAN.md` (subscription + subdomain layer)
+- `docs/PROJECT_BILLING_MODES_BUILD_PLAN.md` (hourly / fixed / retainer documents)
+- `docs/REPORTS_WORKBENCH_BUILD_PLAN.md` (Reports IA, output libraries, remaining hours — discussion locks before implementation)
 
 ---
 
