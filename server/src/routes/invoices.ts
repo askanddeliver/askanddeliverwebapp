@@ -9,6 +9,7 @@ import {
   libraryDocumentKindMatch,
   parseDocumentKind,
   payableDocumentKindMatch,
+  payrollDocumentKindMatch,
 } from '../utils/invoiceKinds';
 import { createPaymentLink, isStripeEnabled } from '../lib/stripeClient';
 import { notifyInvoiceSentToClient } from '../lib/email';
@@ -75,7 +76,13 @@ router.get(
     const kindParam = typeof documentKind === 'string' ? documentKind : 'INVOICE';
     if (kindParam === 'library') {
       Object.assign(query, libraryDocumentKindMatch);
-    } else if (kindParam === 'RETAINER_REPORT' || kindParam === 'DATA_REPORT' || kindParam === 'BUDGET_REPORT') {
+    } else if (kindParam === 'payroll' || kindParam === 'PAY_STUB') {
+      Object.assign(query, payrollDocumentKindMatch);
+    } else if (
+      kindParam === 'RETAINER_REPORT' ||
+      kindParam === 'DATA_REPORT' ||
+      kindParam === 'BUDGET_REPORT'
+    ) {
       query.documentKind = kindParam;
     } else {
       Object.assign(query, payableDocumentKindMatch);
@@ -248,6 +255,8 @@ router.post(
       notes,
       documentKind: rawDocumentKind,
       retainerSummary: bodyRetainerSummary,
+      payeeName,
+      payeeEmail,
     } = req.body as {
       invoiceNumber?: string;
       clientId?: string;
@@ -264,6 +273,8 @@ router.post(
       notes?: string;
       documentKind?: InvoiceDocumentKind;
       retainerSummary?: IInvoiceRetainerSummary;
+      payeeName?: string;
+      payeeEmail?: string;
     };
 
     const documentKind = parseDocumentKind(rawDocumentKind);
@@ -273,9 +284,20 @@ router.post(
     if (documentKind === 'RETAINER_REPORT' && !clientId) {
       throw createError('A client is required to save a retainer report', 400);
     }
+    if (documentKind === 'PAY_STUB' && !(typeof payeeName === 'string' && payeeName.trim())) {
+      throw createError('A team member is required to save a pay stub', 400);
+    }
     if (!dateRange?.start || !dateRange?.end) throw createError('Date range is required', 400);
-    if (documentKind !== 'DATA_REPORT' && (!items || (items as unknown[]).length === 0)) {
-      throw createError('Invoice must have at least one item', 400);
+    if (
+      documentKind !== 'DATA_REPORT' &&
+      (!items || (items as unknown[]).length === 0)
+    ) {
+      throw createError(
+        documentKind === 'PAY_STUB'
+          ? 'Pay stub must have at least one earned-hours line'
+          : 'Invoice must have at least one item',
+        400
+      );
     }
 
     const client = clientId
@@ -339,9 +361,9 @@ router.post(
           }
         : {},
       clientInfo: {
-        name: client?.name || 'Multiple clients',
+        name: client?.name || (typeof payeeName === 'string' && payeeName.trim()) || 'Multiple clients',
         company: client?.company,
-        email: client?.email,
+        email: client?.email || (typeof payeeEmail === 'string' ? payeeEmail : undefined),
         businessEntity: client
           ? (client as typeof client & { businessEntity?: string }).businessEntity
           : undefined,

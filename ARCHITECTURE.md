@@ -2,12 +2,12 @@
 
 This document provides a comprehensive technical reference for the Ask And Deliver application. It is intended for future development context, onboarding, and AI-assisted coding sessions.
 
-## Current capabilities snapshot *(July 2026)*
+## Current capabilities snapshot *(September 2026)*
 
 **Baseline:** Production MERN app with Auth0 multi-tenant workspaces (admin / member / client / pending), MongoDB persistence, and Vercel + Railway split deployment.
 
 - **Time & projects** — Live/resume timer, manual entries, project tasks, dashboard to-dos; workspace-scoped data with role-based visibility (members hide financials).
-- **Billing** — Reports-driven preview; persistent `Invoice` records (`documentKind`: **INVOICE**, **RETAINER_REPORT**, **DATA_REPORT**, **BUDGET_REPORT**). `/invoices` is payable **INVOICE** only; `/reports/saved` is the library for the other kinds. DRAFT → SENT → PAID applies to invoices; **project billing modes** (HOURLY, FIXED_PRICE, HOUR_RETAINER); optional **Stripe Payment Links** (INVOICE only); optional **HOURLY budget burn** via `GET /api/projects/budget-burn`; CSV export and JSON backups (`/backups`: full + filter-preset graph).
+- **Billing** — Reports-driven preview; persistent `Invoice` records (`documentKind`: **INVOICE**, **RETAINER_REPORT**, **DATA_REPORT**, **BUDGET_REPORT**, **PAY_STUB**). `/invoices` is payable **INVOICE** only; `/reports/saved` is the library for utilization/data/budget; `/payroll` is pay stubs. DRAFT → SENT → PAID applies to invoices; **project billing modes** (HOURLY, FIXED_PRICE, HOUR_RETAINER); optional **Stripe Payment Links** (INVOICE only); optional **HOURLY budget burn** via `GET /api/projects/budget-burn`; CSV export and JSON backups (`/backups`: full + filter-preset graph).
 - **Commercial** — Client proposals (`Proposal` model); **workspace-scoped lead pipeline** with configurable intake forms, dynamic public renderer, and conversion to client + project.
 - **Platform expansion (Phases 1–9)** — **Member hub** (`/member/*`) with profile, disciplines, availability; **client portal** (`/portal/*`) with project briefs, client-visible tasks, per-project messaging; **admin command center** (pipeline, WIP, capacity widgets); **member assignment** on projects/tasks/leads; team capacity dashboard.
 - **Public site** — Portfolio (case studies, media, themes), marketing pages, dynamic or legacy contact intake, post-checkout `/invoices/paid` for Stripe returns.
@@ -251,8 +251,8 @@ User (auth0Id)
  │
  ├──> Invoice (userId, optional clientId)
  │     ├── invoiceNumber, status: DRAFT | SENT | PAID
- │     ├── documentKind: INVOICE | RETAINER_REPORT | DATA_REPORT | BUDGET_REPORT
- │     ├── payable INVOICE on /invoices; other kinds on /reports/saved (no Stripe)
+ │     ├── documentKind: INVOICE | RETAINER_REPORT | DATA_REPORT | BUDGET_REPORT | PAY_STUB
+ │     ├── payable INVOICE on /invoices; library kinds on /reports/saved; PAY_STUB on /payroll (no Stripe)
  │     ├── dateRange, companyInfo (snapshot), clientInfo (snapshot)
  │     ├── items (snapshot of line items at creation)
  │     ├── total, totalHours, totalEarned, totalMargin
@@ -344,10 +344,12 @@ isRunning: boolean (true = active timer)
 ```
 userId: string (workspace owner)
 invoiceNumber: string (auto-generated, e.g. 260322-1)
-clientId?: ObjectId → Client (optional on DATA_REPORT)
+clientId?: ObjectId → Client (optional on DATA_REPORT and PAY_STUB)
 projectIds: ObjectId[] → Project[]
-status: 'DRAFT' | 'SENT' | 'PAID'
-documentKind: 'INVOICE' | 'RETAINER_REPORT' | 'DATA_REPORT' | 'BUDGET_REPORT' (default INVOICE; non-INVOICE kinds file in /reports/saved; Stripe refused)
+status: 'DRAFT' | 'SENT' | 'PAID'  (SENT/PAID only for payable INVOICE)
+documentKind: 'INVOICE' | 'RETAINER_REPORT' | 'DATA_REPORT' | 'BUDGET_REPORT' | 'PAY_STUB'
+  (INVOICE → /invoices; RETAINER_REPORT | DATA_REPORT | BUDGET_REPORT → /reports/saved; PAY_STUB → /payroll; Stripe refused for non-INVOICE)
+retainerSummary?: { projects[] } (HOUR_RETAINER utilization snapshot; remaining as-of period end)
 dateRange: { start: Date, end: Date }
 companyInfo: { name, address, phone, email } (snapshot at creation)
 clientInfo: { name, company, email, businessEntity, address, paymentPreference } (snapshot)
@@ -360,6 +362,16 @@ lineItemIds: ObjectId[] → LineItem[]
 paymentLinkUrl?: string, stripePaymentLinkId?: string (Stripe Payment Links)
 sentAt?: Date, paidAt?: Date
 notes?: string
+```
+
+#### FilterPreset
+```
+userId: string (workspace owner, Pattern A)
+name: string
+kind: 'REPORT' | 'BACKUP'
+clientIds[], projectIds[], billingModes[], memberAuth0Ids[]
+datePreset?: All Time | This Month | … or custom startDate/endDate
+columnIds[], includeTimeEntries, includeEntryDescriptions
 ```
 
 ---
@@ -389,6 +401,7 @@ Auth0Provider
                                 ├── Entries, Projects (admin view)
                                 └── AdminRoute
                                      └── Clients, Leads, IntakeConfig, Reports,
+                                         Saved reports, Payroll, Backups,
                                          Invoices, Proposals, PortfolioAdmin,
                                          SiteConfig, Users
 ```
@@ -512,14 +525,22 @@ The `POST /api/reports/generate-invoice` endpoint:
 - **HOURLY** — Time-and-materials: task-type rollups, discounts, margin; optional `budget` supports **budget burn** (billed vs budget for a date range or all time) via `GET /api/projects/budget-burn?projectIds=…` (HOURLY + positive budget only).
 - **FIXED_PRICE** — Single line from `agreedAmount` (optional label); no hourly rollups for that project in the same run; Stripe totals align with the fixed fee when persisting.
 - **HOUR_RETAINER** — **Retainer utilization report**: hours by task type, no client dollar line items. Remaining on the document = pool (`retainerHoursTotal` + `retainerHoursAdjustment`) minus consumed **through the report `endDate`** (`remainingHours` / `remainingHoursAsOfEnd`). Live remaining (`remainingHoursLive`) is workbench-only. Existing saved reports keep their original snapshot until regenerated. Response uses `invoiceKind: 'RETAINER_REPORT'`, `documentKind: 'RETAINER_REPORT'`, and `retainerSummary` for UI; items may set `isRetainerUtilizationRow`. Saving files the snapshot in `/reports/saved`. Stripe payment links are not created for non-`INVOICE` kinds. See [docs/REPORTS_WORKBENCH_BUILD_PLAN.md](docs/REPORTS_WORKBENCH_BUILD_PLAN.md).
-- **Mixed billing types** — HTTP 200 with `invoiceKind: 'MIXED'`, empty `items`, `projectsByMode`, and `compatibleOutputs: ['csv', 'data_report']`. The workbench gates Invoice / Print, offers Split by mode, and can save a data report. Do not 400 the page.
+- **Mixed billing types** — HTTP 200 with `invoiceKind: 'MIXED'`, empty `items`, `projectsByMode`, and `compatibleOutputs: ['csv', 'data_report']` (plus `'pay_stub'` when exactly one member and a bounded date range). The workbench gates Invoice / Print, offers Split by mode, and can save a data report or pay stub. Do not 400 the page.
 - **CSV** (`POST /api/export/csv`) — Same client / project / date / billing-type / member filters as the workbench. Optional `columns[]` selects fields; `includeEntryDescriptions: false` omits Description. Internal earned/margin columns are available on CSV when selected; they are never printed on the client invoice PDF.
 
 ### Invoice Lifecycle
 
-Invoices are persistent records created from the Reports page preview. They snapshot financial data at creation time for tax/legal integrity while maintaining references to source entries for traceability.
+Invoices are persistent records created from the Reports workbench preview. They snapshot financial data at creation time for tax/legal integrity while maintaining references to source entries for traceability.
 
-**Status transitions:**
+**Kinds and destinations**
+
+| `documentKind` | List page | SENT / PAID / Stripe |
+|----------------|-----------|----------------------|
+| `INVOICE` (or missing) | `/invoices` | Yes |
+| `RETAINER_REPORT`, `DATA_REPORT`, `BUDGET_REPORT` | `/reports/saved` | No (stay DRAFT) |
+| `PAY_STUB` | `/payroll` | No (stay DRAFT) |
+
+**Status transitions (payable INVOICE only):**
 ```
 DRAFT ──→ SENT ──→ PAID
   ↑         │        │
@@ -673,7 +694,7 @@ askanddeliver.com (Vercel)  ──HTTPS──>  Railway (server)
 | `routes/projectMessages.ts` | `/api/projects/:projectId/messages` | checkJwt |
 | `routes/webhooks.ts` | `/api/webhooks/stripe` | Stripe signature (no JWT; raw body) |
 
-### Server Models (12 active)
+### Server Models (16 active)
 
 | File | Collection | Key Indexes |
 |------|-----------|-------------|
@@ -682,12 +703,15 @@ askanddeliver.com (Vercel)  ──HTTPS──>  Railway (server)
 | `models/Project.ts` | projects | `userId`, `{ userId, status }`, `{ userId, clientId }` |
 | `models/TaskType.ts` | tasktypes | `userId` |
 | `models/TimeEntry.ts` | timeentries | `userId`, `projectId`, `{ userId, isRunning }`, `invoiceId` |
-| `models/Invoice.ts` | invoices | `{ userId, status }`, `{ userId, createdAt }`, `{ userId, invoiceNumber }` (unique) |
+| `models/Invoice.ts` | invoices | `{ userId, status }`, `{ userId, createdAt }`, `{ userId, documentKind }`, `{ userId, invoiceNumber }` (unique) |
 | `models/Proposal.ts` | proposals | `{ userId, status }`, `{ userId, proposalNumber }` |
 | `models/ProjectTask.ts` | projecttasks | `{ projectId, order }`, `userId` |
+| `models/ProjectMessage.ts` | projectmessages | `{ projectId, createdAt }` |
+| `models/TimeBlock.ts` | timeblocks | `{ userId, startTime }` |
 | `models/LineItem.ts` | lineitems | `{ userId, clientId }`, `{ userId, date }` |
 | `models/FilterPreset.ts` | filterpresets | `{ userId, kind, name }` (unique), `{ userId, kind, updatedAt }` |
 | `models/Lead.ts` | leads | `{ status, createdAt }`, `email`, `createdAt` |
+| `models/IntakeForm.ts` | intakeforms | `{ userId, slug }` |
 | `models/PortfolioProject.ts` | portfolioprojects | `{ userId, slug }` (unique), `{ userId, published, order }`, `{ userId, published, featured }` |
 | `models/SiteConfig.ts` | siteconfigs | `userId` (unique) |
 | `models/Item.ts` | *(not mounted)* | Unexported in `models/index.ts` — MERN-starter stub; safe to delete |
@@ -700,7 +724,7 @@ askanddeliver.com (Vercel)  ──HTTPS──>  Railway (server)
 | `contexts/UserContext.tsx` | Role management | `isAdmin`, `isMember`, `isPending`, `user`, `refetch()` |
 | `contexts/AdminThemeContext.tsx` | Dynamic theming | `refresh()` (re-fetches and applies colors) |
 
-### Client Pages (20)
+### Client Pages (21)
 
 | Page | Route | Protection | Key Features |
 |------|-------|------------|-------------|
@@ -724,10 +748,11 @@ askanddeliver.com (Vercel)  ──HTTPS──>  Railway (server)
 | Profile | `/profile` | Auth | User profile management |
 | Clients | `/clients` | Admin | Client CRUD with discounts |
 | TaskTypes | `/task-types` | Admin | Task type CRUD + seeding |
-| Reports | `/reports` | Admin | Filter-rail workbench, billing preview, column catalog, named presets, CSV/PDF, create invoices, save data/retainer reports |
+| Reports | `/reports` | Admin | Filter-rail workbench, billing preview, column catalog, named presets, CSV/PDF, create invoices, save data/retainer/pay-stub |
 | Saved reports | `/reports/saved` | Admin | Library of RETAINER_REPORT / DATA_REPORT / BUDGET_REPORT; unfiled retainer-hours banner |
 | Backups | `/backups` | Admin | Full workspace JSON + preset-scoped related-graph downloads |
 | Invoices | `/invoices` | Admin | Payable INVOICE list, status, payment links, detail |
+| Payroll | `/payroll` | Admin | Pay stubs (earned rates × hours; no client rates) |
 | Proposals | `/proposals` | Admin | Proposal list, editor, preview, finalize |
 | Leads | `/leads` | Admin | Lead pipeline, conversion |
 | PortfolioAdmin | `/portfolio-admin` | Admin | Portfolio CRUD, media uploads, video embeds |
@@ -763,6 +788,24 @@ askanddeliver.com (Vercel)  ──HTTPS──>  Railway (server)
 | `toDateTimeLocal(dateStr)` | Convert to `datetime-local` input value |
 | `getTodayString()` | Today as `YYYY-MM-DD` |
 | `getDaysAgoString(days)` | N days ago as `YYYY-MM-DD` |
+| `getReportDateRange(preset)` | Workbench date chips (All Time, weeks Sunday–Saturday, This month through today) |
+| `toUTCStartOfDay` / `toUTCEndOfDay` | Local calendar day → UTC ISO for API filters |
+
+### Client (`client/src/utils/reportColumns.ts`)
+
+Column catalog ids, defaults, and visibility (strip earned/margin/running on client PDF).
+
+### Client (`client/src/utils/payStub.ts`)
+
+Roll `costBreakdown` into earned-only pay-stub line items (no client rates).
+
+### Server (`server/src/utils/invoiceKinds.ts`)
+
+Payable vs library vs payroll `documentKind` matchers for invoice list/stats/Stripe.
+
+### Server (`server/src/utils/reportColumns.ts`)
+
+CSV column allowlist shared with the workbench catalog.
 
 ### Client (`client/src/utils/videoEmbed.ts`)
 

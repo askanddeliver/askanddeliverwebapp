@@ -2,7 +2,12 @@ import mongoose, { Document, Schema } from 'mongoose';
 
 export type InvoiceStatus = 'DRAFT' | 'SENT' | 'PAID';
 
-export type InvoiceDocumentKind = 'INVOICE' | 'RETAINER_REPORT' | 'DATA_REPORT' | 'BUDGET_REPORT';
+export type InvoiceDocumentKind =
+  | 'INVOICE'
+  | 'RETAINER_REPORT'
+  | 'DATA_REPORT'
+  | 'BUDGET_REPORT'
+  | 'PAY_STUB';
 
 export interface IInvoiceCompanyInfo {
   name?: string;
@@ -151,7 +156,7 @@ const InvoiceSchema = new Schema<IInvoice>(
     },
     documentKind: {
       type: String,
-      enum: ['INVOICE', 'RETAINER_REPORT', 'DATA_REPORT', 'BUDGET_REPORT'],
+      enum: ['INVOICE', 'RETAINER_REPORT', 'DATA_REPORT', 'BUDGET_REPORT', 'PAY_STUB'],
       default: 'INVOICE',
     },
     retainerSummary: {

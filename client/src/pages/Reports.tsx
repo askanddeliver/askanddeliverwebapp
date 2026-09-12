@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Clock, DollarSign, TrendingUp, Wallet, FileText, List, Users, ChevronDown, ChevronUp, Plus, Hourglass } from 'lucide-react';
 import { useUserRole } from '../contexts/UserContext';
 import { InvoicePreview } from '../components/reports/InvoicePreview';
+import { PayStubPreview } from '../components/reports/PayStubPreview';
 import { ExportButtons } from '../components/reports/ExportButtons';
 import { LineItemsPanel } from '../components/reports/LineItemsPanel';
 import { MemberContributionsPanel } from '../components/reports/MemberContributionsPanel';
@@ -40,6 +41,11 @@ import {
   visibleReportColumns,
   type ReportColumnId,
 } from '../utils/reportColumns';
+import {
+  payStubHours,
+  payStubItemsFromCostBreakdown,
+  payStubTotal,
+} from '../utils/payStub';
 import type {
   Client,
   Project,
@@ -558,6 +564,20 @@ function Reports() {
     invoice?.invoiceKind === 'RETAINER_REPORT' &&
     (clientIds.length === 1 || Boolean(invoice?.client?._id));
   const canSaveDataReport = Boolean(invoice);
+  const payStubItems = useMemo(
+    () => payStubItemsFromCostBreakdown(invoice?.costBreakdown),
+    [invoice?.costBreakdown]
+  );
+  const payStubMember = useMemo(
+    () => users.find((u) => u.auth0Id === memberAuth0Ids[0]),
+    [users, memberAuth0Ids]
+  );
+  const canSavePayStub =
+    Boolean(invoice) &&
+    memberAuth0Ids.length === 1 &&
+    Boolean(startDate && endDate) &&
+    Boolean(payStubMember) &&
+    payStubItems.length > 0;
 
   const openSaveModal = (kind: InvoiceDocumentKind) => {
     setSaveKind(kind);
@@ -705,7 +725,22 @@ function Reports() {
               Save data report
             </button>
           )}
+          {canSavePayStub && (
+            <button
+              type="button"
+              onClick={() => openSaveModal('PAY_STUB')}
+              className="btn-secondary"
+            >
+              Save pay stub
+            </button>
+          )}
         </div>
+
+        {invoice && !canSavePayStub && (
+          <p className="text-xs text-gray-500">
+            To save a pay stub, pick exactly one person in People and a date range (not All Time).
+          </p>
+        )}
 
         {hasInvoiceDocument && invoice?.invoiceKind === 'FIXED_PRICE' && (
           <div className="rounded-lg border border-teal-200 bg-teal-50/90 px-4 py-3 text-sm text-teal-950">
@@ -1033,7 +1068,36 @@ function Reports() {
       )}
 
       {activeTab === 'members' && invoice?.costBreakdown && (
-        <div className="mb-6 print:hidden">
+        <div className="mb-6 print:hidden space-y-4">
+          {canSavePayStub && payStubMember && (
+            <div>
+              <div className="flex justify-end mb-3">
+                <button
+                  type="button"
+                  onClick={() => openSaveModal('PAY_STUB')}
+                  className="btn-primary"
+                >
+                  Save pay stub
+                </button>
+              </div>
+              <PayStubPreview
+                invoice={{
+                  ...invoice,
+                  items: payStubItems,
+                  total: payStubTotal(payStubItems),
+                  totalHours: payStubHours(payStubItems),
+                  client: {
+                    _id: payStubMember._id,
+                    name: payStubMember.name,
+                    email: payStubMember.email,
+                    taskDiscounts: {},
+                    createdAt: payStubMember.createdAt,
+                    updatedAt: payStubMember.updatedAt,
+                  },
+                }}
+              />
+            </div>
+          )}
           <MemberContributionsPanel
             costBreakdown={invoice.costBreakdown}
             totalBilled={invoice.total}
@@ -1081,12 +1145,18 @@ function Reports() {
           lineItems={lineItems}
           reportProjectIds={projectIds}
           saveKind={saveKind}
+          payeeName={payStubMember?.name}
+          payeeEmail={payStubMember?.email}
           onClose={() => setCreateModalOpen(false)}
           onCreated={(id) => {
             setCreateModalOpen(false);
-            navigate(
-              saveKind === 'INVOICE' ? `/invoices?created=${id}` : `/reports/saved?created=${id}`
-            );
+            const dest =
+              saveKind === 'INVOICE'
+                ? `/invoices?created=${id}`
+                : saveKind === 'PAY_STUB'
+                  ? `/payroll?created=${id}`
+                  : `/reports/saved?created=${id}`;
+            navigate(dest);
           }}
         />
       )}

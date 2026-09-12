@@ -30,6 +30,7 @@ import TaskTypes from './pages/TaskTypes';
 import TimeEntries from './pages/TimeEntries';
 import Reports from './pages/Reports';
 import SavedReports from './pages/SavedReports';
+import Payroll from './pages/Payroll';
 import Backups from './pages/Backups';
 import Invoices from './pages/Invoices';
 import Proposals from './pages/Proposals';
@@ -318,6 +319,18 @@ function App() {
             <ProtectedRoute>
               <AdminRoute>
                 <Backups />
+              </AdminRoute>
+            </ProtectedRoute>
+          </Layout>
+        }
+      />
+      <Route
+        path="/payroll"
+        element={
+          <Layout>
+            <ProtectedRoute>
+              <AdminRoute>
+                <Payroll />
               </AdminRoute>
             </ProtectedRoute>
           </Layout>

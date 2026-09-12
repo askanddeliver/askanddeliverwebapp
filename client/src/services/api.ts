@@ -460,7 +460,7 @@ export const invoicesApi = {
     startDate?: string;
     endDate?: string;
     search?: string;
-    documentKind?: InvoiceDocumentKind | 'library';
+    documentKind?: InvoiceDocumentKind | 'library' | 'payroll';
   }) => api.get<SavedInvoice[]>('/invoices', { params }),
   getOne: (id: string) => api.get<SavedInvoice>(`/invoices/${id}`),
   getStats: () => api.get<InvoiceStats>('/invoices/stats'),
@@ -481,6 +481,8 @@ export const invoicesApi = {
     notes?: string;
     documentKind?: InvoiceDocumentKind;
     retainerSummary?: Invoice['retainerSummary'];
+    payeeName?: string;
+    payeeEmail?: string;
   }) => api.post<SavedInvoice>('/invoices', data),
   update: (id: string, data: { invoiceNumber?: string; notes?: string }) =>
     api.put<SavedInvoice>(`/invoices/${id}`, data),

@@ -35,6 +35,7 @@ A full-featured time tracking, client management, and invoicing application buil
 - **Default seeding** — Pre-populate common task types on first use (Design $75, Development $100, Strategy $125, Meeting $50, Admin $0)
 
 ### Invoicing & Reports
+- **Reports workbench** — `/reports` filter rail (client, project, billing type, date including All Time, people, columns, named presets). Mixed billing types do not 400; save a data report or split by mode.
 - **Persistent invoices** — Create invoices from Reports preview; list, filter, and manage status (DRAFT → SENT → PAID) on the Invoices page (`documentKind: INVOICE` only). Auto-numbering and draft editing. Utilization, data, and budget snapshots live in **Saved reports** (`/reports/saved`)
 - **Online payment links (optional)** — When Stripe is configured, create a shareable Payment Link for a SENT invoice; successful checkout marks the invoice PAID via webhook; customers land on `/invoices/paid` after paying
 - **Invoice generation** — `POST /api/reports/generate-invoice` builds preview data from filters; **HOURLY** projects use task-type rollups with discounts and margin. **FIXED_PRICE** adds an agreed-fee line (no T&M for that project in the same document). **HOUR_RETAINER** produces a **retainer utilization** document (`documentKind` / preview `invoiceKind`: **RETAINER_REPORT**): hours in period and remaining pool **as of the report end date** (live remaining is workbench-only); saving files it in Saved reports. Stripe payment links are not offered for non-invoice kinds. See [docs/PROJECT_BILLING_MODES_BUILD_PLAN.md](docs/PROJECT_BILLING_MODES_BUILD_PLAN.md)
@@ -48,6 +49,7 @@ A full-featured time tracking, client management, and invoicing application buil
 - **Filter presets** — Save and re-apply named Reports filter sets (clients, projects, billing type, dates, people, columns, entry options)
 - **Backups** — `/backups` downloads a full workspace JSON (now including invoices, filter presets, and sanitized users) or a smaller dump from a saved filter set. Files are not stored in Mongo.
 - **Saved reports** — `/reports/saved` lists utilization, data, and budget snapshots. Payable invoices stay on `/invoices`.
+- **Payroll** — `/payroll` lists pay stubs saved from Reports (one member, earned rates × hours, no client billed rates). Date range required.
 
 ### Proposals (Admin)
 - **Client-linked proposals** — Create proposals tied to a client and optional project, with auto-numbering and DRAFT / FINALIZED status
@@ -194,9 +196,11 @@ askanddeliverwebapp/
 │   │   │   ├── Projects.tsx      # Project management
 │   │   │   ├── TaskTypes.tsx     # Task type configuration
 │   │   │   ├── TimeEntries.tsx   # Time entry list and management
-│   │   │   ├── Reports.tsx       # Invoice generation and reports
+│   │   │   ├── Reports.tsx       # Filter-rail workbench, preview, save invoice/report/stub
+│   │   │   ├── SavedReports.tsx  # Utilization / data / budget library
+│   │   │   ├── Payroll.tsx       # Pay stub library
 │   │   │   ├── Backups.tsx       # Full + preset-scoped JSON backups
-│   │   │   ├── Invoices.tsx      # Invoice list, detail, status, payment links
+│   │   │   ├── Invoices.tsx      # Payable invoices, status, payment links
 │   │   │   ├── Proposals.tsx     # Proposal list and editor (admin)
 │   │   │   ├── InvoicePaid.tsx   # Public post–Stripe-checkout thank-you
 │   │   │   ├── Leads.tsx         # Lead pipeline management
@@ -216,6 +220,8 @@ askanddeliverwebapp/
 │   │   ├── types/                # TypeScript type definitions
 │   │   ├── utils/
 │   │   │   ├── calculations.ts   # Duration formatting, discount math, date helpers
+│   │   │   ├── reportColumns.ts  # Workbench column catalog
+│   │   │   ├── payStub.ts        # Earned-only pay-stub lines
 │   │   │   └── videoEmbed.ts     # Vimeo/YouTube URL parsing, embed URLs, thumbnails
 │   │   ├── data/
 │   │   │   └── portfolioProjects.ts
@@ -231,11 +237,12 @@ askanddeliverwebapp/
 │   │   │   ├── taskTypes.ts      # Task type CRUD + seeding
 │   │   │   ├── timeEntries.ts    # Timer start/stop/continue, manual entry, CRUD
 │   │   │   ├── projectTasks.ts   # Project task CRUD + reorder
-│   │   │   ├── reports.ts        # Invoice generation + summary + margin tracking
-│   │   │   ├── invoices.ts       # Invoice CRUD, status, Stripe payment links
+│   │   │   ├── reports.ts        # Invoice/retainer/data preview, unfiled retainer hours, summary
+│   │   │   ├── invoices.ts       # Payable invoices + library/payroll list filters, Stripe
+│   │   │   ├── filterPresets.ts  # Named Reports/backup filter sets
 │   │   │   ├── proposals.ts      # Proposal CRUD + status (DRAFT/FINALIZED)
 │   │   │   ├── webhooks.ts       # Stripe webhook (checkout.session.completed)
-│   │   │   ├── export.ts         # CSV export + full JSON backup
+│   │   │   ├── export.ts         # CSV export + full/preset JSON backup
 │   │   │   ├── lineItems.ts      # Fixed-cost line item CRUD
 │   │   │   ├── portfolio.ts      # Portfolio CRUD + publish/feature/reorder/seed
 │   │   │   ├── leads.ts          # Lead pipeline + notes + conversion
@@ -250,7 +257,8 @@ askanddeliverwebapp/
 │   │   │   ├── TimeEntry.ts      # Time records with timer support
 │   │   │   ├── ProjectTask.ts    # Project sub-tasks with ordering
 │   │   │   ├── LineItem.ts       # Fixed-cost billing items
-│   │   │   ├── Invoice.ts        # Persistent invoices + Stripe link fields
+│   │   │   ├── FilterPreset.ts   # Named Reports/backup filter snapshots
+│   │   │   ├── Invoice.ts        # Persistent invoices + library reports + pay stubs + Stripe
 │   │   │   ├── Proposal.ts       # Client proposals (phases, investment, snapshots)
 │   │   │   ├── Lead.ts           # Lead pipeline with notes + conversion tracking
 │   │   │   ├── PortfolioProject.ts # Portfolio case studies with media
@@ -497,7 +505,7 @@ See [SETUP.md](SETUP.md) for detailed MongoDB Atlas, Auth0, Cloudinary, and Stri
 #### Invoices (Admin)
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| `GET` | `/api/invoices` | List documents (default: payable INVOICE; `documentKind=library` or a library kind; filters: status, clientId, startDate, endDate, search) |
+| `GET` | `/api/invoices` | List documents (default: payable INVOICE; `documentKind=library` or a library kind; `documentKind=payroll` or `PAY_STUB`; filters: status, clientId, startDate, endDate, search) |
 | `GET` | `/api/invoices/next-number` | Next auto-generated invoice number |
 | `GET` | `/api/invoices/stats` | Counts/totals by status (payable invoices only) |
 | `GET` | `/api/invoices/payment-link-config` | `{ enabled }` — whether Stripe payment links are configured |
@@ -630,7 +638,10 @@ Sub-tasks within a Project. Tracks `title`, `description`, `status`, `order`, `e
 Fixed-cost billing entries for non-hourly charges. Linked to a Client and optionally a Project. Tracks `description`, `amount`, `category` (e.g., Software/Plugin, Hosting, Subcontractor), and `date`. Included alongside time entries in invoices and CSV exports. Optional `invoiceId` when included on a SENT invoice.
 
 ### Invoice
-Workspace-scoped billing document created from Reports or API. Tracks `invoiceNumber`, `status` (DRAFT | SENT | PAID), `clientId`, `projectIds`, `dateRange`, snapshotted `companyInfo` and `clientInfo`, rolled-up `items`, totals (`totalHours`, `totalEarned`, `totalMargin`), `timeEntryIds`, `lineItemIds`, `sentAt`, `paidAt`, optional `paymentLinkUrl` and `stripePaymentLinkId` when using Stripe Payment Links.
+Workspace-scoped billing document created from the Reports workbench. Tracks `invoiceNumber`, `status` (DRAFT | SENT | PAID — SENT/PAID for payable invoices only), `documentKind` (`INVOICE` on `/invoices`; `RETAINER_REPORT` | `DATA_REPORT` | `BUDGET_REPORT` on `/reports/saved`; `PAY_STUB` on `/payroll`), optional `clientId`, `projectIds`, `dateRange`, snapshotted `companyInfo` and `clientInfo` (payee name on stubs), rolled-up `items`, totals (`totalHours`, `totalEarned`, `totalMargin`), `timeEntryIds`, `lineItemIds`, `sentAt`, `paidAt`, optional `paymentLinkUrl` and `stripePaymentLinkId` (INVOICE only).
+
+### FilterPreset
+Admin-owned named snapshot of Reports or backup filters (`kind: REPORT | BACKUP`): clients, projects, billing types, members, date preset or custom range, column ids, entry options. Pattern A `userId`.
 
 ### Proposal
 Admin-scoped client proposal with phases, investment, and DRAFT / FINALIZED status.

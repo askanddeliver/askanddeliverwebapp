@@ -17,7 +17,7 @@ This document is the **index** for the expansion program. Companion docs:
 | [CLIENT_PORTAL_DASHBOARD_BUILD_PLAN.md](./CLIENT_PORTAL_DASHBOARD_BUILD_PLAN.md) | Client dashboard v1 status, v1.1 roadmap, Resend hooks |
 | [PROJECT_HUB_BUILD_PLAN.md](./PROJECT_HUB_BUILD_PLAN.md) | Admin/member unified project detail — brief, tasks, entries, budget, messages, team |
 | [RESEND_NOTIFICATIONS_BUILD_PLAN.md](./RESEND_NOTIFICATIONS_BUILD_PLAN.md) | Transactional email — **RN-0–RN-3 shipped**, paused at RN-4 (triggers-by-action reference) |
-| [REPORTS_WORKBENCH_BUILD_PLAN.md](./REPORTS_WORKBENCH_BUILD_PLAN.md) | Reports landing rebuild — filter rail, output kinds, reports/payroll/backups libraries; retainer remaining-hours as-of period end |
+| [REPORTS_WORKBENCH_BUILD_PLAN.md](./REPORTS_WORKBENCH_BUILD_PLAN.md) | Reports workbench — **Phases 0–7 shipped** (September 2026): filter rail, output kinds, `/reports/saved`, `/payroll`, `/backups`; retainer remaining-hours as-of period end |
 
 **Related existing docs:** [SAAS_CONVERSION_BUILD_PLAN.md](./SAAS_CONVERSION_BUILD_PLAN.md) (subscription/multi-domain layer), [PROJECT_BILLING_MODES_BUILD_PLAN.md](./PROJECT_BILLING_MODES_BUILD_PLAN.md) (hourly / fixed / retainer documents), [REPORTS_WORKBENCH_BUILD_PLAN.md](./REPORTS_WORKBENCH_BUILD_PLAN.md) (Reports IA + remaining hours), [Design System Update/design_handoff_admin_redesign/](./Design%20System%20Update/design_handoff_admin_redesign/) (admin shell target), [Internal_Workspace_and_Block_Time_Concept.md](./Internal_Workspace_and_Block_Time_Concept.md), [BLOCK_TIME_AND_INTERNAL_WORKSPACE_BUILD_PLAN.md](./BLOCK_TIME_AND_INTERNAL_WORKSPACE_BUILD_PLAN.md).
 

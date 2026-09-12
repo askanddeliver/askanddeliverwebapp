@@ -29,7 +29,7 @@ client/                        # React frontend (Vite)
       projects/                # Project cards, list, modal
       projectTasks/            # Project task list, modal
       public/                  # Public layout, navbar, footer, lightbox
-      reports/                 # Invoice preview, filters, export, line items, member contributions
+      reports/                 # Invoice/retainer/pay-stub preview, filter rail, columns, presets, export
       taskTypes/               # Task type list, modal
       timer/                   # Timer display, controls, quick entry
       users/                   # User edit modal, add-by-email modal
@@ -53,6 +53,8 @@ client/                        # React frontend (Vite)
       index.ts                 # All TypeScript interfaces and type unions
     utils/
       calculations.ts          # Duration formatting, discount math, date helpers (incl. UTC day bounds)
+      reportColumns.ts         # Workbench column catalog (client PDF strips internal $)
+      payStub.ts               # Earned-only pay-stub line rollup
       videoEmbed.ts            # Vimeo/YouTube embed URLs and thumbnails
     data/                      # Static data helpers
     styles/
@@ -60,7 +62,7 @@ client/                        # React frontend (Vite)
 server/                        # Express backend
   src/
     routes/                    # 23 route modules + Stripe webhook (see below)
-    models/                    # 17 active Mongoose models (+ Item.ts stub, unexported; see Models)
+    models/                    # 16 active Mongoose models (+ Item.ts stub, unexported; see Models)
     middleware/
       auth.ts                  # checkJwt, extractUserId, requireAdmin, getWorkspaceOwnerId, optionalAuth, loadUser
       errorHandler.ts          # asyncHandler, createError, notFoundHandler, errorHandler
@@ -72,6 +74,8 @@ server/                        # Express backend
       stripeClient.ts          # Stripe Payment Links (optional)
     utils/
       calculations.ts          # getEffectiveRate, calculateAmount, formatDuration, formatCurrency, secondsToHours
+      invoiceKinds.ts          # Payable vs library vs payroll documentKind matchers
+      reportColumns.ts         # CSV column allowlist (shared with workbench catalog)
     types/
       index.ts                 # Server-side TypeScript types
 ```
@@ -97,10 +101,10 @@ This enables tracking what you charge clients vs. what you pay team members per 
 Each `Project` has `billingMode`: **HOURLY** (default), **FIXED_PRICE**, or **HOUR_RETAINER** — plus fields `agreedAmount` (fixed price), `retainerHoursTotal` / `retainerAdjustmentHours` (retainer pool), optional `fixedPriceInvoiceLabel`. Validation lives in `routes/projects.ts` (`assertProjectBillingValid`).
 
 - **Reports / `POST /api/reports/generate-invoice`** branches on selected projects’ modes (see `reports.ts`). HOURLY = existing T&M rollups. FIXED_PRICE = agreed-fee line (`isAgreedProjectFee`). HOUR_RETAINER = utilization-only rows (`isRetainerUtilizationRow`), `invoiceKind` / persisted **`documentKind`: `RETAINER_REPORT`**, `retainerSummary` in the JSON response for UI — no dollar billing lines for the client.
-- **`Invoice.documentKind`**: `INVOICE` | `RETAINER_REPORT` | `DATA_REPORT` | `BUDGET_REPORT`. `/invoices` lists payable `INVOICE` only (legacy rows with missing kind count as invoices). Utilization, data, and budget snapshots file in `/reports/saved`. Stripe Payment Links must refuse any non-`INVOICE` kind.
+- **`Invoice.documentKind`**: `INVOICE` | `RETAINER_REPORT` | `DATA_REPORT` | `BUDGET_REPORT` | `PAY_STUB`. `/invoices` lists payable `INVOICE` only (legacy rows with missing kind count as invoices). Utilization, data, and budget snapshots file in `/reports/saved`. Pay stubs file in `/payroll`. Stripe Payment Links must refuse any non-`INVOICE` kind.
 - **HOURLY budget burn**: `GET /api/projects/budget-burn` — eligible only for HOURLY projects with a positive `budget`; sums effective-rate billed amounts from time entries (optional date range).
 - **Retainer remaining:** remaining on a utilization **document** is **as of the report end date** (`pool + adjustment − consumed through endDate`). Live remaining (`remainingHoursLive`) may appear on the Reports workbench only, separately labeled. Do not use `Math.min` across projects for a remaining summary. Existing saved reports keep their original snapshot until regenerated.
-- **Reports workbench (Phase 1–5):** `/reports` uses a left **filter rail** (Client, Project, Billing type, Date range including All Time, People, column catalog, named presets). Mixed billing types return a split preview (no 400) and can save a **data report**. Invoice / retainer save is gated to a single billing type; retainer and data reports go to **Saved reports** (`/reports/saved`). Weeks are Sunday–Saturday; This month is through today. CSV / Time Entries tab / PDF appendix honor selected columns; earned / margin never print on the client PDF. Filter presets are admin-only Pattern A (`GET/POST /api/filter-presets`). **Backups** live at `/backups` (full JSON + preset-scoped related graph). Do not put Backup on the Reports invoice toolbar. See [docs/REPORTS_WORKBENCH_BUILD_PLAN.md](docs/REPORTS_WORKBENCH_BUILD_PLAN.md).
+- **Reports workbench (Phase 1–7):** `/reports` uses a left **filter rail** (Client, Project, Billing type, Date range including All Time, People, column catalog, named presets). Mixed billing types return a split preview (no 400) and can save a **data report**. Invoice / retainer save is gated to a single billing type; retainer and data reports go to **Saved reports** (`/reports/saved`). **Pay stub** (one member, earned rates × hours, no client rates) files in `/payroll`. Weeks are Sunday–Saturday; This month is through today. CSV / Time Entries tab / PDF appendix honor selected columns; earned / margin never print on the client PDF. Filter presets are admin-only Pattern A (`GET/POST /api/filter-presets`). **Backups** live at `/backups` (full JSON + preset-scoped related graph). Do not put Backup on the Reports invoice toolbar. See [docs/REPORTS_WORKBENCH_BUILD_PLAN.md](docs/REPORTS_WORKBENCH_BUILD_PLAN.md).
 
 Reference: [docs/PROJECT_BILLING_MODES_BUILD_PLAN.md](docs/PROJECT_BILLING_MODES_BUILD_PLAN.md), [docs/REPORTS_WORKBENCH_BUILD_PLAN.md](docs/REPORTS_WORKBENCH_BUILD_PLAN.md).
 
@@ -299,7 +303,7 @@ NewModelSchema.index({ userId: 1, createdAt: -1 });
 export const NewModel = mongoose.model<INewModel>('NewModel', NewModelSchema);
 ```
 
-## Models (17 active; Item.ts is an unexported starter stub)
+## Models (16 active; Item.ts is an unexported starter stub)
 
 | Model | Key Fields | Scoping |
 |-------|-----------|---------|
@@ -313,7 +317,7 @@ export const NewModel = mongoose.model<INewModel>('NewModel', NewModelSchema);
 | TimeBlock | startTime, endTime, kind, projectId, recurrenceRule | userId (Pattern A) |
 | LineItem | clientId, projectId, description, amount, category, date, invoiceId | userId (Pattern A) |
 | FilterPreset | name, kind REPORT\|BACKUP, clientIds, projectIds, billingModes, memberAuth0Ids, datePreset, startDate/endDate, columnIds, entry options | userId (Pattern A) |
-| Invoice | invoiceNumber, status, clientId, projectIds, items, totals, documentKind, paymentLinkUrl | userId (Pattern A) |
+| Invoice | invoiceNumber, status, clientId, projectIds, items, totals, documentKind (INVOICE / library / PAY_STUB), paymentLinkUrl | userId (Pattern A) |
 | Proposal | proposalNumber, title, clientId, projectId, status, phases, investment | userId (Pattern A) |
 | Lead | userId, responses, status, priority, notes, suggestedMemberAuth0Id, convertedClientId | userId (Pattern B) |
 | IntakeForm | slug, steps, fields, version, status (DRAFT/PUBLISHED) | userId (Pattern A) |
@@ -334,7 +338,7 @@ export const NewModel = mongoose.model<INewModel>('NewModel', NewModelSchema);
 | `/api/project-tasks` | projectTasks.ts | checkJwt; requireAdmin on writes | CRUD + reorder + assigneeAuth0Id |
 | `/api/time-blocks` | timeBlocks.ts | checkJwt | Calendar blocks, recurrence, launch-to-timer |
 | `/api/reports` | reports.ts | checkJwt + requireAdmin | Invoice preview data (discount + margin), unfiled retainer hours, summary stats |
-| `/api/invoices` | invoices.ts | checkJwt + requireAdmin | Payable invoice CRUD by default; `?documentKind=library` for saved reports; Stripe Payment Links on INVOICE only |
+| `/api/invoices` | invoices.ts | checkJwt + requireAdmin | Payable invoice CRUD by default; `?documentKind=library` for saved reports; `?documentKind=payroll` for pay stubs; Stripe Payment Links on INVOICE only |
 | `/api/proposals` | proposals.ts | checkJwt + requireAdmin | Proposal CRUD, DRAFT/FINALIZED |
 | `/api/export` | export.ts | checkJwt + requireAdmin | CSV export + full JSON workspace backup |
 | `/api/line-items` | lineItems.ts | checkJwt + requireAdmin | Fixed-cost item CRUD with date/project filtering |

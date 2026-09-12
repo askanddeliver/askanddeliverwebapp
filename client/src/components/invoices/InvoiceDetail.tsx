@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { InvoiceStatusBadge } from './InvoiceStatusBadge';
 import { InvoicePreview } from '../reports/InvoicePreview';
+import { PayStubPreview } from '../reports/PayStubPreview';
 import { EntryRow } from '../entries/EntryRow';
 import { invoicesApi, timeEntriesApi } from '../../services/api';
 import { formatCurrency, formatDate } from '../../utils/calculations';
@@ -28,6 +29,8 @@ function documentKindLabel(kind?: InvoiceDocumentKind): string {
       return 'Data report';
     case 'BUDGET_REPORT':
       return 'Budget report';
+    case 'PAY_STUB':
+      return 'Pay stub';
     default:
       return 'Invoice';
   }
@@ -215,6 +218,9 @@ export function InvoiceDetail({ invoice, onClose, onUpdated, onDeleted, libraryM
     paymentLinkUrl: invoice.paymentLinkUrl,
     retainerSummary: invoice.retainerSummary,
   };
+
+  const isPayStub = invoice.documentKind === 'PAY_STUB';
+  const DocumentPreview = isPayStub ? PayStubPreview : InvoicePreview;
 
   return (
     <>
@@ -514,7 +520,7 @@ export function InvoiceDetail({ invoice, onClose, onUpdated, onDeleted, libraryM
             {/* Financials summary */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
               <div className="bg-gray-50 rounded-xl p-3">
-                <p className="text-xs text-gray-500">Total</p>
+                <p className="text-xs text-gray-500">{isPayStub ? 'Earned' : 'Total'}</p>
                 <p className="text-lg font-bold text-gray-900">{formatCurrency(invoice.total)}</p>
               </div>
               <div className="bg-gray-50 rounded-xl p-3">
@@ -534,7 +540,7 @@ export function InvoiceDetail({ invoice, onClose, onUpdated, onDeleted, libraryM
             </div>
 
             {/* PDF options */}
-            {entries.length > 0 && (
+            {entries.length > 0 && !isPayStub && (
               <div className="flex flex-wrap items-center gap-4 mb-4 p-3 bg-gray-50 rounded-lg">
                 <span className="text-sm font-medium text-gray-700">PDF options:</span>
                 <label className="flex items-center gap-2 cursor-pointer">
@@ -563,7 +569,7 @@ export function InvoiceDetail({ invoice, onClose, onUpdated, onDeleted, libraryM
             )}
 
             {/* Invoice Preview */}
-            <InvoicePreview invoice={previewInvoice} />
+            <DocumentPreview invoice={previewInvoice} />
 
             {/* Linked entry IDs */}
             {(invoice.timeEntryIds.length > 0 || invoice.lineItemIds.length > 0) && (
@@ -603,9 +609,9 @@ export function InvoiceDetail({ invoice, onClose, onUpdated, onDeleted, libraryM
 
       {/* ── Print-only view (rendered outside the modal) ── */}
       <div className="hidden print:block print:overflow-visible print:bg-white">
-        <InvoicePreview invoice={previewInvoice} />
+        <DocumentPreview invoice={previewInvoice} />
 
-        {includeTimeEntries && entries.length > 0 && (
+        {includeTimeEntries && !isPayStub && entries.length > 0 && (
           <div className="mt-6 print:break-before-page">
             <h3 className="text-lg font-bold text-gray-900 mb-4">
               Time Entries ({entries.length})

@@ -466,7 +466,12 @@ export interface Invoice {
 // Saved Invoice (persisted record)
 export type InvoiceStatus = 'DRAFT' | 'SENT' | 'PAID';
 
-export type InvoiceDocumentKind = 'INVOICE' | 'RETAINER_REPORT' | 'DATA_REPORT' | 'BUDGET_REPORT';
+export type InvoiceDocumentKind =
+  | 'INVOICE'
+  | 'RETAINER_REPORT'
+  | 'DATA_REPORT'
+  | 'BUDGET_REPORT'
+  | 'PAY_STUB';
 
 export interface UnfiledRetainerHoursRow {
   projectId: string;

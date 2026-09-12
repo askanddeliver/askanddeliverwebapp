@@ -1,13 +1,13 @@
 # Reports Workbench — Build Plan
 
-**Status:** Phase 5 shipped (September 2026). Filter rail, mixed-mode gating, column catalog, named presets, `/backups`, and the Reports library vs Invoices split are in. Phase 6 is Payroll.  
+**Status:** Phases 0–7 shipped (September 2026). Remaining-hours formula, filter-rail workbench, column catalog, presets, `/backups`, Reports library vs Invoices, `/payroll` pay stubs, and this docs pass are in.  
 **Parent:** [PLATFORM_EXPANSION_BUILD_PLAN.md](./PLATFORM_EXPANSION_BUILD_PLAN.md)  
 **Related:** [PROJECT_BILLING_MODES_BUILD_PLAN.md](./PROJECT_BILLING_MODES_BUILD_PLAN.md), [PAYMENT_LINKS_BUILD_PLAN.md](./PAYMENT_LINKS_BUILD_PLAN.md)  
 **Fixture:** [Design System Update/reports_rebuild/askanddeliver-backup-2026-09-12.json](./Design%20System%20Update/reports_rebuild/askanddeliver-backup-2026-09-12.json)
 
 This document reimagines **Reports** as a filter-first workbench with separate libraries for the documents that workbench produces. It also records a **remaining-hours discrepancy** found on Battle Sports **Systems Web Support (Retainer)**.
 
-Do **not** implement Phases 1–6 from this doc until Phase 0 is complete and remaining locks for that phase are decided (see [Discussion locks](#discussion-locks)).
+Phases 0–7 are **shipped**. Use this file as the source of truth for remaining-hours math, output destinations, and discussion locks — not as an unimplemented redesign.
 
 ---
 
@@ -22,8 +22,8 @@ Do **not** implement Phases 1–6 from this doc until Phase 0 is complete and re
 7. [Output kinds and destinations](#output-kinds-and-destinations)
 8. [Column / data selections](#column--data-selections)
 9. [Multi-contributor invoices and payroll](#multi-contributor-invoices-and-payroll)
-10. [Data model (proposed)](#data-model-proposed)
-11. [API (proposed)](#api-proposed)
+10. [Data model](#data-model-shipped)
+11. [API](#api-shipped)
 12. [Frontend surfaces](#frontend-surfaces)
 13. [Relationship to billing modes](#relationship-to-billing-modes)
 14. [Discussion locks](#discussion-locks)
@@ -50,18 +50,33 @@ Product goals for the rebuild:
 
 ## Current state
 
-| Area | Behavior today |
+### Shipped (September 2026)
+
+| Area | Behavior |
+|------|----------|
+| **Workbench** | `/reports` — left filter rail (Client, Project, Billing type, Date including All Time, People, columns, presets, entry options). |
+| **Generate** | `POST /api/reports/generate-invoice` returns HTTP 200 for mixed modes (`invoiceKind: MIXED`, empty `items`, `compatibleOutputs`). Failed generate clears the stale preview. |
+| **Outputs** | CSV, Print (single billing type), Create Invoice, Save retainer report, Save data report, Save pay stub. Backup is on `/backups` only. |
+| **Libraries** | `/invoices` payable `INVOICE` only. `/reports/saved` utilization / data / budget. `/payroll` pay stubs. Stripe refused for non-`INVOICE`. |
+| **Remaining hours** | Document remaining = pool + adjustment − stopped entries with `startTime` ≤ period end. Live remaining is workbench-only. |
+| **Nav** | Time Tracking: Reports, Saved reports, Invoices, Payroll, Backups. |
+
+### Pre-rebuild snapshot (2026-09-12)
+
+The table below is the **pre-rebuild** Reports page that motivated this plan. Keep it for the remaining-hours investigation.
+
+| Area | Behavior then |
 |------|----------------|
 | **Route** | Single admin page `/reports` (`client/src/pages/Reports.tsx`). |
 | **Filters** | Multi-select clients + projects, start/end dates. Quick sets: Last 7 days, Last 30 days, This month. No All Time, Last Month, week sets, billing-type filter, member filter, or saved presets. |
-| **Generate** | Auto-runs on load. `POST /api/reports/generate-invoice` **rejects mixed `billingMode`** with a hard error. Failed generate **leaves the previous preview in place** (screenshot: mixed Chris Circo projects + leftover retainer remaining). |
+| **Generate** | Auto-runs on load. `POST /api/reports/generate-invoice` **rejects mixed `billingMode`** with a hard error. Failed generate **leaves the previous preview in place**. |
 | **Outputs on the same toolbar** | Export CSV, Print/PDF, Backup Data (full workspace JSON), Preview, Create Invoice / Save retainer report. |
 | **PDF options** | Include time entries; include entry descriptions. No column catalog. |
 | **Tabs** | Invoice preview · Time Entries · Member Contributions (`costBreakdown` from earned rates). |
-| **Backup** | `POST /api/export/backup` — full workspace dump of clients, projects, task types, project tasks, time entries, line items. **No invoices, users, presets, or filter-scoped backup.** Button lives on Reports. |
-| **Saved documents** | `Invoice` collection with `documentKind: INVOICE \| RETAINER_REPORT \| DATA_REPORT \| BUDGET_REPORT`. `/invoices` lists payable `INVOICE` only. `/reports/saved` lists library kinds. Stripe refused for non-INVOICE. |
-| **Payroll** | No pay-stub document. Member Contributions is preview-only. |
-| **Nav** | Sidebar under Time Tracking: Reports, Saved reports, Invoices, Backups. No Payroll yet. |
+| **Backup** | `POST /api/export/backup` — clients, projects, task types, project tasks, time entries, line items. No invoices, users, presets, or filter-scoped backup. Button lived on Reports. |
+| **Saved documents** | `Invoice` collection with `documentKind: INVOICE \| RETAINER_REPORT`. Both appeared on `/invoices`. Stripe refused for `RETAINER_REPORT`. |
+| **Payroll** | No pay-stub document. Member Contributions was preview-only. |
+| **Nav** | Sidebar: Reports + Invoices under Time Tracking. |
 
 `ReportFilters.tsx` is an older single-select client/project control; the live page inlines a checkbox multi-select instead. Treat `Reports.tsx` as source of truth.
 
@@ -263,28 +278,21 @@ Chris Circo retainer in the Sep 12 backup is **single-contributor**; multi-membe
 
 ---
 
-## Data model (proposed)
+## Data model (shipped)
 
-Subject to discussion locks.
+Option **A**: one `Invoice` collection; list pages filter by `documentKind`.
 
-### `FilterPreset` (new)
+### `FilterPreset`
 
-Workspace-scoped (`userId` = owner). Fields: `name`, `kind: 'REPORT' | 'BACKUP'`, `clientIds[]`, `projectIds[]`, `billingModes[]`, `memberAuth0Ids[]`, `datePreset` or `startDate`/`endDate`, `columnIds[]`, `includeTimeEntries`, `includeEntryDescriptions`.
+Workspace-scoped (`userId` = owner, Pattern A). Fields: `name`, `kind: 'REPORT' | 'BACKUP'`, `clientIds[]`, `projectIds[]`, `billingModes[]`, `memberAuth0Ids[]`, `datePreset` or `startDate`/`endDate`, `columnIds[]`, `includeTimeEntries`, `includeEntryDescriptions`. Unique `{ userId, kind, name }`.
 
-### `Invoice.documentKind` (widen or split)
+### `Invoice.documentKind`
 
-Today: `INVOICE | RETAINER_REPORT`.
-
-Options:
-
-- **A (minimal):** add `DATA_REPORT | BUDGET_REPORT | PAY_STUB`; list pages filter by kind. One persistence pipeline.
-- **B:** keep `Invoice` for payable docs only; new `SavedReport` and `PayStub` collections.
-
-Recommend **A** for v1 (one PDF/preview pipeline) with **library routes that filter kind** so Invoices does not list utilization or stubs.
+`INVOICE | RETAINER_REPORT | DATA_REPORT | BUDGET_REPORT | PAY_STUB`. `/invoices` lists payable `INVOICE` (legacy missing kind counts as invoice). `/reports/saved` lists library kinds. `/payroll` lists `PAY_STUB`. Stripe and SENT/PAID refused for non-`INVOICE`.
 
 ### Retainer snapshot
 
-Extend `retainerSummary.projects[]` with `consumedHoursThroughEnd`, `remainingHoursAsOfEnd`, and optional `consumedHoursAllTime` / `remainingHoursLive` for workbench only. Saved documents persist **as-of-end**.
+`retainerSummary.projects[]` includes `consumedHoursThroughEnd`, `remainingHoursAsOfEnd`, and optional `consumedHoursAllTime` / `remainingHoursLive` (workbench only). Saved documents persist **as-of-end**.
 
 ### Backup payload
 
@@ -292,16 +300,17 @@ Full backup should add `invoices` (and pay stubs if separate), `filterPresets`, 
 
 ---
 
-## API (proposed)
+## API (shipped)
 
 | Change | Notes |
 |--------|--------|
-| `POST /api/reports/preview` | Rename-or-alias `generate-invoice`; accept billingModes, memberIds, optional dates; **do not 400 the whole slice** for mixed modes — return `compatibleOutputs[]` + optional `split[]`. |
+| `POST /api/reports/generate-invoice` | Accepts billingModes, memberAuth0Ids, optional dates; mixed modes return 200 + `compatibleOutputs[]` (not renamed to `/preview`). |
 | Retainer remaining | Bound consumption by `endDate` (All Time → now). |
-| `GET/POST /api/filter-presets` | CRUD; `kind` REPORT vs BACKUP. |
-| `POST /api/export/backup` | Optional `presetId`; expand collections. |
-| `POST /api/payroll/preview` + persist | Earned-only; `requireAdmin`. |
-| CSV | Honor billing type, members, All Time. |
+| `GET/POST/PUT/DELETE /api/filter-presets` | CRUD; `kind` REPORT vs BACKUP. Pattern A, admin-only. |
+| `POST /api/export/backup` | Optional `presetId`; invoices, filterPresets, sanitized users. |
+| Pay stub persist | Same `POST /api/invoices` with `documentKind: PAY_STUB`; list via `GET /api/invoices?documentKind=payroll`. |
+| CSV | Honors billing type, members, All Time, column catalog. |
+| `GET /api/reports/unfiled-retainer-hours` | Banner on `/reports/saved`. |
 
 Workspace scoping: Pattern B (`getWorkspaceOwnerId`) for reports/export; Pattern A for invoices/presets owned by admin. Admin-only writes unchanged.
 
@@ -317,7 +326,7 @@ Workspace scoping: Pattern B (`getWorkspaceOwnerId`) for reports/export; Pattern
 | `/payroll` | Pay stubs. |
 | `/backups` | Full backup CTA + preset list + download history (v1 can be download-only, no stored blobs). |
 
-Sidebar: keep Reports + Invoices; add Payroll and Backups (admin). Breadcrumbs in `adminBreadcrumbs.ts`.
+Sidebar: Reports, Saved reports, Invoices, Payroll, Backups under Time Tracking. Breadcrumbs in `adminBreadcrumbs.ts`.
 
 Reuse `InvoicePreview` with kind-specific templates. New `ReportFilterRail` replaces the Filter & Export card. Move backup UI out of `ExportButtons.tsx`.
 
@@ -339,7 +348,7 @@ Open items still owned by the billing-modes doc: retainer reload subdocument vs 
 
 ## Discussion locks
 
-Confirmed **2026-09-12**. Remaining items stay open until the phase that needs them.
+Confirmed **2026-09-12**, with later phase decisions as noted. Lock **14** (contributor names on client PDF) remains open. All other locks for Phases 0–7 are decided.
 
 ### Remaining hours and retainers
 
@@ -351,9 +360,9 @@ Confirmed **2026-09-12**. Remaining items stay open until the phase that needs t
 ### IA and navigation
 
 5. **Where utilization lives — Decided (Phase 5).** Reports library (`/reports/saved`); Invoices = payable `INVOICE` only. Existing `RETAINER_REPORT` rows no longer appear on `/invoices`.
-6. **Pay stubs — Decided.** `/payroll` + `documentKind: PAY_STUB` (option A).
+6. **Pay stubs — Decided (Phase 6).** `/payroll` + `documentKind: PAY_STUB` (option A).
 7. **Data reports persist? — Decided (Phase 5).** Snapshot in the Reports library (`DATA_REPORT`).
-8. **Sidebar grouping** — Stay under Time Tracking vs a **Billing** section (Reports, Invoices, Payroll, Backups).
+8. **Sidebar grouping — Decided.** Stay under **Time Tracking** (Reports, Saved reports, Invoices, Payroll, Backups). No separate Billing section in v1.
 
 ### Filters and outputs
 
@@ -370,8 +379,8 @@ Confirmed **2026-09-12**. Remaining items stay open until the phase that needs t
 
 ### Payroll
 
-19. **Pay stub grouping** — One stub per member per date range vs per project.
-20. **Pay stub vs invoice period** — Independent vs “same slice as the client invoice just created.”
+19. **Pay stub grouping — Decided (Phase 6).** One stub per member for the workbench slice (all selected projects in the date range), not one stub per project.
+20. **Pay stub vs invoice period — Decided (Phase 6).** Independent workbench period. Date range is required (All Time is not valid for a stub). Not auto-tied to a just-created invoice.
 
 ---
 
@@ -385,8 +394,8 @@ Confirmed **2026-09-12**. Remaining items stay open until the phase that needs t
 | **3** | `FilterPreset` CRUD; apply/save from workbench. | #15 — **shipped** |
 | **4** | `/backups` screen: full backup + preset backups; expand backup payload. Remove Backup from invoice toolbar. | #16–#18 — **shipped** |
 | **5** | `/reports/saved` library; file utilization/budget/data reports there; Invoices lists `INVOICE` only. | #5, #7 — **shipped** |
-| **6** | `/payroll` + pay stub preview/persist from workbench. | #6, #19–#20 |
-| **7** | Docs pass: ARCHITECTURE, README, `.cursorrules`, billing-modes decided rules. | — |
+| **6** | `/payroll` + pay stub preview/persist from workbench. | #6, #19–#20 — **shipped** |
+| **7** | Docs pass: ARCHITECTURE, README, `.cursorrules`, billing-modes decided rules. | — **shipped** |
 
 Phase 0 can ship in a session of its own, before the redesign.
 
@@ -448,12 +457,12 @@ Use **one phase per PR**. Paste with `askanddeliverwebapp/` and this doc.
 
 | File | When |
 |------|------|
-| This doc | Flip locks; tick phases. |
-| `PROJECT_BILLING_MODES_BUILD_PLAN.md` | Remaining-hours formula; mixed-mode UX. |
-| `ARCHITECTURE.md` | Routes, `documentKind`, backup payload, remaining-hours. |
-| `README.md` | Reports workbench, libraries, backups. |
-| `.cursorrules` | Filter rail, libraries, remaining as-of-end. |
-| `PLATFORM_EXPANSION_BUILD_PLAN.md` | Keep this file in the companion table (already linked). |
+| This doc | Flip locks; tick phases. **Done (Phase 7).** |
+| `PROJECT_BILLING_MODES_BUILD_PLAN.md` | Remaining-hours formula; mixed-mode UX. **Done (Phase 7).** |
+| `ARCHITECTURE.md` | Routes, `documentKind`, backup payload, remaining-hours. **Done (Phase 7).** |
+| `README.md` | Reports workbench, libraries, backups. **Done (Phase 7).** |
+| `.cursorrules` | Filter rail, libraries, remaining as-of-end. **Done (Phase 7).** |
+| `PLATFORM_EXPANSION_BUILD_PLAN.md` | Companion table. **Done (Phase 7).** |
 
 ---
 
@@ -461,8 +470,11 @@ Use **one phase per PR**. Paste with `askanddeliverwebapp/` and this doc.
 
 | File | Role |
 |------|------|
-| `client/src/pages/Reports.tsx` | Workbench: rail, preview, tabs, invoice / retainer / data-report save. |
+| `client/src/pages/Reports.tsx` | Workbench: rail, preview, tabs, invoice / retainer / data-report / pay-stub save. |
 | `client/src/pages/SavedReports.tsx` | Reports library (`/reports/saved`); kind filter; unfiled retainer-hours banner. |
+| `client/src/pages/Payroll.tsx` | Pay stub library (`/payroll`). |
+| `client/src/components/reports/PayStubPreview.tsx` | Earned-only pay stub PDF (no client rates). |
+| `client/src/utils/payStub.ts` | Roll cost-breakdown into earned-only stub lines. |
 | `client/src/components/reports/ReportFilterRail.tsx` | Client / project / billing / dates / people / presets / entry options / columns. |
 | `client/src/components/reports/ReportColumnCatalog.tsx` | Grouped column checkboxes. |
 | `client/src/components/reports/ReportEntriesTable.tsx` | Column-aware entries table (tab + PDF appendix). |
@@ -477,5 +489,5 @@ Use **one phase per PR**. Paste with `askanddeliverwebapp/` and this doc.
 | `server/src/models/FilterPreset.ts` | Named filter + column snapshot; Pattern A `userId`. |
 | `server/src/routes/export.ts` | Backup (full or `presetId` graph) + CSV (billing type, members, All Time, columns). |
 | `server/src/routes/invoices.ts` | Persist preview; default list/stats payable-only; refuse Stripe and SENT on non-INVOICE. |
-| `server/src/utils/invoiceKinds.ts` | Payable vs library kind matchers. |
+| `server/src/utils/invoiceKinds.ts` | Payable vs library vs payroll kind matchers. |
 | `server/src/routes/reports.ts` | Preview + mixed `compatibleOutputs` including `data_report`; unfiled retainer hours. |

@@ -617,6 +617,9 @@ router.post(
       : invoiceKind === 'RETAINER_REPORT'
         ? ['csv', 'print', 'retainer_report', 'data_report']
         : ['csv', 'print', 'invoice', 'data_report'];
+    if (requestedMemberIds.length === 1 && !unboundedDates) {
+      compatibleOutputs.push('pay_stub');
+    }
 
     const roundedBreakdown = costBreakdown.map((r) => ({
       ...r,

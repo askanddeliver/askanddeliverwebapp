@@ -220,9 +220,9 @@ When implementing, update these in lockstep:
 - [ ] Default **HOURLY** projects behave exactly as before (invoice totals unchanged).
 - [ ] **FIXED_PRICE:** Preview and saved invoice total = `agreedAmount`; Stripe link uses same amount; internal margin still visible to admin.
 - [ ] **HOUR_RETAINER:** Hours decrement correctly; report shows disciplines/task types; no erroneous dollar total.
-- [ ] **HOUR_RETAINER remaining as-of-end:** Generating a prior-month utilization report *after* later-month hours exist does **not** pull those later hours into that month’s remaining (Battle Sports July vs August fixture in the workbench plan).
+- [x] **HOUR_RETAINER remaining as-of-end:** Generating a prior-month utilization report *after* later-month hours exist does **not** pull those later hours into that month’s remaining (Battle Sports July vs August fixture in the workbench plan). **Shipped** (workbench Phase 0).
 - [ ] **Migration:** Existing projects load; no undefined `billingMode` errors.
-- [ ] **Mixed mode:** UI blocks combining incompatible projects on one invoice (per [Decided product rules](#decided-product-rules)).
+- [x] **Mixed mode:** Workbench gates incompatible outputs and offers Split; generate returns 200 (not a blocking 400). **Shipped** (workbench Phase 1).
 
 ---
 
@@ -232,7 +232,7 @@ These are locked for implementation unless requirements change.
 
 1. **One commercial model per project** — A project has a single `billingMode`. You do not blend hourly + fixed + retainer inside one project.
 
-2. **One invoice / report per billing story** — Do not merge incompatible modes on a single invoice. Different projects (or different modes) → **separate** invoices or retainer reports. UI should avoid multi-project selection when it would mix modes.
+2. **One invoice / report per billing story** — Do not merge incompatible modes on a **payable invoice** or retainer report. The Reports workbench **allows mixed selection**: HTTP 200, empty invoice `items`, `compatibleOutputs` (CSV + data report; pay stub if one member and a date range), and **Split** into one preview per billing type. Do not 400 the page. See [REPORTS_WORKBENCH_BUILD_PLAN.md](./REPORTS_WORKBENCH_BUILD_PLAN.md).
 
 3. **Retainer hours (standing block + monthly reporting)** — The client pre-purchases a block (e.g. 40h). Time entries consume from that **standing total** over time. **Each month** (or any chosen date range), you generate a report that shows **activity in that period** (hours by discipline/task type) and **remaining hours as of the period end** (block + adjustments − time logged on the project **through that end date**). Live remaining (through now) belongs on the workbench, not as the number printed on a historical report. When hours run low, the **re-up** is a business conversation; the app supports recording additional hours via adjustment or reload history — not automated charging in v1.
 
@@ -251,7 +251,7 @@ These are locked for implementation unless requirements change.
 1. **Fixed price internal display:** Show full T&M “what it would have been” on a second PDF page vs. admin-only Reports screen.
 2. **`budget` on FIXED_PRICE:** Same as client agreed amount vs. separate internal cap (avoid double meaning).
 3. **Retainer reload:** New Mongo subdocument `reloads: [{ hours, date, note }]` vs. single `adjustment` number.
-4. **Invoice vs. report collection:** One `Invoice` collection with `documentKind`. Utilization, data, and budget reports file in `/reports/saved`; `/invoices` is payable-only. See [REPORTS_WORKBENCH_BUILD_PLAN.md](./REPORTS_WORKBENCH_BUILD_PLAN.md) (Phase 5 shipped).
+4. **Invoice vs. report collection:** One `Invoice` collection with `documentKind`. Utilization, data, and budget reports file in `/reports/saved`; `/invoices` is payable-only; pay stubs file in `/payroll` (`PAY_STUB`). See [REPORTS_WORKBENCH_BUILD_PLAN.md](./REPORTS_WORKBENCH_BUILD_PLAN.md) (Phases 5–6 shipped).
 
 ---
 
@@ -264,7 +264,7 @@ These are locked for implementation unless requirements change.
 | **3** | **HOUR_RETAINER:** Hour pool math; retainer summary endpoint or embedded in project; **utilization report** PDF/preview; optional reload/adjustment. |
 | **4** | **HOURLY burn:** Optional dashboard / card progress vs. dollar `budget`; warnings only. |
 | **5** | **Docs pass:** ARCHITECTURE, README, `.cursorrules`; polish copy; testing checklist sign-off. |
-| **Follow-on** | **Reports workbench** (filter rail, libraries, backups, payroll) is **not** part of billing-modes phases — see [REPORTS_WORKBENCH_BUILD_PLAN.md](./REPORTS_WORKBENCH_BUILD_PLAN.md). Remaining-hours as-of-end can ship as a billing-modes hotfix before that rebuild. |
+| **Follow-on** | **Reports workbench** (filter rail, libraries, backups, payroll) — **shipped** Phases 0–7 in [REPORTS_WORKBENCH_BUILD_PLAN.md](./REPORTS_WORKBENCH_BUILD_PLAN.md). Remaining-hours as-of-end shipped in that plan’s Phase 0. |
 
 ---
 
@@ -282,7 +282,7 @@ Use these as **sequential** implementation prompts (one phase per session or PR)
 
 ### Prompt 3 — Hour retainer utilization report
 
-> Implement **HOUR_RETAINER** per `docs/PROJECT_BILLING_MODES_BUILD_PLAN.md`. Compute hours consumed from time entries; remaining = `retainerHoursTotal + adjustment - consumed`. Add a **retainer utilization report** path (reuse invoice preview/PDF pipeline with a distinct template or `documentKind`): show hours by task type, remaining hours, no dollar total unless optional pass-through line items exist. Wire Reports UI to choose “Retainer report” when project mode is HOUR_RETAINER. Respect member visibility rules for rates.
+> Implement **HOUR_RETAINER** per `docs/PROJECT_BILLING_MODES_BUILD_PLAN.md`. Compute hours consumed from time entries; remaining on a **document** = `retainerHoursTotal + adjustment − consumed through the report endDate` (live remaining is workbench-only). Add a **retainer utilization report** path (reuse invoice preview/PDF pipeline with a distinct template or `documentKind`): show hours by task type, remaining hours, no dollar total unless optional pass-through line items exist. Wire Reports UI to choose “Retainer report” when project mode is HOUR_RETAINER. Respect member visibility rules for rates.
 
 ### Prompt 4 — HOURLY standing budget burn (optional)
 
