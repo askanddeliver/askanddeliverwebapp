@@ -7,6 +7,7 @@ import type { UserRole, UserStatus } from '../models/User';
 import { getAuth0UsersByEmail } from '../lib/auth0Management';
 import { notifyClientPortalInvite } from '../lib/email';
 import { validateMemberProfileFields } from '../lib/userProfile';
+import { parsePayoutPreference } from '../utils/payoutPreference';
 import {
   mergeNotificationPreferences,
   parseNotificationPreferencesUpdate,
@@ -193,21 +194,28 @@ router.put(
       ? mergeNotificationPreferences(existing?.notificationPreferences, notificationPatch)
       : existing?.notificationPreferences;
 
+    const payoutPreference = parsePayoutPreference(req.body?.payoutPreference);
+
+    const setFields: Record<string, unknown> = {
+      auth0Id,
+      email: email || existing?.email || `unknown-${auth0Id}@temp.local`,
+      name: name || existing?.name || 'User',
+      picture: picture ?? existing?.picture,
+      role,
+      workspaceOwnerId,
+      status: existing?.status ?? 'active',
+      ...profileUpdate,
+      ...(notificationPreferences !== undefined
+        ? { notificationPreferences }
+        : {}),
+      ...(payoutPreference ? { payoutPreference } : {}),
+    };
+
     const user = await User.findOneAndUpdate(
       { auth0Id },
-      {
-        auth0Id,
-        email: email || existing?.email || `unknown-${auth0Id}@temp.local`,
-        name: name || existing?.name || 'User',
-        picture: picture ?? existing?.picture,
-        role,
-        workspaceOwnerId,
-        status: existing?.status ?? 'active',
-        ...profileUpdate,
-        ...(notificationPreferences !== undefined
-          ? { notificationPreferences }
-          : {}),
-      },
+      payoutPreference === null
+        ? { $set: setFields, $unset: { payoutPreference: 1 } }
+        : { $set: setFields },
       {
         new: true,
         upsert: true,
@@ -450,8 +458,9 @@ router.put(
       throw createError('User not in your workspace', 403);
     }
 
-    const { role, status, earnedRates } = req.body;
+    const { role, status, earnedRates, payoutPreference: payoutBody } = req.body;
     const update: Record<string, unknown> = {};
+    const unset: Record<string, number> = {};
 
     if (role !== undefined) {
       if (!['admin', 'member', 'client', 'pending'].includes(role)) {
@@ -477,13 +486,21 @@ router.put(
       }
       update.earnedRates = earnedRates;
     }
+    if (payoutBody !== undefined) {
+      const parsed = parsePayoutPreference(payoutBody);
+      if (parsed === null) unset.payoutPreference = 1;
+      else if (parsed) update.payoutPreference = parsed;
+    }
     if (role === 'member' && targetUser.workspaceOwnerId !== auth0Id) {
       update.workspaceOwnerId = auth0Id;
     }
 
     const updated = await User.findByIdAndUpdate(
       req.params.id,
-      update,
+      {
+        ...(Object.keys(update).length > 0 ? { $set: update } : {}),
+        ...(Object.keys(unset).length > 0 ? { $unset: unset } : {}),
+      },
       { new: true, runValidators: true }
     );
 

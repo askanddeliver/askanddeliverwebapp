@@ -18,8 +18,9 @@ import { InvoicePreview } from '../reports/InvoicePreview';
 import { PayStubPreview } from '../reports/PayStubPreview';
 import { EntryRow } from '../entries/EntryRow';
 import { invoicesApi, timeEntriesApi } from '../../services/api';
-import { formatCurrency, formatDate } from '../../utils/calculations';
-import type { SavedInvoice, Invoice, InvoiceDocumentKind, InvoiceStatus, TimeEntry } from '../../types';
+import { formatCurrency, formatDate, getTodayString } from '../../utils/calculations';
+import { formatPayoutMethod, PAYOUT_METHODS, PAYOUT_METHOD_LABELS } from '../../utils/payout';
+import type { SavedInvoice, Invoice, InvoiceDocumentKind, InvoiceStatus, TimeEntry, PayoutMethod } from '../../types';
 
 function documentKindLabel(kind?: InvoiceDocumentKind): string {
   switch (kind) {
@@ -56,12 +57,22 @@ export function InvoiceDetail({ invoice, onClose, onUpdated, onDeleted, libraryM
   const [confirmRevert, setConfirmRevert] = useState<InvoiceStatus | null>(null);
   const [stripePaymentLinksEnabled, setStripePaymentLinksEnabled] = useState<boolean | null>(null);
   const [paymentLinkCopied, setPaymentLinkCopied] = useState(false);
+  const [payoutMethod, setPayoutMethod] = useState<PayoutMethod | ''>('');
+  const [payoutPaidOn, setPayoutPaidOn] = useState(getTodayString());
+  const [payoutConfirmation, setPayoutConfirmation] = useState('');
 
   // Time entries for PDF
   const [entries, setEntries] = useState<TimeEntry[]>([]);
   const [loadingEntries, setLoadingEntries] = useState(false);
   const [includeTimeEntries, setIncludeTimeEntries] = useState(true);
   const [includeDescriptions, setIncludeDescriptions] = useState(false);
+
+  useEffect(() => {
+    const pref = invoice.payout;
+    setPayoutMethod(pref?.method || pref?.preferredMethod || '');
+    setPayoutPaidOn(pref?.paidAt ? pref.paidAt.slice(0, 10) : getTodayString());
+    setPayoutConfirmation(pref?.confirmation || '');
+  }, [invoice._id, invoice.payout]);
 
   useEffect(() => {
     if (libraryMode || invoice.status !== 'SENT') {
@@ -92,6 +103,33 @@ export function InvoiceDetail({ invoice, onClose, onUpdated, onDeleted, libraryM
         .finally(() => setLoadingEntries(false));
     }
   }, [invoice.timeEntryIds]);
+
+  const handlePayoutChange = async (status: 'PAID' | 'UNPAID') => {
+    try {
+      setLoading(true);
+      setError(null);
+      const res = await invoicesApi.updatePayout(
+        invoice._id,
+        status === 'UNPAID'
+          ? { status: 'UNPAID' }
+          : {
+              status: 'PAID',
+              method: (payoutMethod || undefined) as PayoutMethod | undefined,
+              confirmation: payoutConfirmation.trim() || undefined,
+              paidOn: payoutPaidOn || undefined,
+            }
+      );
+      onUpdated(res.data);
+    } catch (err: unknown) {
+      const msg =
+        err && typeof err === 'object' && 'response' in err
+          ? (err as { response?: { data?: { message?: string } } }).response?.data?.message
+          : undefined;
+      setError(msg || 'Failed to update payout');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleStatusChange = async (newStatus: InvoiceStatus) => {
     try {
@@ -271,7 +309,17 @@ export function InvoiceDetail({ invoice, onClose, onUpdated, onDeleted, libraryM
                   {invoice.clientInfo.name} &middot; Created {formatDate(invoice.createdAt)}
                 </p>
               </div>
-              {libraryMode ? (
+              {isPayStub ? (
+                <span
+                  className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${
+                    invoice.payout?.status === 'PAID'
+                      ? 'bg-green-100 text-green-800'
+                      : 'bg-amber-100 text-amber-800'
+                  }`}
+                >
+                  {invoice.payout?.status === 'PAID' ? 'Paid' : 'Unpaid'}
+                </span>
+              ) : libraryMode ? (
                 <span className="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-700">
                   {documentKindLabel(invoice.documentKind)}
                 </span>
@@ -305,7 +353,7 @@ export function InvoiceDetail({ invoice, onClose, onUpdated, onDeleted, libraryM
 
             {invoice.status === 'DRAFT' && (
               <>
-                {!libraryMode && (
+                {!libraryMode && !isPayStub && (
                   <button
                     onClick={() => handleStatusChange('SENT')}
                     disabled={loading}
@@ -325,7 +373,9 @@ export function InvoiceDetail({ invoice, onClose, onUpdated, onDeleted, libraryM
                   </button>
                 ) : (
                   <div className="flex items-center gap-2">
-                    <span className="text-sm text-red-600">Delete this draft?</span>
+                    <span className="text-sm text-red-600">
+                      {isPayStub ? 'Delete this pay stub?' : 'Delete this draft?'}
+                    </span>
                     <button
                       onClick={handleDelete}
                       disabled={loading}
@@ -462,6 +512,82 @@ export function InvoiceDetail({ invoice, onClose, onUpdated, onDeleted, libraryM
               {invoice.paidAt && <p>Paid {formatDate(invoice.paidAt)}</p>}
             </div>
           </div>
+
+          {isPayStub && (
+            <div className="px-6 py-4 border-b border-gray-100 space-y-3">
+              <h3 className="text-sm font-semibold text-gray-900">Payout</h3>
+              <p className="text-sm text-gray-600">
+                {invoice.payout?.preferredMethod && invoice.payout.preferredHandle
+                  ? `On profile: ${formatPayoutMethod(invoice.payout.preferredMethod)} · ${invoice.payout.preferredHandle}`
+                  : 'No payout method on their profile yet — pick how you paid below.'}
+              </p>
+              {invoice.payout?.status === 'PAID' ? (
+                <div className="flex flex-wrap items-center gap-3">
+                  <p className="text-sm text-gray-700">
+                    Paid {invoice.payout.paidAt ? formatDate(invoice.payout.paidAt) : ''}
+                    {invoice.payout.method ? ` via ${formatPayoutMethod(invoice.payout.method)}` : ''}
+                    {invoice.payout.confirmation ? ` · ${invoice.payout.confirmation}` : ''}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => handlePayoutChange('UNPAID')}
+                    disabled={loading}
+                    className="btn-secondary flex items-center gap-2 text-sm"
+                  >
+                    <RotateCcw className="w-4 h-4" />
+                    Mark unpaid
+                  </button>
+                </div>
+              ) : (
+                <div className="flex flex-wrap items-end gap-3">
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">Paid on</label>
+                    <input
+                      type="date"
+                      value={payoutPaidOn}
+                      onChange={(e) => setPayoutPaidOn(e.target.value)}
+                      className="input text-sm py-1.5"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">Method</label>
+                    <select
+                      value={payoutMethod}
+                      onChange={(e) => setPayoutMethod(e.target.value as PayoutMethod | '')}
+                      className="input text-sm py-1.5"
+                    >
+                      <option value="">Choose…</option>
+                      {PAYOUT_METHODS.map((id) => (
+                        <option key={id} value={id}>
+                          {PAYOUT_METHOD_LABELS[id]}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="min-w-[160px] flex-1">
+                    <label className="block text-xs text-gray-500 mb-1">Confirmation</label>
+                    <input
+                      type="text"
+                      value={payoutConfirmation}
+                      onChange={(e) => setPayoutConfirmation(e.target.value)}
+                      className="input text-sm py-1.5"
+                      placeholder="Optional reference"
+                      maxLength={120}
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handlePayoutChange('PAID')}
+                    disabled={loading || !payoutMethod}
+                    className="btn-primary flex items-center gap-2 text-sm bg-green-600 hover:bg-green-700"
+                  >
+                    <CheckCircle className="w-4 h-4" />
+                    Mark paid
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Invoice content */}
           <div className="p-6">

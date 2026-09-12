@@ -1,10 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { Wallet } from 'lucide-react';
 import { InvoiceDetail } from '../components/invoices/InvoiceDetail';
 import { invoicesApi } from '../services/api';
 import { formatCurrency, formatDate } from '../utils/calculations';
-import type { SavedInvoice } from '../types';
+import type { PayoutRecordStatus, SavedInvoice } from '../types';
 
 function Payroll() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -12,14 +12,20 @@ function Payroll() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [payoutFilter, setPayoutFilter] = useState<'ALL' | PayoutRecordStatus>('ALL');
   const [selected, setSelected] = useState<SavedInvoice | null>(null);
 
   const loadStubs = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
-      const params: { documentKind: 'payroll'; search?: string } = { documentKind: 'payroll' };
+      const params: {
+        documentKind: 'payroll';
+        search?: string;
+        payoutStatus?: PayoutRecordStatus;
+      } = { documentKind: 'payroll' };
       if (searchQuery.trim()) params.search = searchQuery.trim();
+      if (payoutFilter !== 'ALL') params.payoutStatus = payoutFilter;
       const res = await invoicesApi.getAll(params);
       setStubs(res.data || []);
     } catch (err) {
@@ -28,7 +34,7 @@ function Payroll() {
     } finally {
       setLoading(false);
     }
-  }, [searchQuery]);
+  }, [searchQuery, payoutFilter]);
 
   useEffect(() => {
     loadStubs();
@@ -61,8 +67,14 @@ function Payroll() {
         <div className="mb-6">
           <h1 className="text-3xl font-bold text-gray-900">Payroll</h1>
           <p className="text-gray-500 mt-1">
-            Pay stubs from the Reports workbench: one member, earned rates × hours, no client rates.
+            Pay stubs from the Reports workbench. Pay outside the app, then mark the stub paid.
           </p>
+          <Link
+            to="/reports"
+            className="inline-block mt-3 text-sm font-medium text-primary-700 hover:text-primary-800"
+          >
+            Create a stub on Reports →
+          </Link>
         </div>
 
         {error && (
@@ -79,6 +91,20 @@ function Payroll() {
             placeholder="Search stub # or member..."
             className="input text-sm py-1.5 max-w-[240px]"
           />
+          {(['ALL', 'UNPAID', 'PAID'] as const).map((id) => (
+            <button
+              key={id}
+              type="button"
+              onClick={() => setPayoutFilter(id === 'ALL' ? 'ALL' : id)}
+              className={`px-2.5 py-1 rounded-full text-xs ${
+                payoutFilter === id
+                  ? 'bg-primary-600 text-white'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              }`}
+            >
+              {id === 'ALL' ? 'All' : id === 'UNPAID' ? 'Unpaid' : 'Paid'}
+            </button>
+          ))}
         </div>
 
         {loading ? (
@@ -88,10 +114,15 @@ function Payroll() {
         ) : stubs.length === 0 ? (
           <div className="card text-center py-12">
             <Wallet className="w-10 h-10 text-gray-300 mx-auto mb-3" />
-            <p className="text-gray-500">No pay stubs yet.</p>
-            <p className="text-gray-400 text-sm mt-1">
-              Select one person and a date range on Reports, then save a pay stub.
+            <p className="text-gray-500">
+              {searchQuery || payoutFilter !== 'ALL' ? 'No stubs match these filters.' : 'No pay stubs yet.'}
             </p>
+            <p className="text-gray-400 text-sm mt-1">
+              On Reports: pick a date range (not All Time), check exactly one person in People, Preview, then Save pay stub.
+            </p>
+            <Link to="/reports" className="inline-block mt-4 text-sm font-medium text-primary-700 hover:text-primary-800">
+              Open Reports
+            </Link>
           </div>
         ) : (
           <div className="card divide-y divide-gray-100">
@@ -106,8 +137,14 @@ function Payroll() {
                     <span className="font-semibold text-gray-900 text-sm">
                       {doc.invoiceNumber}
                     </span>
-                    <span className="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600">
-                      Pay stub
+                    <span
+                      className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
+                        doc.payout?.status === 'PAID'
+                          ? 'bg-green-100 text-green-800'
+                          : 'bg-amber-100 text-amber-800'
+                      }`}
+                    >
+                      {doc.payout?.status === 'PAID' ? 'Paid' : 'Unpaid'}
                     </span>
                   </div>
                   <p className="text-sm text-gray-600 truncate">{doc.clientInfo.name}</p>

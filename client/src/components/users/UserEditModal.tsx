@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
-import type { User, TaskType } from '../../types';
+import type { User, TaskType, UserPayoutPreference } from '../../types';
+import { PayoutPreferenceFields } from '../profile/PayoutPreferenceFields';
+import { formatPayoutPreference } from '../../utils/payout';
 
 interface UserEditModalProps {
   user: User | null;
@@ -11,6 +13,7 @@ interface UserEditModalProps {
     role?: User['role'];
     status?: User['status'];
     earnedRates?: Record<string, number>;
+    payoutPreference?: UserPayoutPreference | null;
   }) => void;
 }
 
@@ -24,18 +27,32 @@ export function UserEditModal({
   const [role, setRole] = useState<User['role']>('member');
   const [status, setStatus] = useState<User['status']>('active');
   const [earnedRates, setEarnedRates] = useState<Record<string, number>>({});
+  const [payoutPreference, setPayoutPreference] = useState<UserPayoutPreference | null>(null);
 
   useEffect(() => {
     if (user) {
       setRole(user.role);
       setStatus(user.status);
       setEarnedRates(user.earnedRates || {});
+      setPayoutPreference(user.payoutPreference || null);
     }
   }, [user]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSave({ role, status, earnedRates });
+    onSave({
+      role,
+      status,
+      earnedRates,
+      payoutPreference:
+        payoutPreference?.method && payoutPreference.handle.trim()
+          ? {
+              method: payoutPreference.method,
+              handle: payoutPreference.handle.trim(),
+              notes: payoutPreference.notes?.trim() || undefined,
+            }
+          : null,
+    });
   };
 
   const handleRateChange = (taskTypeId: string, value: string) => {
@@ -134,6 +151,24 @@ export function UserEditModal({
                     </div>
                   ))}
                 </div>
+              </div>
+            )}
+
+            {(role === 'member' || role === 'admin') && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  How they get paid
+                </label>
+                <p className="text-xs text-gray-500 mb-2">
+                  {user.payoutPreference
+                    ? `On file: ${formatPayoutPreference(user.payoutPreference)}`
+                    : 'Not set — they can add this on their profile.'}
+                </p>
+                <PayoutPreferenceFields
+                  idPrefix="team-payout"
+                  value={payoutPreference}
+                  onChange={setPayoutPreference}
+                />
               </div>
             )}
 

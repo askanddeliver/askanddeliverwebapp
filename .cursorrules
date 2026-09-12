@@ -55,6 +55,7 @@ client/                        # React frontend (Vite)
       calculations.ts          # Duration formatting, discount math, date helpers (incl. UTC day bounds)
       reportColumns.ts         # Workbench column catalog (client PDF strips internal $)
       payStub.ts               # Earned-only pay-stub line rollup
+      payout.ts                # PayPal/Zelle/Venmo preference labels
       videoEmbed.ts            # Vimeo/YouTube embed URLs and thumbnails
     data/                      # Static data helpers
     styles/
@@ -307,7 +308,7 @@ export const NewModel = mongoose.model<INewModel>('NewModel', NewModelSchema);
 
 | Model | Key Fields | Scoping |
 |-------|-----------|---------|
-| User | auth0Id, email, name, role, workspaceOwnerId, clientId, disciplines, availability, earnedRates, status | By auth0Id |
+| User | auth0Id, email, name, role, workspaceOwnerId, clientId, disciplines, availability, earnedRates, payoutPreference, status | By auth0Id |
 | Client | name, company, email, isInternal, businessEntity, address, paymentPreference, taskDiscounts | userId (Pattern A) |
 | Project | clientId, title, status, budget, billingMode, assignedMemberIds | userId (Pattern B) |
 | TaskType | name, rate, color | userId (Pattern B) |
@@ -317,7 +318,7 @@ export const NewModel = mongoose.model<INewModel>('NewModel', NewModelSchema);
 | TimeBlock | startTime, endTime, kind, projectId, recurrenceRule | userId (Pattern A) |
 | LineItem | clientId, projectId, description, amount, category, date, invoiceId | userId (Pattern A) |
 | FilterPreset | name, kind REPORT\|BACKUP, clientIds, projectIds, billingModes, memberAuth0Ids, datePreset, startDate/endDate, columnIds, entry options | userId (Pattern A) |
-| Invoice | invoiceNumber, status, clientId, projectIds, items, totals, documentKind (INVOICE / library / PAY_STUB), paymentLinkUrl | userId (Pattern A) |
+| Invoice | invoiceNumber, status, clientId, projectIds, items, totals, documentKind (INVOICE / library / PAY_STUB), payout record on stubs, paymentLinkUrl | userId (Pattern A) |
 | Proposal | proposalNumber, title, clientId, projectId, status, phases, investment | userId (Pattern A) |
 | Lead | userId, responses, status, priority, notes, suggestedMemberAuth0Id, convertedClientId | userId (Pattern B) |
 | IntakeForm | slug, steps, fields, version, status (DRAFT/PUBLISHED) | userId (Pattern A) |
@@ -330,7 +331,7 @@ export const NewModel = mongoose.model<INewModel>('NewModel', NewModelSchema);
 | Mount Path | Module | Auth | Key Features |
 |-----------|--------|------|-------------|
 | `/api/health` | health.ts | None | Health check + detailed MongoDB/memory status |
-| `/api/users` | users.ts | checkJwt; requireAdmin on admin endpoints | Profile, team, add-by-email, invite-client, earned rates, account deletion |
+| `/api/users` | users.ts | checkJwt; requireAdmin on admin endpoints | Profile, team, add-by-email, invite-client, earned rates, payout preference, account deletion |
 | `/api/clients` | clients.ts | checkJwt + requireAdmin | CRUD with business entity, address, payment pref, task discounts |
 | `/api/projects` | projects.ts | checkJwt; requireAdmin on writes | CRUD, archive, status counts, assignedMemberIds |
 | `/api/task-types` | taskTypes.ts | checkJwt; requireAdmin on writes | CRUD + seed defaults |
@@ -338,7 +339,7 @@ export const NewModel = mongoose.model<INewModel>('NewModel', NewModelSchema);
 | `/api/project-tasks` | projectTasks.ts | checkJwt; requireAdmin on writes | CRUD + reorder + assigneeAuth0Id |
 | `/api/time-blocks` | timeBlocks.ts | checkJwt | Calendar blocks, recurrence, launch-to-timer |
 | `/api/reports` | reports.ts | checkJwt + requireAdmin | Invoice preview data (discount + margin), unfiled retainer hours, summary stats |
-| `/api/invoices` | invoices.ts | checkJwt + requireAdmin | Payable invoice CRUD by default; `?documentKind=library` for saved reports; `?documentKind=payroll` for pay stubs; Stripe Payment Links on INVOICE only |
+| `/api/invoices` | invoices.ts | checkJwt + requireAdmin | Payable invoice CRUD by default; `?documentKind=library` for saved reports; `?documentKind=payroll` for pay stubs; `PATCH /:id/payout` marks stubs paid manually; Stripe Payment Links on INVOICE only |
 | `/api/proposals` | proposals.ts | checkJwt + requireAdmin | Proposal CRUD, DRAFT/FINALIZED |
 | `/api/export` | export.ts | checkJwt + requireAdmin | CSV export + full JSON workspace backup |
 | `/api/line-items` | lineItems.ts | checkJwt + requireAdmin | Fixed-cost item CRUD with date/project filtering |

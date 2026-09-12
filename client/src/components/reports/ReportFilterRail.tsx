@@ -310,7 +310,9 @@ export function ReportFilterRail({
             getLabel={(m) => m.name || m.email}
             emptyHint="No team members loaded."
           />
-          <p className="text-xs text-gray-500 mt-1">Empty = all contributors</p>
+          <p className="text-xs text-gray-500 mt-1">
+            Empty = all contributors. Pay stubs need exactly one person and a date range (not All Time).
+          </p>
         </section>
 
         <section className="border-t border-gray-100 pt-4">

@@ -6,10 +6,11 @@ import {
   disciplineTaskKey,
   isOperationalDiscipline,
 } from '../../lib/disciplines';
-import type { AvailabilityDay, DisciplineDefinition, UserAvailability, UserEmailNotificationPreferences } from '../../types';
+import type { AvailabilityDay, DisciplineDefinition, UserAvailability, UserEmailNotificationPreferences, UserPayoutPreference } from '../../types';
 import EmailNotificationPreferences, {
   resolveEmailPreferences,
 } from '../../components/profile/EmailNotificationPreferences';
+import { PayoutPreferenceFields } from '../../components/profile/PayoutPreferenceFields';
 
 const WEEKDAYS: { id: AvailabilityDay; label: string }[] = [
   { id: 'mon', label: 'Mon' },
@@ -28,6 +29,7 @@ function MemberProfile() {
   const [selectedTasks, setSelectedTasks] = useState<string[]>([]);
   const [bio, setBio] = useState('');
   const [availability, setAvailability] = useState<UserAvailability>({});
+  const [payoutPreference, setPayoutPreference] = useState<UserPayoutPreference | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -50,6 +52,7 @@ function MemberProfile() {
       setSelectedTasks(user?.disciplineTasks || []);
       setBio(user?.bio || '');
       setAvailability(user?.availability || {});
+      setPayoutPreference(user?.payoutPreference || null);
       if (user && role) {
         setEmailPrefs(resolveEmailPreferences(role, user.notificationPreferences?.email));
       }
@@ -118,6 +121,13 @@ function MemberProfile() {
         disciplineTasks: selectedTasks,
         bio: bio.trim() || undefined,
         availability,
+        payoutPreference: payoutPreference?.method && payoutPreference.handle.trim()
+          ? {
+              method: payoutPreference.method,
+              handle: payoutPreference.handle.trim(),
+              notes: payoutPreference.notes?.trim() || undefined,
+            }
+          : null,
       });
       await refetch();
       setSaved(true);
@@ -339,6 +349,20 @@ function MemberProfile() {
             placeholder="School pickup Wed afternoons, etc."
           />
         </div>
+      </div>
+
+      <div className="card mb-6">
+        <h2 className="mb-1 text-lg font-semibold text-gray-900">How you get paid</h2>
+        <p className="mb-4 text-sm text-gray-500">
+          Admins use this when paying a stub. PayPal, Zelle, or Venmo — not bank account numbers.
+        </p>
+        <PayoutPreferenceFields
+          value={payoutPreference}
+          onChange={(next) => {
+            setPayoutPreference(next);
+            setSaved(false);
+          }}
+        />
       </div>
 
       {role && (

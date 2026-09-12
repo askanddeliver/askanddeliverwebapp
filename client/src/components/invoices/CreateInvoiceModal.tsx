@@ -19,6 +19,7 @@ interface CreateInvoiceModalProps {
   saveKind?: InvoiceDocumentKind;
   payeeName?: string;
   payeeEmail?: string;
+  payeeAuth0Id?: string;
   onClose: () => void;
   onCreated: (invoiceId: string) => void;
 }
@@ -32,6 +33,7 @@ export function CreateInvoiceModal({
   saveKind = 'INVOICE',
   payeeName,
   payeeEmail,
+  payeeAuth0Id,
   onClose,
   onCreated,
 }: CreateInvoiceModalProps) {
@@ -134,6 +136,7 @@ export function CreateInvoiceModal({
         retainerSummary: isRetainer ? invoice.retainerSummary : undefined,
         payeeName: isPayStub ? payeeName : undefined,
         payeeEmail: isPayStub ? payeeEmail : undefined,
+        payeeAuth0Id: isPayStub ? payeeAuth0Id : undefined,
       });
 
       onCreated(res.data._id);

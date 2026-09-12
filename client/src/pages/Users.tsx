@@ -96,6 +96,7 @@ function Users() {
     role?: User['role'];
     status?: User['status'];
     earnedRates?: Record<string, number>;
+    payoutPreference?: User['payoutPreference'] | null;
   }) => {
     if (!editingUser) return;
     try {

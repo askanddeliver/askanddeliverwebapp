@@ -1,4 +1,5 @@
 export { User, IUser } from './User';
+export type { IUserPayoutPreference, PayoutMethod as UserPayoutMethod } from './User';
 export { Client, IClient } from './Client';
 export { Project, IProject } from './Project';
 export type { ProjectBillingMode } from './Project';
@@ -33,8 +34,9 @@ export {
   IInvoiceClientInfo,
   IInvoiceRetainerSummary,
   IInvoiceRetainerSummaryProject,
+  IInvoicePayout,
 } from './Invoice';
-export type { InvoiceStatus, InvoiceDocumentKind } from './Invoice';
+export type { InvoiceStatus, InvoiceDocumentKind, PayoutRecordStatus, InvoicePayoutMethod } from './Invoice';
 export {
   Proposal,
   IProposal,

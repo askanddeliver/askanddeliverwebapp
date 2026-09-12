@@ -5,7 +5,8 @@ import { usersApi } from '../services/api';
 import EmailNotificationPreferences, {
   resolveEmailPreferences,
 } from '../components/profile/EmailNotificationPreferences';
-import type { UserEmailNotificationPreferences } from '../types';
+import { PayoutPreferenceFields } from '../components/profile/PayoutPreferenceFields';
+import type { UserEmailNotificationPreferences, UserPayoutPreference } from '../types';
 
 function Profile() {
   const { user: auth0User } = useAuth0();
@@ -17,6 +18,10 @@ function Profile() {
   const [emailSaving, setEmailSaving] = useState(false);
   const [emailSaved, setEmailSaved] = useState(false);
   const [emailError, setEmailError] = useState<string | null>(null);
+  const [payoutPreference, setPayoutPreference] = useState<UserPayoutPreference | null>(null);
+  const [payoutSaving, setPayoutSaving] = useState(false);
+  const [payoutSaved, setPayoutSaved] = useState(false);
+  const [payoutError, setPayoutError] = useState<string | null>(null);
 
   useEffect(() => {
     if (appUser?.name) setDisplayName(appUser.name);
@@ -27,6 +32,12 @@ function Profile() {
       setEmailPrefs(resolveEmailPreferences(role, appUser.notificationPreferences?.email));
     }
   }, [appUser, role]);
+
+  useEffect(() => {
+    if (appUser) {
+      setPayoutPreference(appUser.payoutPreference || null);
+    }
+  }, [appUser]);
 
   const user = auth0User;
 
@@ -48,6 +59,31 @@ function Profile() {
       setSaveError('Failed to update display name');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleSavePayout = async () => {
+    setPayoutSaving(true);
+    setPayoutSaved(false);
+    setPayoutError(null);
+    try {
+      await usersApi.updateMe({
+        payoutPreference:
+          payoutPreference?.method && payoutPreference.handle.trim()
+            ? {
+                method: payoutPreference.method,
+                handle: payoutPreference.handle.trim(),
+                notes: payoutPreference.notes?.trim() || undefined,
+              }
+            : null,
+      });
+      await refetch();
+      setPayoutSaved(true);
+    } catch (err) {
+      console.error('Failed to update payout preference:', err);
+      setPayoutError('Failed to save how you get paid');
+    } finally {
+      setPayoutSaving(false);
     }
   };
 
@@ -144,6 +180,28 @@ function Profile() {
           {saveError && (
             <p className="text-sm text-red-600">{saveError}</p>
           )}
+        </div>
+
+        <hr className="my-6" />
+
+        <div className="space-y-4">
+          <h3 className="text-lg font-bold text-gray-900">How you get paid</h3>
+          <p className="text-sm text-gray-500">
+            Used on pay stubs. PayPal, Zelle, or Venmo — not bank account numbers.
+          </p>
+          <PayoutPreferenceFields value={payoutPreference} onChange={setPayoutPreference} />
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={handleSavePayout}
+              disabled={payoutSaving}
+              className="btn-secondary"
+            >
+              {payoutSaving ? 'Saving…' : 'Save payout details'}
+            </button>
+            {payoutSaved && <span className="text-sm text-green-700">Saved.</span>}
+            {payoutError && <span className="text-sm text-red-600">{payoutError}</span>}
+          </div>
         </div>
 
         <hr className="my-6" />

@@ -572,12 +572,20 @@ function Reports() {
     () => users.find((u) => u.auth0Id === memberAuth0Ids[0]),
     [users, memberAuth0Ids]
   );
-  const canSavePayStub =
-    Boolean(invoice) &&
-    memberAuth0Ids.length === 1 &&
-    Boolean(startDate && endDate) &&
-    Boolean(payStubMember) &&
-    payStubItems.length > 0;
+  const payStubBlockedReason = !invoice
+    ? 'Preview a slice first.'
+    : memberAuth0Ids.length === 0
+      ? 'Select exactly one person in People (empty means everyone).'
+      : memberAuth0Ids.length > 1
+        ? 'Pay stubs are one person at a time — leave only one checked in People.'
+        : !startDate || !endDate
+          ? 'Pick a date range other than All Time (This month, Last month, or custom dates).'
+          : !payStubMember
+            ? 'That person is not on the team list.'
+            : payStubItems.length === 0
+              ? 'No earned hours for that person in this slice.'
+              : null;
+  const canSavePayStub = payStubBlockedReason === null;
 
   const openSaveModal = (kind: InvoiceDocumentKind) => {
     setSaveKind(kind);
@@ -725,20 +733,30 @@ function Reports() {
               Save data report
             </button>
           )}
-          {canSavePayStub && (
+          {invoice && (
             <button
               type="button"
               onClick={() => openSaveModal('PAY_STUB')}
-              className="btn-secondary"
+              disabled={!canSavePayStub}
+              title={payStubBlockedReason || 'Save an earned-only stub to Payroll'}
+              className="btn-secondary disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Save pay stub
             </button>
           )}
         </div>
 
-        {invoice && !canSavePayStub && (
-          <p className="text-xs text-gray-500">
-            To save a pay stub, pick exactly one person in People and a date range (not All Time).
+        {invoice && payStubBlockedReason && (
+          <p className="text-sm text-gray-600">
+            {payStubBlockedReason} Filed stubs live on{' '}
+            <button
+              type="button"
+              onClick={() => navigate('/payroll')}
+              className="text-primary-700 underline underline-offset-2"
+            >
+              Payroll
+            </button>
+            .
           </p>
         )}
 
@@ -1147,6 +1165,7 @@ function Reports() {
           saveKind={saveKind}
           payeeName={payStubMember?.name}
           payeeEmail={payStubMember?.email}
+          payeeAuth0Id={payStubMember?.auth0Id}
           onClose={() => setCreateModalOpen(false)}
           onCreated={(id) => {
             setCreateModalOpen(false);

@@ -7,7 +7,7 @@ This document provides a comprehensive technical reference for the Ask And Deliv
 **Baseline:** Production MERN app with Auth0 multi-tenant workspaces (admin / member / client / pending), MongoDB persistence, and Vercel + Railway split deployment.
 
 - **Time & projects** — Live/resume timer, manual entries, project tasks, dashboard to-dos; workspace-scoped data with role-based visibility (members hide financials).
-- **Billing** — Reports-driven preview; persistent `Invoice` records (`documentKind`: **INVOICE**, **RETAINER_REPORT**, **DATA_REPORT**, **BUDGET_REPORT**, **PAY_STUB**). `/invoices` is payable **INVOICE** only; `/reports/saved` is the library for utilization/data/budget; `/payroll` is pay stubs. DRAFT → SENT → PAID applies to invoices; **project billing modes** (HOURLY, FIXED_PRICE, HOUR_RETAINER); optional **Stripe Payment Links** (INVOICE only); optional **HOURLY budget burn** via `GET /api/projects/budget-burn`; CSV export and JSON backups (`/backups`: full + filter-preset graph).
+- **Billing** — Reports-driven preview; persistent `Invoice` records (`documentKind`: **INVOICE**, **RETAINER_REPORT**, **DATA_REPORT**, **BUDGET_REPORT**, **PAY_STUB**). `/invoices` is payable **INVOICE** only; `/reports/saved` is the library for utilization/data/budget; `/payroll` is pay stubs (manual payout record; Stripe Connect later). DRAFT → SENT → PAID applies to invoices; **project billing modes** (HOURLY, FIXED_PRICE, HOUR_RETAINER); optional **Stripe Payment Links** (INVOICE only); optional **HOURLY budget burn** via `GET /api/projects/budget-burn`; CSV export and JSON backups (`/backups`: full + filter-preset graph).
 - **Commercial** — Client proposals (`Proposal` model); **workspace-scoped lead pipeline** with configurable intake forms, dynamic public renderer, and conversion to client + project.
 - **Platform expansion (Phases 1–9)** — **Member hub** (`/member/*`) with profile, disciplines, availability; **client portal** (`/portal/*`) with project briefs, client-visible tasks, per-project messaging; **admin command center** (pipeline, WIP, capacity widgets); **member assignment** on projects/tasks/leads; team capacity dashboard.
 - **Public site** — Portfolio (case studies, media, themes), marketing pages, dynamic or legacy contact intake, post-checkout `/invoices/paid` for Stripe returns.
@@ -311,6 +311,7 @@ disciplineTasks?: string[] (composite keys disciplineId:taskId)
 availability?: { hoursPerWeek, preferredDays, timezone, outOfOffice?, notes? }
 bio?: string
 earnedRates?: Record<string, number> (taskTypeId → earned hourly rate)
+payoutPreference?: { method: PAYPAL | ZELLE | VENMO | OTHER, handle, notes? } (no bank account numbers)
 invitedBy?: string
 ```
 
@@ -361,6 +362,7 @@ timeEntryIds: ObjectId[] → TimeEntry[]
 lineItemIds: ObjectId[] → LineItem[]
 paymentLinkUrl?: string, stripePaymentLinkId?: string (Stripe Payment Links)
 sentAt?: Date, paidAt?: Date
+payout?: { status UNPAID|PAID, payeeAuth0Id?, preferredMethod/Handle snapshot, paidAt?, method?, confirmation? } (PAY_STUB only; manual, not Stripe)
 notes?: string
 ```
 
@@ -538,7 +540,7 @@ Invoices are persistent records created from the Reports workbench preview. They
 |----------------|-----------|----------------------|
 | `INVOICE` (or missing) | `/invoices` | Yes |
 | `RETAINER_REPORT`, `DATA_REPORT`, `BUDGET_REPORT` | `/reports/saved` | No (stay DRAFT) |
-| `PAY_STUB` | `/payroll` | No (stay DRAFT) |
+| `PAY_STUB` | `/payroll` | Stay DRAFT. Manual `payout.status` UNPAID/PAID (not Stripe) |
 
 **Status transitions (payable INVOICE only):**
 ```
@@ -798,6 +800,14 @@ Column catalog ids, defaults, and visibility (strip earned/margin/running on cli
 ### Client (`client/src/utils/payStub.ts`)
 
 Roll `costBreakdown` into earned-only pay-stub line items (no client rates).
+
+### Client (`client/src/utils/payout.ts`)
+
+PayPal / Zelle / Venmo / Other labels for member payout preferences (no bank numbers).
+
+### Server (`server/src/utils/payoutPreference.ts`)
+
+Parse and validate `payoutPreference` (reject digit-only account-like handles).
 
 ### Server (`server/src/utils/invoiceKinds.ts`)
 

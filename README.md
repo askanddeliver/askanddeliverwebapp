@@ -505,14 +505,15 @@ See [SETUP.md](SETUP.md) for detailed MongoDB Atlas, Auth0, Cloudinary, and Stri
 #### Invoices (Admin)
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| `GET` | `/api/invoices` | List documents (default: payable INVOICE; `documentKind=library` or a library kind; `documentKind=payroll` or `PAY_STUB`; filters: status, clientId, startDate, endDate, search) |
+| `GET` | `/api/invoices` | List documents (default: payable INVOICE; `documentKind=library` or a library kind; `documentKind=payroll` or `PAY_STUB`; filters: status, clientId, startDate, endDate, search, payoutStatus on stubs) |
 | `GET` | `/api/invoices/next-number` | Next auto-generated invoice number |
 | `GET` | `/api/invoices/stats` | Counts/totals by status (payable invoices only) |
 | `GET` | `/api/invoices/payment-link-config` | `{ enabled }` — whether Stripe payment links are configured |
 | `POST` | `/api/invoices/:id/create-payment-link` | Create Stripe Payment Link for a SENT invoice (503 if Stripe unset) |
 | `GET` | `/api/invoices/:id` | Single invoice with populated client/projects |
 | `POST` | `/api/invoices` | Create invoice from preview payload |
-| `PATCH` | `/api/invoices/:id/status` | Transition DRAFT/SENT/PAID (links/unlinks time entries and line items) |
+| `PATCH` | `/api/invoices/:id/status` | Transition DRAFT/SENT/PAID (links/unlinks time entries and line items; refused for PAY_STUB) |
+| `PATCH` | `/api/invoices/:id/payout` | Mark a pay stub PAID or UNPAID (method, date, optional confirmation) |
 | `PUT` | `/api/invoices/:id` | Update DRAFT invoice (number, notes) |
 | `DELETE` | `/api/invoices/:id` | Delete DRAFT invoice |
 
@@ -614,7 +615,7 @@ See [SETUP.md](SETUP.md) for detailed MongoDB Atlas, Auth0, Cloudinary, and Stri
 ## Data Models
 
 ### User
-Auth0-linked user profile with `auth0Id`, `email`, `name`, `picture`, and `nickname`. Roles: **admin**, **member**, **client**, **pending**. Members have `workspaceOwnerId`; clients have `clientId`. Profile fields: `disciplines`, `disciplineTasks`, `availability`, `bio`. Admins set `earnedRates` for margin tracking.
+Auth0-linked user profile with `auth0Id`, `email`, `name`, `picture`, and `nickname`. Roles: **admin**, **member**, **client**, **pending**. Members have `workspaceOwnerId`; clients have `clientId`. Profile fields: `disciplines`, `disciplineTasks`, `availability`, `bio`, `payoutPreference` (PayPal/Zelle/Venmo handle — not bank numbers). Admins set `earnedRates` for margin tracking.
 
 ### Lead
 Workspace-scoped pipeline record with `userId` (workspace owner). Top-level intake columns plus `responses` (dynamic answers), `suggestedMemberAuth0Id`, status/priority, notes, and conversion links (`convertedClientId`, `convertedProjectId`).
@@ -638,7 +639,7 @@ Sub-tasks within a Project. Tracks `title`, `description`, `status`, `order`, `e
 Fixed-cost billing entries for non-hourly charges. Linked to a Client and optionally a Project. Tracks `description`, `amount`, `category` (e.g., Software/Plugin, Hosting, Subcontractor), and `date`. Included alongside time entries in invoices and CSV exports. Optional `invoiceId` when included on a SENT invoice.
 
 ### Invoice
-Workspace-scoped billing document created from the Reports workbench. Tracks `invoiceNumber`, `status` (DRAFT | SENT | PAID — SENT/PAID for payable invoices only), `documentKind` (`INVOICE` on `/invoices`; `RETAINER_REPORT` | `DATA_REPORT` | `BUDGET_REPORT` on `/reports/saved`; `PAY_STUB` on `/payroll`), optional `clientId`, `projectIds`, `dateRange`, snapshotted `companyInfo` and `clientInfo` (payee name on stubs), rolled-up `items`, totals (`totalHours`, `totalEarned`, `totalMargin`), `timeEntryIds`, `lineItemIds`, `sentAt`, `paidAt`, optional `paymentLinkUrl` and `stripePaymentLinkId` (INVOICE only).
+Workspace-scoped billing document created from the Reports workbench. Tracks `invoiceNumber`, `status` (DRAFT | SENT | PAID — SENT/PAID for payable invoices only), `documentKind` (`INVOICE` on `/invoices`; `RETAINER_REPORT` | `DATA_REPORT` | `BUDGET_REPORT` on `/reports/saved`; `PAY_STUB` on `/payroll`), optional `clientId`, `projectIds`, `dateRange`, snapshotted `companyInfo` and `clientInfo` (payee name on stubs), rolled-up `items`, totals (`totalHours`, `totalEarned`, `totalMargin`), `timeEntryIds`, `lineItemIds`, `sentAt`, `paidAt`, optional `payout` on pay stubs (manual UNPAID/PAID — not Stripe), optional `paymentLinkUrl` and `stripePaymentLinkId` (INVOICE only).
 
 ### FilterPreset
 Admin-owned named snapshot of Reports or backup filters (`kind: REPORT | BACKUP`): clients, projects, billing types, members, date preset or custom range, column ids, entry options. Pattern A `userId`.

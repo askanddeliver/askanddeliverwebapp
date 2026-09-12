@@ -28,6 +28,25 @@ export interface UserNotificationPreferences {
   email?: UserEmailNotificationPreferences;
 }
 
+export type PayoutMethod = 'PAYPAL' | 'ZELLE' | 'VENMO' | 'OTHER';
+export type PayoutRecordStatus = 'UNPAID' | 'PAID';
+
+export interface UserPayoutPreference {
+  method: PayoutMethod;
+  handle: string;
+  notes?: string;
+}
+
+export interface InvoicePayout {
+  status: PayoutRecordStatus;
+  payeeAuth0Id?: string;
+  preferredMethod?: PayoutMethod;
+  preferredHandle?: string;
+  paidAt?: string;
+  method?: PayoutMethod;
+  confirmation?: string;
+}
+
 export interface User {
   _id: string;
   auth0Id: string;
@@ -41,6 +60,7 @@ export interface User {
   disciplineTasks?: string[];
   availability?: UserAvailability;
   bio?: string;
+  payoutPreference?: UserPayoutPreference;
   earnedRates?: Record<string, number>;
   notificationPreferences?: UserNotificationPreferences;
   status: UserStatus;
@@ -509,6 +529,7 @@ export interface SavedInvoice {
   lineItemIds: string[];
   sentAt?: string;
   paidAt?: string;
+  payout?: InvoicePayout;
   paymentLinkUrl?: string;
   stripePaymentLinkId?: string;
   notes?: string;

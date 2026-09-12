@@ -9,6 +9,20 @@ export type InvoiceDocumentKind =
   | 'BUDGET_REPORT'
   | 'PAY_STUB';
 
+export type PayoutRecordStatus = 'UNPAID' | 'PAID';
+export type InvoicePayoutMethod = 'PAYPAL' | 'ZELLE' | 'VENMO' | 'OTHER';
+
+/** Manual contractor payout record on PAY_STUB (not Stripe). */
+export interface IInvoicePayout {
+  status: PayoutRecordStatus;
+  payeeAuth0Id?: string;
+  preferredMethod?: InvoicePayoutMethod;
+  preferredHandle?: string;
+  paidAt?: Date;
+  method?: InvoicePayoutMethod;
+  confirmation?: string;
+}
+
 export interface IInvoiceCompanyInfo {
   name?: string;
   address?: string;
@@ -84,6 +98,7 @@ export interface IInvoice extends Document {
   lineItemIds: mongoose.Types.ObjectId[];
   sentAt?: Date;
   paidAt?: Date;
+  payout?: IInvoicePayout;
   /** Stripe Payment Link URL (shareable checkout) */
   paymentLinkUrl?: string;
   /** Stripe Payment Link id (plink_…) for webhook lookup */
@@ -206,6 +221,25 @@ const InvoiceSchema = new Schema<IInvoice>(
     ],
     sentAt: { type: Date },
     paidAt: { type: Date },
+    payout: {
+      status: {
+        type: String,
+        enum: ['UNPAID', 'PAID'],
+        default: 'UNPAID',
+      },
+      payeeAuth0Id: { type: String, trim: true },
+      preferredMethod: {
+        type: String,
+        enum: ['PAYPAL', 'ZELLE', 'VENMO', 'OTHER'],
+      },
+      preferredHandle: { type: String, trim: true },
+      paidAt: { type: Date },
+      method: {
+        type: String,
+        enum: ['PAYPAL', 'ZELLE', 'VENMO', 'OTHER'],
+      },
+      confirmation: { type: String, trim: true },
+    },
     paymentLinkUrl: { type: String, trim: true },
     stripePaymentLinkId: { type: String, trim: true },
     notes: { type: String, trim: true },

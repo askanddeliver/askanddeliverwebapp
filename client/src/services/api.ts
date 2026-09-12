@@ -17,6 +17,8 @@ import type {
   InvoiceDocumentKind,
   UnfiledRetainerHoursRow,
   InvoiceStatus,
+  PayoutRecordStatus,
+  PayoutMethod,
   ProjectBudgetBurnResponse,
   SavedInvoice,
   InvoiceStats,
@@ -161,7 +163,7 @@ export const usersApi = {
         | 'bio'
         | 'notificationPreferences'
       >
-    >
+    > & { payoutPreference?: User['payoutPreference'] | null }
   ) => api.put<User>('/users/me', data),
   // Admin only
   getAll: () => api.get<User[]>('/users'),
@@ -169,7 +171,12 @@ export const usersApi = {
     api.post<User>('/users/add-by-email', { email }),
   inviteClient: (email: string, clientId: string) =>
     api.post<User>('/users/invite-client', { email, clientId }),
-  update: (id: string, data: Partial<Pick<User, 'role' | 'status' | 'earnedRates'>>) =>
+  update: (
+    id: string,
+    data: Partial<Pick<User, 'role' | 'status' | 'earnedRates'>> & {
+      payoutPreference?: User['payoutPreference'] | null;
+    }
+  ) =>
     api.put<User>(`/users/${id}`, data),
   delete: (id: string) => api.delete<{ message: string }>(`/users/${id}`),
 };
@@ -461,6 +468,7 @@ export const invoicesApi = {
     endDate?: string;
     search?: string;
     documentKind?: InvoiceDocumentKind | 'library' | 'payroll';
+    payoutStatus?: PayoutRecordStatus;
   }) => api.get<SavedInvoice[]>('/invoices', { params }),
   getOne: (id: string) => api.get<SavedInvoice>(`/invoices/${id}`),
   getStats: () => api.get<InvoiceStats>('/invoices/stats'),
@@ -483,11 +491,21 @@ export const invoicesApi = {
     retainerSummary?: Invoice['retainerSummary'];
     payeeName?: string;
     payeeEmail?: string;
+    payeeAuth0Id?: string;
   }) => api.post<SavedInvoice>('/invoices', data),
   update: (id: string, data: { invoiceNumber?: string; notes?: string }) =>
     api.put<SavedInvoice>(`/invoices/${id}`, data),
   updateStatus: (id: string, status: InvoiceStatus) =>
     api.patch<SavedInvoice>(`/invoices/${id}/status`, { status }),
+  updatePayout: (
+    id: string,
+    data: {
+      status: PayoutRecordStatus;
+      method?: PayoutMethod;
+      confirmation?: string;
+      paidOn?: string;
+    }
+  ) => api.patch<SavedInvoice>(`/invoices/${id}/payout`, data),
   delete: (id: string) => api.delete<{ message: string }>(`/invoices/${id}`),
   getPaymentLinkConfig: () => api.get<{ enabled: boolean }>('/invoices/payment-link-config'),
   createPaymentLink: (id: string) =>

@@ -360,7 +360,7 @@ Confirmed **2026-09-12**, with later phase decisions as noted. Lock **14** (cont
 ### IA and navigation
 
 5. **Where utilization lives — Decided (Phase 5).** Reports library (`/reports/saved`); Invoices = payable `INVOICE` only. Existing `RETAINER_REPORT` rows no longer appear on `/invoices`.
-6. **Pay stubs — Decided (Phase 6).** `/payroll` + `documentKind: PAY_STUB` (option A).
+6. **Pay stubs — Decided (Phase 6).** `/payroll` + `documentKind: PAY_STUB` (option A). Payout v1: member profile method + handle; stub `payout.status` UNPAID/PAID. Not Stripe Connect.
 7. **Data reports persist? — Decided (Phase 5).** Snapshot in the Reports library (`DATA_REPORT`).
 8. **Sidebar grouping — Decided.** Stay under **Time Tracking** (Reports, Saved reports, Invoices, Payroll, Backups). No separate Billing section in v1.
 

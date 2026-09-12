@@ -1,8 +1,8 @@
 import { Router, Response } from 'express';
 import { checkJwt, AuthRequest, extractUserId, getWorkspaceOwnerId, requireAdmin } from '../middleware/auth';
 import { asyncHandler, createError } from '../middleware/errorHandler';
-import { Invoice, TimeEntry, LineItem, Client, Project, SiteConfig } from '../models';
-import type { InvoiceDocumentKind, InvoiceStatus, IInvoiceRetainerSummary } from '../models';
+import { Invoice, TimeEntry, LineItem, Client, Project, SiteConfig, User } from '../models';
+import type { InvoiceDocumentKind, InvoiceStatus, IInvoiceRetainerSummary, IInvoicePayout } from '../models';
 import { parseDateStart, parseDateEnd } from '../utils/calculations';
 import {
   isPayableDocumentKind,
@@ -11,6 +11,7 @@ import {
   payableDocumentKindMatch,
   payrollDocumentKindMatch,
 } from '../utils/invoiceKinds';
+import { parsePayoutMethod } from '../utils/payoutPreference';
 import { createPaymentLink, isStripeEnabled } from '../lib/stripeClient';
 import { notifyInvoiceSentToClient } from '../lib/email';
 
@@ -68,7 +69,7 @@ router.get(
     const workspaceOwnerId = await getWorkspaceOwnerId(req);
     if (!workspaceOwnerId) throw createError('Workspace access required', 403);
 
-    const { status, clientId, startDate, endDate, search, documentKind } = req.query;
+    const { status, clientId, startDate, endDate, search, documentKind, payoutStatus } = req.query;
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const query: any = { userId: workspaceOwnerId };
@@ -90,6 +91,20 @@ router.get(
 
     if (status && status !== 'ALL') {
       query.status = status;
+    }
+    if (payoutStatus === 'PAID') {
+      query['payout.status'] = 'PAID';
+    } else if (payoutStatus === 'UNPAID') {
+      query.$and = [
+        ...(query.$and || []),
+        {
+          $or: [
+            { 'payout.status': 'UNPAID' },
+            { 'payout.status': { $exists: false } },
+            { payout: { $exists: false } },
+          ],
+        },
+      ];
     }
     if (clientId) {
       query.clientId = clientId;
@@ -257,6 +272,7 @@ router.post(
       retainerSummary: bodyRetainerSummary,
       payeeName,
       payeeEmail,
+      payeeAuth0Id,
     } = req.body as {
       invoiceNumber?: string;
       clientId?: string;
@@ -275,6 +291,7 @@ router.post(
       retainerSummary?: IInvoiceRetainerSummary;
       payeeName?: string;
       payeeEmail?: string;
+      payeeAuth0Id?: string;
     };
 
     const documentKind = parseDocumentKind(rawDocumentKind);
@@ -340,6 +357,27 @@ router.post(
       }
     }
 
+    let payout: IInvoicePayout | undefined;
+    if (documentKind === 'PAY_STUB') {
+      const payeeQuery = typeof payeeAuth0Id === 'string' && payeeAuth0Id.trim()
+        ? { auth0Id: payeeAuth0Id.trim() }
+        : typeof payeeEmail === 'string' && payeeEmail.trim()
+          ? { email: payeeEmail.trim().toLowerCase() }
+          : null;
+      const payee = payeeQuery
+        ? await User.findOne({
+            ...payeeQuery,
+            $or: [{ auth0Id: workspaceOwnerId }, { workspaceOwnerId }],
+          }).select('auth0Id payoutPreference')
+        : null;
+      payout = {
+        status: 'UNPAID',
+        payeeAuth0Id: payee?.auth0Id,
+        preferredMethod: payee?.payoutPreference?.method,
+        preferredHandle: payee?.payoutPreference?.handle,
+      };
+    }
+
     const invoice = await Invoice.create({
       userId: workspaceOwnerId,
       invoiceNumber: finalNumber,
@@ -381,6 +419,7 @@ router.post(
       timeEntryIds: timeEntryIds || [],
       lineItemIds: lineItemIds || [],
       notes,
+      payout,
     });
 
     res.status(201).json(invoice);
@@ -404,6 +443,9 @@ router.patch(
       userId: workspaceOwnerId,
     });
     if (!invoice) throw createError('Invoice not found', 404);
+    if (invoice.documentKind === 'PAY_STUB') {
+      throw createError('Pay stubs use payout status, not invoice SENT/PAID', 400);
+    }
 
     const currentStatus = invoice.status as InvoiceStatus;
     if (!VALID_TRANSITIONS[currentStatus].includes(status)) {
@@ -479,6 +521,69 @@ router.patch(
       }
     }
 
+    res.json(invoice);
+  })
+);
+
+// PATCH /api/invoices/:id/payout — Manual pay-stub payout record (not Stripe)
+router.patch(
+  '/:id/payout',
+  asyncHandler(async (req: AuthRequest, res: Response) => {
+    const workspaceOwnerId = await getWorkspaceOwnerId(req);
+    if (!workspaceOwnerId) throw createError('Workspace access required', 403);
+
+    const invoice = await Invoice.findOne({
+      _id: req.params.id,
+      userId: workspaceOwnerId,
+    });
+    if (!invoice) throw createError('Invoice not found', 404);
+    if (invoice.documentKind !== 'PAY_STUB') {
+      throw createError('Payout records apply to pay stubs only', 400);
+    }
+
+    const { status, method, confirmation, paidOn } = req.body as {
+      status?: string;
+      method?: string;
+      confirmation?: string;
+      paidOn?: string;
+    };
+    if (status !== 'PAID' && status !== 'UNPAID') {
+      throw createError('status must be PAID or UNPAID', 400);
+    }
+
+    const current = invoice.payout || { status: 'UNPAID' as const };
+    if (status === 'UNPAID') {
+      invoice.payout = {
+        status: 'UNPAID',
+        payeeAuth0Id: current.payeeAuth0Id,
+        preferredMethod: current.preferredMethod,
+        preferredHandle: current.preferredHandle,
+      };
+    } else {
+      const paidMethod = parsePayoutMethod(
+        method || current.method || current.preferredMethod,
+        'method'
+      );
+      let confirmationValue: string | undefined;
+      if (confirmation !== undefined && confirmation !== null) {
+        const trimmed = String(confirmation).trim();
+        if (trimmed.length > 120) {
+          throw createError('Confirmation must be 120 characters or fewer', 400);
+        }
+        confirmationValue = trimmed || undefined;
+      }
+      invoice.payout = {
+        status: 'PAID',
+        payeeAuth0Id: current.payeeAuth0Id,
+        preferredMethod: current.preferredMethod,
+        preferredHandle: current.preferredHandle,
+        method: paidMethod,
+        confirmation: confirmationValue,
+        paidAt: paidOn ? new Date(`${paidOn.slice(0, 10)}T12:00:00.000Z`) : new Date(),
+      };
+    }
+
+    await invoice.save();
     res.json(invoice);
   })
 );

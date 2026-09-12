@@ -95,7 +95,7 @@ function serializeClients<T extends { taskDiscounts?: unknown }>(clients: T[]): 
 }
 
 const USER_BACKUP_FIELDS =
-  'auth0Id email name nickname picture role workspaceOwnerId clientId disciplines disciplineTasks availability bio earnedRates status invitedBy createdAt updatedAt';
+  'auth0Id email name nickname picture role workspaceOwnerId clientId disciplines disciplineTasks availability bio payoutPreference earnedRates status invitedBy createdAt updatedAt';
 
 function backupFilename(presetName?: string): string {
   const day = new Date().toISOString().split('T')[0];

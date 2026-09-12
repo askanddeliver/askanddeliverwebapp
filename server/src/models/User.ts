@@ -3,6 +3,13 @@ import mongoose, { Document, Schema } from 'mongoose';
 export type UserRole = 'admin' | 'member' | 'client' | 'pending';
 export type UserStatus = 'active' | 'pending' | 'disabled';
 export type AvailabilityDay = 'mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat' | 'sun';
+export type PayoutMethod = 'PAYPAL' | 'ZELLE' | 'VENMO' | 'OTHER';
+
+export interface IUserPayoutPreference {
+  method: PayoutMethod;
+  handle: string;
+  notes?: string;
+}
 
 export interface IUserAvailability {
   hoursPerWeek?: number;
@@ -45,6 +52,8 @@ export interface IUser extends Document {
   disciplineTasks?: string[];
   availability?: IUserAvailability;
   bio?: string;
+  /** How this person wants to be paid (handle/email — not bank account numbers). */
+  payoutPreference?: IUserPayoutPreference;
   earnedRates?: Record<string, number>;
   notificationPreferences?: IUserNotificationPreferences;
   status: UserStatus;
@@ -121,6 +130,14 @@ const userSchema = new Schema<IUser>(
     bio: {
       type: String,
       trim: true,
+    },
+    payoutPreference: {
+      method: {
+        type: String,
+        enum: ['PAYPAL', 'ZELLE', 'VENMO', 'OTHER'],
+      },
+      handle: { type: String, trim: true },
+      notes: { type: String, trim: true },
     },
     earnedRates: {
       type: Schema.Types.Mixed,
