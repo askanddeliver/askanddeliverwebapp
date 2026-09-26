@@ -228,10 +228,10 @@ All layouts consume `AdminThemeContext` (or renamed `WorkspaceThemeContext`) for
 - Clients, LineItems, Invoices, Proposals, Portfolio, SiteConfig, Uploads, **IntakeForm**, **ClientInvite**
 
 **Pattern B** — `userId = await getWorkspaceOwnerId(req)`:
-- Projects, TaskTypes, ProjectTasks, TimeEntries, Reports, Export, **ProjectMessage**, **TimeBlock**
+- Projects, TaskTypes, ProjectTasks, TimeEntries, Reports, Export, **ProjectMessage**, **ProjectAsset**, **TimeBlock**
 
 **Pattern C** — Client-scoped (new):
-- Portal queries: `{ userId: workspaceOwnerId, clientId: user.clientId }` on Project, Invoice, ProjectMessage
+- Portal queries: `{ userId: workspaceOwnerId, clientId: user.clientId }` on Project, Invoice, ProjectMessage, ProjectAsset
 
 **Pattern D** — Public with resolved workspace:
 - `POST /api/leads/public`, `GET /api/intake-forms/public`, portfolio, site-config
@@ -270,7 +270,12 @@ ProjectTask
 
 ProjectMessage (userId, Pattern B)
  ├── projectId, authorAuth0Id, body
- └── clientVisible: boolean
+ ├── clientVisible: boolean
+ ├── projectTaskId?, taskTitle?     ← compose-from-task snapshot
+
+ProjectAsset (userId, Pattern B)
+ ├── projectId, uploadedByAuth0Id, originalName, url
+ └── clientVisible: boolean        ← default false; true if client uploaded
 ```
 
 ### Lead model migration
@@ -510,16 +515,21 @@ interface IProjectMessage {
   authorName: string;          // snapshot for display
   body: string;
   clientVisible: boolean;
+  projectTaskId?: ObjectId;
+  taskTitle?: string;
   createdAt: Date;
   updatedAt: Date;
 }
 ```
 
 **Routes:**
-- `GET /api/projects/:id/messages` — admin/member: all; client: `clientVisible: true` only
-- `POST /api/projects/:id/messages` — admin/member only; **`clientVisible` defaults `false`**; toggle on compose to expose in portal
+- `GET /api/projects/:id/messages` — admin/member: all; client portal: `clientVisible: true` only
+- `POST /api/projects/:id/messages` — admin/member; **`clientVisible` defaults `false`**; members may set true
+- `PATCH /api/projects/:id/messages/:messageId` — admin/member flip `clientVisible`
 
-v1 scope: project-scoped threads only — no DMs, @mentions, or email notifications until usage is validated.
+Project files: Cloudinary `ProjectAsset` — [PROJECT_COMMUNICATION_AND_ASSETS.md](./PROJECT_COMMUNICATION_AND_ASSETS.md).
+
+v1 scope originally: project-scoped threads only. Email notifications shipped separately (Resend). Files library shipped 2026-09-25.
 
 ---
 
@@ -566,7 +576,7 @@ This expansion **prepares** for [SAAS_CONVERSION_BUILD_PLAN.md](./SAAS_CONVERSIO
 1. **Client isolation** — Portal queries must include both `workspaceOwnerId` and `clientId`; never accept `clientId` from query params for client role users (use JWT user record only).
 2. **Intake validation** — Server validates `responses` against published form JSON schema; strip unknown keys; enforce required fields.
 3. **File uploads on intake** — Authenticated upload after draft lead create, or size-limited anonymous upload to `{workspaceOwnerId}/intake/temp/{uuid}` with cleanup job.
-4. **Message visibility** — `clientVisible` defaults `false`; only admin/member can set true.
+4. **Message visibility** — `clientVisible` defaults `false`; admin **and assigned members** can set true (at send or via PATCH). Client posts stay visible.
 5. **No financial leakage** — Portal and member APIs never return `rate`, `amount`, `margin`, `earnedRates` unless role is admin.
 
 ---

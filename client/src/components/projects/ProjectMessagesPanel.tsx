@@ -2,20 +2,25 @@ import { useCallback, useEffect, useState } from 'react';
 import { MessageSquare } from 'lucide-react';
 import { projectMessagesApi } from '../../services/api';
 import ProjectMessageThread from '../portal/ProjectMessageThread';
-import type { ProjectMessage } from '../../types';
+import type { MessageComposeFromTask, ProjectMessage } from '../../types';
 
 interface ProjectMessagesPanelProps {
   projectId: string;
+  projectTitle?: string;
   memberMode?: boolean;
   defaultExpanded?: boolean;
   hideToggle?: boolean;
+  composeFromTask?: MessageComposeFromTask | null;
+  onClearComposeFromTask?: () => void;
 }
 
 function ProjectMessagesPanel({
   projectId,
-  memberMode = false,
+  projectTitle,
   defaultExpanded = false,
   hideToggle = false,
+  composeFromTask = null,
+  onClearComposeFromTask,
 }: ProjectMessagesPanelProps) {
   const [messages, setMessages] = useState<ProjectMessage[]>([]);
   const [loading, setLoading] = useState(true);
@@ -37,12 +42,30 @@ function ProjectMessagesPanel({
     if (expanded || hideToggle) loadMessages();
   }, [expanded, hideToggle, loadMessages]);
 
-  const handleSend = async (body: string, clientVisible: boolean) => {
+  useEffect(() => {
+    if (composeFromTask) setExpanded(true);
+  }, [composeFromTask]);
+
+  const handleSend = async (
+    body: string,
+    clientVisible: boolean,
+    meta?: { projectTaskId?: string }
+  ) => {
     const res = await projectMessagesApi.create(projectId, {
       body,
-      clientVisible: memberMode ? false : clientVisible,
+      clientVisible,
+      projectTaskId: meta?.projectTaskId,
     });
     setMessages((prev) => [...prev, res.data]);
+  };
+
+  const handleToggleVisibility = async (messageId: string, clientVisible: boolean) => {
+    const res = await projectMessagesApi.updateVisibility(
+      projectId,
+      messageId,
+      clientVisible
+    );
+    setMessages((prev) => prev.map((m) => (m._id === messageId ? res.data : m)));
   };
 
   return (
@@ -68,7 +91,12 @@ function ProjectMessagesPanel({
             loading={loading}
             onSend={handleSend}
             onRefresh={loadMessages}
-            showVisibilityToggle={!memberMode}
+            showVisibilityToggle
+            onToggleVisibility={handleToggleVisibility}
+            composeFromTask={composeFromTask}
+            onClearComposeFromTask={onClearComposeFromTask}
+            projectTitle={projectTitle}
+            linkTaskChips
             emptyLabel="No messages on this project yet."
           />
         </div>

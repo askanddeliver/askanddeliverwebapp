@@ -1,0 +1,86 @@
+# Project communication and assets (shipped)
+
+Shipped 2026-09-25. Admin/member hubs and the client portal share one project thread and one project file library. Visibility is two-tier (internal vs client), not per-person ACL.
+
+See also: [PROJECT_HUB_BUILD_PLAN.md](./PROJECT_HUB_BUILD_PLAN.md), [PLATFORM_EXPANSION_CLIENT_PORTAL_SPEC.md](./PLATFORM_EXPANSION_CLIENT_PORTAL_SPEC.md), [RESEND_NOTIFICATIONS_BUILD_PLAN.md](./RESEND_NOTIFICATIONS_BUILD_PLAN.md).
+
+---
+
+## Storage
+
+| Layer | What it holds |
+|-------|----------------|
+| **Cloudinary** | The file bytes |
+| **MongoDB `ProjectAsset`** | Name, uploader, MIME, size, `clientVisible`, Cloudinary public ID + URL |
+
+Upload path: Multer (memory, 75 MB cap) → `uploadBufferToCloudinary` → folder `{workspaceOwnerId}/projects/{projectId}/assets`.
+
+Cloudinary `resource_type`:
+
+- `image` — jpg, png, gif, webp, svg
+- `video` — mp4, mov, webm
+- `raw` — pdf, psd, ai, eps, fonts, Office, zip, csv, txt (forced by extension even when MIME is weak)
+
+Allowlist is MIME **and** extension. Same Cloudinary account as portfolio and intake (`CLOUDINARY_CLOUD_NAME` / `API_KEY` / `API_SECRET`). Files are not stored on the Express disk.
+
+---
+
+## Visibility (messages and files)
+
+- Team compose/upload starts **internal** (`clientVisible: false`).
+- **Admin and assigned members** may toggle **Visible to client** at send **or anytime after**.
+- **Client** posts and uploads are always client-visible and cannot be hidden.
+- Clients only list `clientVisible: true`. Internal names never leak on portal list/GET.
+- Access follows **project assignment** (team) or CRM **`clientId`** (client). 404 on probe.
+
+Flipping a team message to visible uses the same Resend path as a new client-visible post (`notifyTeamMessageToClient`).
+
+---
+
+## Messages
+
+`ProjectMessage` (Pattern B) now includes optional `projectTaskId` and a **`taskTitle` snapshot** (survives rename).
+
+| Method | Path | Who | Notes |
+|--------|------|-----|--------|
+| GET/POST | `/api/projects/:projectId/messages` | admin / assigned member | POST accepts `{ body, clientVisible?, projectTaskId? }` |
+| PATCH | `/api/projects/:projectId/messages/:messageId` | admin / assigned member | `{ clientVisible }` only |
+| GET/POST | `/api/portal/projects/:projectId/messages` | client | GET visible only; POST always visible |
+
+**Hub:** compose toggle is shown for members (no longer forced internal). Thread badges are clickable Internal / Visible to client.
+
+**From a task:** hub task row message action scrolls to `#messages` with a project + task chip. Default visibility follows the task’s `clientVisible`. Publishing an internal task name to the client confirms: “The client will see this task name.” Clients see the snapshot chip only — they do not gain the internal task list. Team chips link to `#tasks`; portal chips are static.
+
+---
+
+## Files (`ProjectAsset`)
+
+Pattern B, `userId` = workspace owner.
+
+| Method | Path | Who | Notes |
+|--------|------|-----|--------|
+| GET/POST | `/api/projects/:projectId/assets` | admin / assigned member | POST multipart field `file`; uploads start internal |
+| PATCH | `/api/projects/:projectId/assets/:assetId` | admin / assigned member | `{ clientVisible }` |
+| DELETE | `/api/projects/:projectId/assets/:assetId` | admin any; uploader own | Destroys Cloudinary object then row |
+| GET/POST | `/api/portal/projects/:projectId/assets` | client | Visible only; POST always `clientVisible: true` |
+| DELETE | `/api/portal/projects/:projectId/assets/:assetId` | client, own uploads | |
+
+**UI:** hub `#files` (`ProjectAssetsPanel` team variant) and portal project detail. Table: name, type, who, date, Internal/Client badge, open/download, delete. Images/PDF open in-browser; other types download.
+
+Out of this slice: per-file member ACL, versioning, folders, unread bell, PSD in-browser preview.
+
+---
+
+## Key files
+
+| Layer | Path |
+|-------|------|
+| Hub | `client/src/pages/ProjectHub.tsx` |
+| Portal detail | `client/src/pages/portal/PortalProjectDetail.tsx` |
+| Thread | `client/src/components/portal/ProjectMessageThread.tsx` |
+| Hub messages | `client/src/components/projects/ProjectMessagesPanel.tsx` |
+| Files table | `client/src/components/projects/ProjectAssetsPanel.tsx` |
+| Task → message | `client/src/components/projectTasks/ProjectTaskList.tsx` |
+| Models | `server/src/models/ProjectMessage.ts`, `ProjectAsset.ts` |
+| Routes | `server/src/routes/projectMessages.ts`, `projectAssets.ts`, `portal.ts` |
+| Upload | `server/src/lib/cloudinaryUpload.ts`, `projectAssetUpload.ts` |

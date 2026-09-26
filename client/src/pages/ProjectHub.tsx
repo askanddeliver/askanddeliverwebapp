@@ -8,6 +8,7 @@ import { ProjectBudgetPanel } from '../components/projects/ProjectBudgetPanel';
 import { ProjectEntriesSection } from '../components/projects/ProjectEntriesSection';
 import { ProjectTaskList } from '../components/projectTasks/ProjectTaskList';
 import ProjectMessagesPanel from '../components/projects/ProjectMessagesPanel';
+import ProjectAssetsPanel from '../components/projects/ProjectAssetsPanel';
 import { ProjectModal, type ProjectModalSaveData } from '../components/projects/ProjectModal';
 import { EntryModal } from '../components/entries/EntryModal';
 import SanitizedBrief from '../components/portal/SanitizedBrief';
@@ -22,6 +23,7 @@ import { sortProjectTasksByOrder } from '../utils/projectTasks';
 import { getBurnDateRange, type BurnPeriod } from '../utils/projectBilling';
 import type {
   Client,
+  MessageComposeFromTask,
   Project,
   ProjectBudgetBurn,
   ProjectTask,
@@ -57,6 +59,9 @@ function ProjectHub() {
   const [modalTab, setModalTab] = useState<'basic' | 'brief'>('basic');
   const [entryModalOpen, setEntryModalOpen] = useState(false);
   const [editingEntry, setEditingEntry] = useState<TimeEntry | null>(null);
+  const [composeFromTask, setComposeFromTask] = useState<MessageComposeFromTask | null>(
+    null
+  );
 
   const loadProject = useCallback(async () => {
     if (!id) return;
@@ -349,6 +354,15 @@ function ProjectHub() {
     }
   };
 
+  const handleMessageFromTask = (task: ProjectTask) => {
+    setComposeFromTask({
+      projectTaskId: task._id,
+      taskTitle: task.title,
+      taskClientVisible: Boolean(task.clientVisible),
+    });
+    document.getElementById('messages')?.scrollIntoView({ behavior: 'smooth' });
+  };
+
   const openEdit = (tab: 'basic' | 'brief' = 'basic') => {
     setModalTab(tab);
     setModalOpen(true);
@@ -452,6 +466,7 @@ function ProjectHub() {
               onUpdateTask={handleUpdateTask}
               onToggleStatus={handleToggleTaskStatus}
               onDeleteTask={handleDeleteTask}
+              onMessageFromTask={handleMessageFromTask}
               canEdit
               canDelete={isAdmin}
               canReorder={isAdmin}
@@ -489,14 +504,23 @@ function ProjectHub() {
           </AdminPanel>
         </section>
 
+        <section id="files" className="scroll-mt-24">
+          <AdminPanel title="Files">
+            <ProjectAssetsPanel projectId={project._id} variant="team" />
+          </AdminPanel>
+        </section>
+
         <section id="messages" className="scroll-mt-24">
           <AdminPanel title="Messages" padded={false}>
             <div className="p-4">
               <ProjectMessagesPanel
                 projectId={project._id}
+                projectTitle={project.title}
                 memberMode={!isAdmin}
                 defaultExpanded
                 hideToggle
+                composeFromTask={composeFromTask}
+                onClearComposeFromTask={() => setComposeFromTask(null)}
               />
             </div>
           </AdminPanel>

@@ -13,6 +13,7 @@ import {
   toPortalProjectSummary,
 } from '../lib/portalScope';
 import { portalProjectMessagesRouter } from './projectMessages';
+import { portalProjectAssetsRouter } from './projectAssets';
 
 const router = Router();
 
@@ -178,5 +179,6 @@ router.get(
 );
 
 router.use('/projects/:projectId/messages', portalProjectMessagesRouter);
+router.use('/projects/:projectId/assets', portalProjectAssetsRouter);
 
 export default router;

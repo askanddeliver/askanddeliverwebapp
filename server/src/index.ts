@@ -29,6 +29,7 @@ import siteConfigRoutes from './routes/siteConfig';
 import memberRoutes from './routes/member';
 import portalRoutes from './routes/portal';
 import projectMessageRoutes from './routes/projectMessages';
+import projectAssetRoutes from './routes/projectAssets';
 import dashboardRoutes from './routes/dashboard';
 import invoiceRoutes from './routes/invoices';
 import proposalRoutes from './routes/proposals';
@@ -84,6 +85,7 @@ app.use('/api/member', memberRoutes);
 app.use('/api/portal', portalRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/projects/:projectId/messages', projectMessageRoutes);
+app.use('/api/projects/:projectId/assets', projectAssetRoutes);
 app.use('/api/invoices', invoiceRoutes);
 app.use('/api/proposals', proposalRoutes);
 

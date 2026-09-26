@@ -173,10 +173,12 @@ Server: `resolvePublicWorkspace(req)` — subdomain (future) or `DEFAULT_PUBLIC_
 
 ---
 
-## Project Messaging (v1 — locked)
+## Project Messaging (shipped)
 
-- `ProjectMessage` with **`clientVisible` toggle** on compose (default `false`).
-- No DMs, @mentions, or email notifications in v1 — validate usage first.
+- `ProjectMessage` with **`clientVisible` toggle** on compose (default `false`) **and** PATCH after send — admin and assigned members.
+- Optional `projectTaskId` + `taskTitle` snapshot (compose from hub task row).
+- Project files: `ProjectAsset` on Cloudinary — [PROJECT_COMMUNICATION_AND_ASSETS.md](./PROJECT_COMMUNICATION_AND_ASSETS.md).
+- No DMs or @mentions. Email: Resend (see notifications plan).
 
 ---
 

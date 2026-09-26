@@ -77,7 +77,7 @@ This is the **authoritative reference** for what sends email today. All sends ar
 | # | Who | Action | API / route | Recipients | Preference key | UI toggle label |
 |---|-----|--------|-------------|------------|----------------|-----------------|
 | 1 | **Client** | Posts a project message | `POST /api/portal/projects/:id/messages` | Workspace admin + `Project.assignedMemberIds` | `clientMessages` | **Client messages** (admin/member) |
-| 2 | **Admin** | Posts message with **Visible to client** | `POST /api/projects/:projectId/messages` (`clientVisible: true`) | Portal users where `role=client` and `clientId` matches project | `clientVisibleReplies` | **Team updates** (client) |
+| 2 | **Admin or member** | Posts or flips a message **Visible to client** | `POST` or `PATCH /api/projects/:projectId/messages` (`clientVisible: true`) | Portal users where `role=client` and `clientId` matches project | `clientVisibleReplies` | **Team updates** (client) |
 | 3 | **Admin** | Creates project with assignees | `POST /api/projects` | Each member in initial `assignedMemberIds` | `projectAssignments` | **Project assignments** (member) |
 | 4 | **Admin** | Adds new assignees on project update | `PUT /api/projects/:id` (only **newly added** auth0 ids) | New assignees only | `projectAssignments` | **Project assignments** (member) |
 | 5 | **Admin** | Invites user to client portal | `POST /api/users/invite-client` | Invitee email from request | *(none — env gate only)* | — |
@@ -92,7 +92,7 @@ This is the **authoritative reference** for what sends email today. All sends ar
 - Message author is never emailed (client role).
 
 **#2 Team message → client**  
-- **Admin only** can set `clientVisible: true`. Member posts are always internal (`clientVisible: false`) and do **not** trigger client email.  
+- Admin **and assigned members** may set `clientVisible: true` on POST or later via PATCH. Flipping an existing internal post to visible uses the same notify path.  
 - Project must have a `clientId`.
 
 **#3–4 Project assignment**  
@@ -319,7 +319,7 @@ Notifications call `enqueueEmailNotification()` so the HTTP response is not bloc
 
 | File | After success |
 |------|---------------|
-| `server/src/routes/projectMessages.ts` | Portal POST → `notifyClientMessageToTeam`; admin POST with `clientVisible` → `notifyTeamMessageToClient` |
+| `server/src/routes/projectMessages.ts` | Portal POST → `notifyClientMessageToTeam`; team POST or PATCH to `clientVisible: true` → `notifyTeamMessageToClient` |
 | `server/src/routes/users.ts` | `invite-client` → `notifyClientPortalInvite` |
 | `server/src/routes/projects.ts` | Create → all assignees; update → newly added assignees only |
 | `server/src/routes/projectTasks.ts` | `maybeNotifyClientTaskCompleted` on PUT / PATCH status |

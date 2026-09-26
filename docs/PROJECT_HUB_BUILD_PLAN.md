@@ -117,8 +117,12 @@ Layout order (desktop — single column, max-width ~960px):
 │  EntryList filtered to projectId · admin: amounts/rates      │
 │  Quick actions: Start timer (prefill project) · Add manual    │
 ├──────────────────────────────────────────────────────────────┤
+│  FILES (#files)                                              │
+│  ProjectAssetsPanel — Cloudinary library, Internal/Client    │
+├──────────────────────────────────────────────────────────────┤
 │  MESSAGES                                                    │
 │  ProjectMessagesPanel — clientVisible toggle (admin/member)  │
+│  Compose-from-task chip; PATCH existing visibility           │
 └──────────────────────────────────────────────────────────────┘
 * Edit / Archive / Delete — admin only, header actions
 ```
@@ -175,7 +179,9 @@ Reuse `ProjectTaskList` with existing props:
 
 #### Messages
 
-Reuse `ProjectMessagesPanel` — expanded by default on the hub; full thread including internal messages; compose with `clientVisible` toggle.
+Reuse `ProjectMessagesPanel` — expanded by default on the hub; full thread including internal messages; compose with `clientVisible` toggle for **admin and assigned members**. Existing posts can be flipped anytime (`PATCH`). Task-row message action scrolls here with a project + task chip (`projectTaskId` + `taskTitle` snapshot).
+
+**Shipped follow-on:** project file library — see [PROJECT_COMMUNICATION_AND_ASSETS.md](./PROJECT_COMMUNICATION_AND_ASSETS.md).
 
 ---
 
@@ -253,7 +259,8 @@ Use admin redesign panels (`AdminPanel`, `AdminPageHeader`) where the hub lives 
 | Budget & billing | Full | Hidden |
 | Tasks | Full CRUD + reorder + clientVisible | Create/update/status |
 | Time entries | All workspace entries on project | Own entries only |
-| Messages | All + compose + clientVisible toggle | All + compose (no financial leakage) |
+| Files | All + upload + visibility toggle; admin may delete any | All on assigned projects + upload + toggle; delete own |
+| Messages | All + compose + clientVisible toggle (send and after) | Same (no financial leakage) |
 | Team | View + edit assignments | View names only |
 | Project edit/archive/delete | Yes | No |
 
@@ -314,6 +321,7 @@ Use URL hash for scroll-to-section.
 | Project modal | `client/src/components/projects/ProjectModal.tsx` |
 | Task list | `client/src/components/projectTasks/ProjectTaskList.tsx` |
 | Messages | `client/src/components/projects/ProjectMessagesPanel.tsx` |
+| Files | `client/src/components/projects/ProjectAssetsPanel.tsx` |
 | Brief render | `client/src/components/portal/SanitizedBrief.tsx` |
 | Budget burn API | `server/src/routes/projects.ts` (`/budget-burn`, `GET /:id`) |
 | Project model | `server/src/models/Project.ts` |
@@ -326,5 +334,6 @@ Use URL hash for scroll-to-section.
 
 | Date | Change |
 |------|--------|
+| 2026-09-25 | Files library + member/anytime message visibility + compose-from-task — [PROJECT_COMMUNICATION_AND_ASSETS.md](./PROJECT_COMMUNICATION_AND_ASSETS.md) |
 | 2026-07-17 | Initial build plan — admin/member unified project hub |
 | 2026-08-26 | v1 locked: scrollable sections (not tabs); slim list cards in same ship; `GET /api/projects/:id` required; PH-1–5 together |

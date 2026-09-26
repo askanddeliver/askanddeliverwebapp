@@ -5,6 +5,7 @@ import { portalApi } from '../../services/api';
 import PortalStatusBadge from '../../components/portal/PortalStatusBadge';
 import SanitizedBrief from '../../components/portal/SanitizedBrief';
 import ProjectMessageThread from '../../components/portal/ProjectMessageThread';
+import ProjectAssetsPanel from '../../components/projects/ProjectAssetsPanel';
 import type { PortalProjectDetailResponse, ProjectMessage } from '../../types';
 
 function PortalProjectDetail() {
@@ -138,12 +139,20 @@ function PortalProjectDetail() {
         )}
       </section>
 
+      <section className="mb-8 rounded-xl border border-neutral-200 bg-white p-6">
+        <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-neutral-500">
+          Files
+        </h2>
+        <ProjectAssetsPanel projectId={project._id} variant="portal" />
+      </section>
+
       <section className="rounded-xl border border-neutral-200 bg-white p-6">
         <ProjectMessageThread
           messages={messages}
           loading={messagesLoading}
           onSend={handleSend}
           onRefresh={loadMessages}
+          projectTitle={project.title}
           emptyLabel="No messages yet — say hello to your team."
         />
       </section>

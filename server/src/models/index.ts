@@ -12,6 +12,11 @@ export {
   IProjectMessage,
   ProjectMessageAuthorRole,
 } from './ProjectMessage';
+export {
+  ProjectAsset,
+  IProjectAsset,
+  ProjectAssetAuthorRole,
+} from './ProjectAsset';
 export { PortfolioProject, IPortfolioProject } from './PortfolioProject';
 export { LineItem, ILineItem } from './LineItem';
 export { FilterPreset, IFilterPreset } from './FilterPreset';

@@ -188,7 +188,11 @@ Per-project thread using `ProjectMessage` model. See [Messaging](#messaging-proj
 | Read messages where `clientVisible: true` | ✓ |
 | Post new message on project | ✓ (always stored `clientVisible: true`) |
 | Edit/delete own messages | ✗ v1 |
-| @mentions, attachments | ✗ v1 |
+| @mentions, attachments on messages | ✗ v1 — files live in the project **Files** library instead |
+
+#### Files section (shipped)
+
+Shared `ProjectAsset` library. Client sees **client-visible** files only, may **upload** (always visible), and may **delete own** uploads. Team may toggle visibility. See [PROJECT_COMMUNICATION_AND_ASSETS.md](./PROJECT_COMMUNICATION_AND_ASSETS.md).
 
 **UX:** Chronological list (oldest first or newest-first with sticky compose — pick newest-first + compose at bottom). Each item: author display name, timestamp, body (plain text or markdown subset).
 
@@ -222,6 +226,8 @@ interface IProjectMessage {
   authorRole: 'admin' | 'member' | 'client';
   body: string;
   clientVisible: boolean;      // default false for admin/member; always true for client posts
+  projectTaskId?: ObjectId;    // optional compose-from-task
+  taskTitle?: string;          // snapshot at send (survives rename)
   createdAt: Date;
   updatedAt: Date;
 }
@@ -234,7 +240,8 @@ interface IProjectMessage {
 | `GET` | `/api/portal/projects/:id/messages` | `requireClient` | `clientVisible: true` only |
 | `POST` | `/api/portal/projects/:id/messages` | `requireClient` | Body `{ body }` — force `clientVisible: true`, `authorRole: client` |
 | `GET` | `/api/projects/:id/messages` | member/admin | All messages (internal + client) |
-| `POST` | `/api/projects/:id/messages` | member/admin | Body `{ body, clientVisible? }` — default `clientVisible: false` |
+| `POST` | `/api/projects/:id/messages` | member/admin | Body `{ body, clientVisible?, projectTaskId? }` — default `clientVisible: false` |
+| `PATCH` | `/api/projects/:id/messages/:messageId` | member/admin | `{ clientVisible }` — flipping to true emails the client |
 
 Portal project detail endpoint may **embed** recent messages or use separate messages fetch — prefer separate fetch for simpler pagination later.
 
@@ -243,8 +250,9 @@ Portal project detail endpoint may **embed** recent messages or use separate mes
 On admin/member **project detail** (existing Projects page):
 
 - **Messages** panel below tasks
-- Compose with **"Visible to client"** checkbox (default off)
-- When checked, message appears in client portal thread
+- Compose with **"Visible to client"** checkbox (default off) — **admin and assigned members**
+- Existing posts can be flipped Internal ↔ Visible to client
+- When checked (or flipped on), message appears in client portal thread
 
 ---
 

@@ -69,7 +69,8 @@ Full v1 scope is locked in [PLATFORM_EXPANSION_CLIENT_PORTAL_SPEC.md](./PLATFORM
 |---------|----------------|
 | Brief | `SanitizedBrief` — HTML from `Project.brief`, fallback to `description` |
 | Tasks | `clientVisible: true` only — title, description, status badge |
-| Messages | `ProjectMessageThread` — client can read + reply |
+| Files | Client-visible `ProjectAsset` list + upload (always visible); delete own |
+| Messages | `ProjectMessageThread` — client can read + reply; task-name chips are static |
 
 ---
 
@@ -92,7 +93,7 @@ Enhancements that improve orientation without changing the read-mostly model.
 ```
 /portal                          Home — project summary + recent activity
 /portal/projects                 Project list
-/portal/projects/:id             Project hub (brief + tasks + messages)
+/portal/projects/:id             Project hub (brief + tasks + files + messages)
 /portal/invoices                 (v1.1) SENT/PAID invoices
 ```
 
@@ -107,7 +108,7 @@ The client project hub is **functionally complete for v1**. Optional follow-ons:
 | Enhancement | Priority | Notes |
 |-------------|----------|-------|
 | **Team faces (names only)** | P2 | Show assigned member first names + avatars — no rates, no email unless admin opts in |
-| **Deliverables / files** | P3 | Deferred — intake-style file share or Cloudinary gallery |
+| **Deliverables / files** | **Shipped** | Project Cloudinary library — [PROJECT_COMMUNICATION_AND_ASSETS.md](./PROJECT_COMMUNICATION_AND_ASSETS.md) |
 | **Brief publish toggle** | P3 | `briefClientVisible` if admins need draft briefs hidden from portal |
 | **Deep link from email** | P1 | Resend notifications link to `/portal/projects/:id#messages` — see [RESEND_NOTIFICATIONS_BUILD_PLAN.md](./RESEND_NOTIFICATIONS_BUILD_PLAN.md) |
 
@@ -125,6 +126,7 @@ The client project hub is **functionally complete for v1**. Optional follow-ons:
 | `GET /api/portal/projects` | List with `openTaskCount` |
 | `GET /api/portal/projects/:id` | Project + client-visible tasks |
 | `GET/POST /api/portal/projects/:id/messages` | Thread |
+| `GET/POST/DELETE /api/portal/projects/:id/assets` | Client-visible files; upload always visible; delete own |
 
 ### v1.1 additions
 
@@ -149,6 +151,7 @@ The client project hub is **functionally complete for v1**. Optional follow-ons:
 | `PortalProjectDetail` | `client/src/pages/portal/PortalProjectDetail.tsx` |
 | `SanitizedBrief` | `client/src/components/portal/SanitizedBrief.tsx` |
 | `ProjectMessageThread` | `client/src/components/portal/ProjectMessageThread.tsx` |
+| `ProjectAssetsPanel` | `client/src/components/projects/ProjectAssetsPanel.tsx` |
 | `PortalStatusBadge` | `client/src/components/portal/PortalStatusBadge.tsx` |
 
 ### v1.1 work

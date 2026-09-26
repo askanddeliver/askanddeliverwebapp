@@ -198,8 +198,37 @@ export interface ProjectMessage {
   authorRole: ProjectMessageAuthorRole;
   body: string;
   clientVisible: boolean;
+  projectTaskId?: string;
+  taskTitle?: string;
   createdAt: string;
   updatedAt: string;
+}
+
+export type ProjectAssetResourceType = 'image' | 'raw' | 'video';
+export type ProjectAssetAuthorRole = 'admin' | 'member' | 'client';
+
+export interface ProjectAsset {
+  _id: string;
+  userId: string;
+  projectId: string;
+  uploadedByAuth0Id: string;
+  uploadedByName: string;
+  uploadedByRole: ProjectAssetAuthorRole;
+  originalName: string;
+  mimeType: string;
+  size: number;
+  cloudinaryPublicId: string;
+  resourceType: ProjectAssetResourceType;
+  url: string;
+  clientVisible: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface MessageComposeFromTask {
+  projectTaskId: string;
+  taskTitle: string;
+  taskClientVisible: boolean;
 }
 
 export interface PortalProjectSummary {

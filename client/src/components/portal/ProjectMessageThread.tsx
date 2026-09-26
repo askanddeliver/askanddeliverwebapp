@@ -1,14 +1,26 @@
-import { useState } from 'react';
-import { RefreshCw, Send } from 'lucide-react';
-import type { ProjectMessage } from '../../types';
+import { useEffect, useState } from 'react';
+import { RefreshCw, Send, X } from 'lucide-react';
+import type { MessageComposeFromTask, ProjectMessage } from '../../types';
+
+export type MessageSendMeta = { projectTaskId?: string };
 
 interface ProjectMessageThreadProps {
   messages: ProjectMessage[];
   loading?: boolean;
-  onSend: (body: string, clientVisible: boolean) => Promise<void>;
+  onSend: (
+    body: string,
+    clientVisible: boolean,
+    meta?: MessageSendMeta
+  ) => Promise<void>;
   onRefresh?: () => void;
   /** Admin/member compose — show visibility toggle */
   showVisibilityToggle?: boolean;
+  onToggleVisibility?: (messageId: string, clientVisible: boolean) => Promise<void>;
+  composeFromTask?: MessageComposeFromTask | null;
+  onClearComposeFromTask?: () => void;
+  projectTitle?: string;
+  /** When true, task chips deep-link to #tasks (hub). Portal keeps them static. */
+  linkTaskChips?: boolean;
   emptyLabel?: string;
 }
 
@@ -32,34 +44,102 @@ function roleBadge(role: ProjectMessage['authorRole']): string {
   }
 }
 
+function TaskChip({
+  taskTitle,
+  projectTitle,
+  link,
+}: {
+  taskTitle: string;
+  projectTitle?: string;
+  link: boolean;
+}) {
+  const label = projectTitle ? `${projectTitle} · ${taskTitle}` : taskTitle;
+  const className =
+    'inline-flex max-w-full items-center truncate rounded-full bg-neutral-100 px-2 py-0.5 text-[11px] text-neutral-700';
+
+  if (link) {
+    return (
+      <a href="#tasks" className={`${className} hover:bg-primary-50 hover:text-primary-800`}>
+        {label}
+      </a>
+    );
+  }
+
+  return <span className={className}>{label}</span>;
+}
+
 function ProjectMessageThread({
   messages,
   loading = false,
   onSend,
   onRefresh,
   showVisibilityToggle = false,
+  onToggleVisibility,
+  composeFromTask = null,
+  onClearComposeFromTask,
+  projectTitle,
+  linkTaskChips = false,
   emptyLabel = 'No messages yet.',
 }: ProjectMessageThreadProps) {
   const [body, setBody] = useState('');
   const [clientVisible, setClientVisible] = useState(false);
   const [sending, setSending] = useState(false);
+  const [togglingId, setTogglingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!composeFromTask) return;
+    setClientVisible(Boolean(composeFromTask.taskClientVisible));
+  }, [composeFromTask]);
+
+  const confirmClientSeesTaskName = (): boolean => {
+    return window.confirm('The client will see this task name.');
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const text = body.trim();
     if (!text) return;
 
+    const nextVisible = showVisibilityToggle ? clientVisible : true;
+    if (
+      nextVisible &&
+      composeFromTask &&
+      !composeFromTask.taskClientVisible &&
+      !confirmClientSeesTaskName()
+    ) {
+      return;
+    }
+
     setSending(true);
     setError(null);
     try {
-      await onSend(text, showVisibilityToggle ? clientVisible : true);
+      await onSend(text, nextVisible, {
+        projectTaskId: composeFromTask?.projectTaskId,
+      });
       setBody('');
       if (showVisibilityToggle) setClientVisible(false);
+      onClearComposeFromTask?.();
     } catch {
       setError('Failed to send message');
     } finally {
       setSending(false);
+    }
+  };
+
+  const handleToggle = async (message: ProjectMessage) => {
+    if (!onToggleVisibility) return;
+    const next = !message.clientVisible;
+    if (next && message.taskTitle && !confirmClientSeesTaskName()) return;
+
+    setTogglingId(message._id);
+    setError(null);
+    try {
+      await onToggleVisibility(message._id, next);
+    } catch {
+      setError('Failed to update visibility');
+    } finally {
+      setTogglingId(null);
     }
   };
 
@@ -102,13 +182,44 @@ function ProjectMessageThread({
                 <span className="rounded bg-neutral-100 px-1.5 py-0.5 text-[10px] uppercase tracking-wide">
                   {roleBadge(m.authorRole)}
                 </span>
-                {showVisibilityToggle && !m.clientVisible && (
-                  <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] text-amber-800">
-                    Internal
-                  </span>
+                {showVisibilityToggle && m.authorRole !== 'client' && (
+                  onToggleVisibility ? (
+                    <button
+                      type="button"
+                      onClick={() => handleToggle(m)}
+                      disabled={togglingId === m._id}
+                      title={
+                        m.clientVisible
+                          ? 'Visible to client — click to make internal'
+                          : 'Internal — click to share with client'
+                      }
+                      className={`rounded px-1.5 py-0.5 text-[10px] ${
+                        m.clientVisible
+                          ? 'bg-primary-50 text-primary-800 hover:bg-primary-100'
+                          : 'bg-amber-100 text-amber-800 hover:bg-amber-200'
+                      }`}
+                    >
+                      {m.clientVisible ? 'Visible to client' : 'Internal'}
+                    </button>
+                  ) : (
+                    !m.clientVisible && (
+                      <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] text-amber-800">
+                        Internal
+                      </span>
+                    )
+                  )
                 )}
                 <span>{formatWhen(m.createdAt)}</span>
               </div>
+              {m.taskTitle && (
+                <div className="mb-1.5">
+                  <TaskChip
+                    taskTitle={m.taskTitle}
+                    projectTitle={projectTitle}
+                    link={linkTaskChips}
+                  />
+                </div>
+              )}
               <p className="whitespace-pre-wrap text-sm text-neutral-800">{m.body}</p>
             </li>
           ))}
@@ -116,12 +227,36 @@ function ProjectMessageThread({
       )}
 
       <form onSubmit={handleSubmit} className="border-t border-neutral-200 pt-3">
+        {composeFromTask && (
+          <div className="mb-2 flex items-center gap-1.5">
+            <span className="inline-flex max-w-full items-center gap-1 rounded-full bg-primary-50 px-2.5 py-0.5 text-xs text-primary-800">
+              <span className="truncate">
+                {projectTitle ? `${projectTitle} · ` : ''}
+                {composeFromTask.taskTitle}
+              </span>
+              {onClearComposeFromTask && (
+                <button
+                  type="button"
+                  onClick={onClearComposeFromTask}
+                  className="rounded-full p-0.5 hover:bg-primary-100"
+                  aria-label="Clear task context"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              )}
+            </span>
+          </div>
+        )}
         <textarea
           value={body}
           onChange={(e) => setBody(e.target.value)}
           rows={3}
           className="input w-full text-sm"
-          placeholder="Write a message…"
+          placeholder={
+            composeFromTask
+              ? `Write a message about “${composeFromTask.taskTitle}”…`
+              : 'Write a message…'
+          }
           disabled={sending}
         />
         {showVisibilityToggle && (

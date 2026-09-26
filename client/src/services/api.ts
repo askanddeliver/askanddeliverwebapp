@@ -48,6 +48,7 @@ import type {
   AdminDashboardSummary,
   DashboardPipelineResponse,
   DashboardCapacityResponse,
+  ProjectAsset,
 } from '../types';
 import type { DashboardPeriodParams } from '../utils/calculations';
 
@@ -102,6 +103,9 @@ publicApi.interceptors.request.use((config) => {
 
 api.interceptors.request.use(
   async (config) => {
+    if (typeof FormData !== 'undefined' && config.data instanceof FormData) {
+      delete config.headers['Content-Type'];
+    }
     if (!getAccessTokenFromAuth) {
       delete config.headers.Authorization;
       return config;
@@ -733,8 +737,30 @@ export const dashboardApi = {
 export const projectMessagesApi = {
   list: (projectId: string) =>
     api.get<ProjectMessage[]>(`/projects/${projectId}/messages`),
-  create: (projectId: string, data: { body: string; clientVisible?: boolean }) =>
-    api.post<ProjectMessage>(`/projects/${projectId}/messages`, data),
+  create: (
+    projectId: string,
+    data: { body: string; clientVisible?: boolean; projectTaskId?: string }
+  ) => api.post<ProjectMessage>(`/projects/${projectId}/messages`, data),
+  updateVisibility: (projectId: string, messageId: string, clientVisible: boolean) =>
+    api.patch<ProjectMessage>(`/projects/${projectId}/messages/${messageId}`, {
+      clientVisible,
+    }),
+};
+
+export const projectAssetsApi = {
+  list: (projectId: string) =>
+    api.get<ProjectAsset[]>(`/projects/${projectId}/assets`),
+  upload: (projectId: string, file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return api.post<ProjectAsset>(`/projects/${projectId}/assets`, formData);
+  },
+  updateVisibility: (projectId: string, assetId: string, clientVisible: boolean) =>
+    api.patch<ProjectAsset>(`/projects/${projectId}/assets/${assetId}`, {
+      clientVisible,
+    }),
+  remove: (projectId: string, assetId: string) =>
+    api.delete(`/projects/${projectId}/assets/${assetId}`),
 };
 
 // Client portal
@@ -748,6 +774,15 @@ export const portalApi = {
     api.get<ProjectMessage[]>(`/portal/projects/${projectId}/messages`),
   postMessage: (projectId: string, body: string) =>
     api.post<ProjectMessage>(`/portal/projects/${projectId}/messages`, { body }),
+  getAssets: (projectId: string) =>
+    api.get<ProjectAsset[]>(`/portal/projects/${projectId}/assets`),
+  uploadAsset: (projectId: string, file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return api.post<ProjectAsset>(`/portal/projects/${projectId}/assets`, formData);
+  },
+  deleteAsset: (projectId: string, assetId: string) =>
+    api.delete(`/portal/projects/${projectId}/assets/${assetId}`),
 };
 
 // Member hub (member + admin dogfooding)

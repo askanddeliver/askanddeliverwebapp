@@ -10,6 +10,10 @@ export interface IProjectMessage extends Document {
   authorRole: ProjectMessageAuthorRole;
   body: string;
   clientVisible: boolean;
+  /** Optional task this message was composed from */
+  projectTaskId?: mongoose.Types.ObjectId;
+  /** Snapshot of the task title at send time (survives rename) */
+  taskTitle?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -50,6 +54,14 @@ const ProjectMessageSchema = new Schema<IProjectMessage>(
       type: Boolean,
       default: false,
       index: true,
+    },
+    projectTaskId: {
+      type: Schema.Types.ObjectId,
+      ref: 'ProjectTask',
+    },
+    taskTitle: {
+      type: String,
+      trim: true,
     },
   },
   {
