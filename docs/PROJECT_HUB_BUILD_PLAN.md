@@ -278,7 +278,7 @@ Existing middleware on routes enforces this — hub is primarily a **composition
 | Reports invoice line | `/projects/:id#entries` |
 | Client portal (admin view) | Admin opens same project at `/projects/:id` — not portal route |
 
-Use URL hash for scroll-to-section.
+Use URL hash for scroll-to-section. Sticky **Jump to** chips on the hub (`ProjectJumpNav`) cover Team, Brief, Budget (admin), Tasks, Time, Files, Messages.
 
 ---
 
@@ -322,6 +322,7 @@ Use URL hash for scroll-to-section.
 | Task list | `client/src/components/projectTasks/ProjectTaskList.tsx` |
 | Messages | `client/src/components/projects/ProjectMessagesPanel.tsx` |
 | Files | `client/src/components/projects/ProjectAssetsPanel.tsx` |
+| Jump nav | `client/src/components/projects/ProjectJumpNav.tsx` |
 | Brief render | `client/src/components/portal/SanitizedBrief.tsx` |
 | Budget burn API | `server/src/routes/projects.ts` (`/budget-burn`, `GET /:id`) |
 | Project model | `server/src/models/Project.ts` |
@@ -334,6 +335,7 @@ Use URL hash for scroll-to-section.
 
 | Date | Change |
 |------|--------|
+| 2026-09-25 | Sticky Jump to chips on hub (and stronger portal chips) |
 | 2026-09-25 | Files library + member/anytime message visibility + compose-from-task — [PROJECT_COMMUNICATION_AND_ASSETS.md](./PROJECT_COMMUNICATION_AND_ASSETS.md) |
 | 2026-07-17 | Initial build plan — admin/member unified project hub |
 | 2026-08-26 | v1 locked: scrollable sections (not tabs); slim list cards in same ship; `GET /api/projects/:id` required; PH-1–5 together |

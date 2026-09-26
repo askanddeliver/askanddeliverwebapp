@@ -92,6 +92,8 @@ This is the **authoritative reference** for what sends email today. All sends ar
 - Message author is never emailed (client role).
 
 **#2 Team message → client**  
+- Recipients are **invited portal users only** (`role: client`, matching `clientId`, `status: active`) who opted in to **Team updates**.  
+- A CRM client who has **not** been invited to the portal does **not** receive these emails (CRM `Client.email` is never used).  
 - Admin **and assigned members** may set `clientVisible: true` on POST or later via PATCH. Flipping an existing internal post to visible uses the same notify path.  
 - Project must have a `clientId`.
 
@@ -100,17 +102,19 @@ This is the **authoritative reference** for what sends email today. All sends ar
 - Update: diff only — members already assigned do not get a duplicate email.
 
 **#5 Portal invite**  
-- Only gate is `RESEND_NOTIFICATIONS_ENABLED` + Resend credentials. No user preference (invitee has no account yet).
+- Only gate is `RESEND_NOTIFICATIONS_ENABLED` + Resend credentials. No user preference (invitee has no account yet).  
+- This is the **only** email a contact receives before they have a portal login.
 
 **#6 Invoice sent**  
 - Only on **DRAFT → SENT**, not other status changes.  
 - Only `documentKind: INVOICE` — **`RETAINER_REPORT` is skipped**.  
-- **CRM `Client.email` is not used** — portal users with `invoiceSent: true` only.
+- **CRM `Client.email` is not used** — portal users with `invoiceSent: true` only. Uninvited contacts are not emailed.
 
 **#7 Task completed**  
 - Task must be **`clientVisible: true`**.  
 - Status must **newly** become `COMPLETED` (was not already completed).  
-- Project must have a linked client.
+- Project must have a linked client.  
+- Recipients are invited portal users who opted in to **Task completed** — same rule as #2.
 
 ### Not wired (documented for future)
 

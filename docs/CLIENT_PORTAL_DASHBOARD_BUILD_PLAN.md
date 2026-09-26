@@ -152,6 +152,7 @@ The client project hub is **functionally complete for v1**. Optional follow-ons:
 | `SanitizedBrief` | `client/src/components/portal/SanitizedBrief.tsx` |
 | `ProjectMessageThread` | `client/src/components/portal/ProjectMessageThread.tsx` |
 | `ProjectAssetsPanel` | `client/src/components/projects/ProjectAssetsPanel.tsx` |
+| `ProjectJumpNav` | `client/src/components/projects/ProjectJumpNav.tsx` |
 | `PortalStatusBadge` | `client/src/components/portal/PortalStatusBadge.tsx` |
 
 ### v1.1 work

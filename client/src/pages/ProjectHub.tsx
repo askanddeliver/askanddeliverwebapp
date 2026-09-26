@@ -9,6 +9,7 @@ import { ProjectEntriesSection } from '../components/projects/ProjectEntriesSect
 import { ProjectTaskList } from '../components/projectTasks/ProjectTaskList';
 import ProjectMessagesPanel from '../components/projects/ProjectMessagesPanel';
 import ProjectAssetsPanel from '../components/projects/ProjectAssetsPanel';
+import ProjectJumpNav, { hubJumpSections } from '../components/projects/ProjectJumpNav';
 import { ProjectModal, type ProjectModalSaveData } from '../components/projects/ProjectModal';
 import { EntryModal } from '../components/entries/EntryModal';
 import SanitizedBrief from '../components/portal/SanitizedBrief';
@@ -127,6 +128,16 @@ function ProjectHub() {
       cancelled = true;
     };
   }, [id, isAdmin, loadProject, loadTasks, loadEntries]);
+
+  useEffect(() => {
+    if (loading || !project) return;
+    const hash = location.hash.replace('#', '');
+    if (!hash) return;
+    const timer = window.setTimeout(() => {
+      document.getElementById(hash)?.scrollIntoView({ behavior: 'smooth' });
+    }, 80);
+    return () => window.clearTimeout(timer);
+  }, [loading, project, location.hash]);
 
   useEffect(() => {
     if (!id || !isAdmin || !project) return;
@@ -405,6 +416,20 @@ function ProjectHub() {
           {error}
         </div>
       )}
+
+      <div
+        className="sticky top-0 z-20 mb-4 rounded-xl border bg-[var(--admin-surface)]/95 px-3 py-3 shadow-sm backdrop-blur"
+        style={{ borderColor: 'var(--admin-border)' }}
+      >
+        <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-[var(--admin-text-3)]">
+          Jump to
+        </p>
+        <ProjectJumpNav
+          sections={hubJumpSections(isAdmin)}
+          inPage
+          tone="admin"
+        />
+      </div>
 
       <div className="space-y-4">
         <section id="team" className="scroll-mt-24">

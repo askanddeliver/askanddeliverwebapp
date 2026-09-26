@@ -67,6 +67,8 @@ Pattern B, `userId` = workspace owner.
 
 **UI:** hub `#files` (`ProjectAssetsPanel` team variant) and portal project detail. Table: name, type, who, date, Internal/Client badge, open/download, delete. Images/PDF open in-browser; other types download.
 
+**Jump nav:** sticky **Jump to** chips on the admin/member hub and portal project page (and portal home/list cards). Portal: Brief, Tasks, Files, Messages. Hub adds Team, Budget (admin), Time. Messages is the emphasized chip.
+
 Out of this slice: per-file member ACL, versioning, folders, unread bell, PSD in-browser preview.
 
 ---
@@ -76,6 +78,7 @@ Out of this slice: per-file member ACL, versioning, folders, unread bell, PSD in
 | Layer | Path |
 |-------|------|
 | Hub | `client/src/pages/ProjectHub.tsx` |
+| Jump nav | `client/src/components/projects/ProjectJumpNav.tsx` |
 | Portal detail | `client/src/pages/portal/PortalProjectDetail.tsx` |
 | Thread | `client/src/components/portal/ProjectMessageThread.tsx` |
 | Hub messages | `client/src/components/projects/ProjectMessagesPanel.tsx` |

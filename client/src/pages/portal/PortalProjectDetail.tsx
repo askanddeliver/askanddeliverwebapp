@@ -137,7 +137,10 @@ function PortalProjectDetail() {
         </p>
       </div>
 
-      <div className="sticky top-0 z-10 mb-6 rounded-lg border border-neutral-200 bg-brand-cream/95 px-4 py-2.5 backdrop-blur">
+      <div className="sticky top-0 z-20 mb-6 rounded-xl border border-neutral-200 bg-white/95 px-3 py-3 shadow-sm backdrop-blur">
+        <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-neutral-400">
+          Jump to
+        </p>
         <PortalProjectJumpLinks projectId={project._id} inPage />
       </div>
 
