@@ -200,6 +200,7 @@ export interface ProjectMessage {
   clientVisible: boolean;
   projectTaskId?: string;
   taskTitle?: string;
+  replyToMessageId?: string;
   createdAt: string;
   updatedAt: string;
 }

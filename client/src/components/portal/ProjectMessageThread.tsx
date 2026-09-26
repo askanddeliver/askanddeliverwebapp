@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react';
-import { RefreshCw, Send, X } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { RefreshCw, Reply, Send, X } from 'lucide-react';
 import type { MessageComposeFromTask, ProjectMessage } from '../../types';
 
-export type MessageSendMeta = { projectTaskId?: string };
+export type MessageSendMeta = { projectTaskId?: string; replyToMessageId?: string };
 
 interface ProjectMessageThreadProps {
   messages: ProjectMessage[];
@@ -68,6 +68,34 @@ function TaskChip({
   return <span className={className}>{label}</span>;
 }
 
+/** Quote of the immediate parent only — never walks further up the chain. */
+function ReplyPreview({
+  parent,
+  onClear,
+}: {
+  parent: ProjectMessage;
+  onClear?: () => void;
+}) {
+  return (
+    <div className="relative rounded-md border border-neutral-200 bg-neutral-50 px-2.5 py-1.5">
+      <p className="text-[11px] font-medium text-neutral-600">
+        Replying to {parent.authorName}
+      </p>
+      <p className="line-clamp-2 whitespace-pre-wrap text-xs text-neutral-500">{parent.body}</p>
+      {onClear && (
+        <button
+          type="button"
+          onClick={onClear}
+          className="absolute right-1 top-1 rounded p-0.5 text-neutral-400 hover:bg-neutral-200 hover:text-neutral-700"
+          aria-label="Cancel reply"
+        >
+          <X className="h-3 w-3" />
+        </button>
+      )}
+    </div>
+  );
+}
+
 function ProjectMessageThread({
   messages,
   loading = false,
@@ -83,9 +111,17 @@ function ProjectMessageThread({
 }: ProjectMessageThreadProps) {
   const [body, setBody] = useState('');
   const [clientVisible, setClientVisible] = useState(false);
+  const [replyTo, setReplyTo] = useState<ProjectMessage | null>(null);
   const [sending, setSending] = useState(false);
   const [togglingId, setTogglingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const composeRef = useRef<HTMLTextAreaElement>(null);
+
+  const messagesById = useMemo(() => {
+    const map = new Map<string, ProjectMessage>();
+    for (const m of messages) map.set(m._id, m);
+    return map;
+  }, [messages]);
 
   useEffect(() => {
     if (!composeFromTask) return;
@@ -94,6 +130,12 @@ function ProjectMessageThread({
 
   const confirmClientSeesTaskName = (): boolean => {
     return window.confirm('The client will see this task name.');
+  };
+
+  const startReply = (message: ProjectMessage) => {
+    setReplyTo(message);
+    if (showVisibilityToggle) setClientVisible(Boolean(message.clientVisible));
+    composeRef.current?.focus();
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -116,8 +158,10 @@ function ProjectMessageThread({
     try {
       await onSend(text, nextVisible, {
         projectTaskId: composeFromTask?.projectTaskId,
+        replyToMessageId: replyTo?._id,
       });
       setBody('');
+      setReplyTo(null);
       if (showVisibilityToggle) setClientVisible(false);
       onClearComposeFromTask?.();
     } catch {
@@ -168,61 +212,79 @@ function ProjectMessageThread({
         <p className="py-4 text-sm text-neutral-500">{emptyLabel}</p>
       ) : (
         <ul className="mb-4 max-h-80 space-y-3 overflow-y-auto pr-1">
-          {messages.map((m) => (
-            <li
-              key={m._id}
-              className={`rounded-lg border px-3 py-2.5 ${
-                m.authorRole === 'client'
-                  ? 'border-brand-sage/25 bg-brand-sage/5'
-                  : 'border-neutral-200 bg-white'
-              }`}
-            >
-              <div className="mb-1 flex flex-wrap items-center gap-2 text-xs text-neutral-500">
-                <span className="font-medium text-neutral-700">{m.authorName}</span>
-                <span className="rounded bg-neutral-100 px-1.5 py-0.5 text-[10px] uppercase tracking-wide">
-                  {roleBadge(m.authorRole)}
-                </span>
-                {showVisibilityToggle && m.authorRole !== 'client' && (
-                  onToggleVisibility ? (
-                    <button
-                      type="button"
-                      onClick={() => handleToggle(m)}
-                      disabled={togglingId === m._id}
-                      title={
-                        m.clientVisible
-                          ? 'Visible to client — click to make internal'
-                          : 'Internal — click to share with client'
-                      }
-                      className={`rounded px-1.5 py-0.5 text-[10px] ${
-                        m.clientVisible
-                          ? 'bg-primary-50 text-primary-800 hover:bg-primary-100'
-                          : 'bg-amber-100 text-amber-800 hover:bg-amber-200'
-                      }`}
-                    >
-                      {m.clientVisible ? 'Visible to client' : 'Internal'}
-                    </button>
-                  ) : (
-                    !m.clientVisible && (
-                      <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] text-amber-800">
-                        Internal
-                      </span>
+          {messages.map((m) => {
+            const parent = m.replyToMessageId
+              ? messagesById.get(String(m.replyToMessageId))
+              : undefined;
+            return (
+              <li
+                key={m._id}
+                className={`rounded-lg border px-3 py-2.5 ${
+                  m.authorRole === 'client'
+                    ? 'border-brand-sage/25 bg-brand-sage/5'
+                    : 'border-neutral-200 bg-white'
+                }`}
+              >
+                <div className="mb-1 flex flex-wrap items-center gap-2 text-xs text-neutral-500">
+                  <span className="font-medium text-neutral-700">{m.authorName}</span>
+                  <span className="rounded bg-neutral-100 px-1.5 py-0.5 text-[10px] uppercase tracking-wide">
+                    {roleBadge(m.authorRole)}
+                  </span>
+                  {showVisibilityToggle && m.authorRole !== 'client' && (
+                    onToggleVisibility ? (
+                      <button
+                        type="button"
+                        onClick={() => handleToggle(m)}
+                        disabled={togglingId === m._id}
+                        title={
+                          m.clientVisible
+                            ? 'Visible to client — click to make internal'
+                            : 'Internal — click to share with client'
+                        }
+                        className={`rounded px-1.5 py-0.5 text-[10px] ${
+                          m.clientVisible
+                            ? 'bg-primary-50 text-primary-800 hover:bg-primary-100'
+                            : 'bg-amber-100 text-amber-800 hover:bg-amber-200'
+                        }`}
+                      >
+                        {m.clientVisible ? 'Visible to client' : 'Internal'}
+                      </button>
+                    ) : (
+                      !m.clientVisible && (
+                        <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] text-amber-800">
+                          Internal
+                        </span>
+                      )
                     )
-                  )
-                )}
-                <span>{formatWhen(m.createdAt)}</span>
-              </div>
-              {m.taskTitle && (
-                <div className="mb-1.5">
-                  <TaskChip
-                    taskTitle={m.taskTitle}
-                    projectTitle={projectTitle}
-                    link={linkTaskChips}
-                  />
+                  )}
+                  <span>{formatWhen(m.createdAt)}</span>
+                  <button
+                    type="button"
+                    onClick={() => startReply(m)}
+                    className="ml-auto inline-flex items-center gap-0.5 rounded px-1 py-0.5 text-[11px] text-neutral-500 hover:bg-neutral-100 hover:text-neutral-800"
+                  >
+                    <Reply className="h-3 w-3" />
+                    Reply
+                  </button>
                 </div>
-              )}
-              <p className="whitespace-pre-wrap text-sm text-neutral-800">{m.body}</p>
-            </li>
-          ))}
+                {parent && (
+                  <div className="mb-2">
+                    <ReplyPreview parent={parent} />
+                  </div>
+                )}
+                {m.taskTitle && (
+                  <div className="mb-1.5">
+                    <TaskChip
+                      taskTitle={m.taskTitle}
+                      projectTitle={projectTitle}
+                      link={linkTaskChips}
+                    />
+                  </div>
+                )}
+                <p className="whitespace-pre-wrap text-sm text-neutral-800">{m.body}</p>
+              </li>
+            );
+          })}
         </ul>
       )}
 
@@ -247,7 +309,13 @@ function ProjectMessageThread({
             </span>
           </div>
         )}
+        {replyTo && (
+          <div className="mb-2">
+            <ReplyPreview parent={replyTo} onClear={() => setReplyTo(null)} />
+          </div>
+        )}
         <textarea
+          ref={composeRef}
           value={body}
           onChange={(e) => setBody(e.target.value)}
           rows={3}
@@ -255,7 +323,9 @@ function ProjectMessageThread({
           placeholder={
             composeFromTask
               ? `Write a message about “${composeFromTask.taskTitle}”…`
-              : 'Write a message…'
+              : replyTo
+                ? `Reply to ${replyTo.authorName}…`
+                : 'Write a message…'
           }
           disabled={sending}
         />

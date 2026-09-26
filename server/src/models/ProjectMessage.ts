@@ -14,6 +14,8 @@ export interface IProjectMessage extends Document {
   projectTaskId?: mongoose.Types.ObjectId;
   /** Snapshot of the task title at send time (survives rename) */
   taskTitle?: string;
+  /** Immediate parent in a reply chain (preview shows this message only) */
+  replyToMessageId?: mongoose.Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -62,6 +64,10 @@ const ProjectMessageSchema = new Schema<IProjectMessage>(
     taskTitle: {
       type: String,
       trim: true,
+    },
+    replyToMessageId: {
+      type: Schema.Types.ObjectId,
+      ref: 'ProjectMessage',
     },
   },
   {

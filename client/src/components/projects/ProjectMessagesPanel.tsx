@@ -49,12 +49,13 @@ function ProjectMessagesPanel({
   const handleSend = async (
     body: string,
     clientVisible: boolean,
-    meta?: { projectTaskId?: string }
+    meta?: { projectTaskId?: string; replyToMessageId?: string }
   ) => {
     const res = await projectMessagesApi.create(projectId, {
       body,
       clientVisible,
       projectTaskId: meta?.projectTaskId,
+      replyToMessageId: meta?.replyToMessageId,
     });
     setMessages((prev) => [...prev, res.data]);
   };

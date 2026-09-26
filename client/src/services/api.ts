@@ -739,7 +739,12 @@ export const projectMessagesApi = {
     api.get<ProjectMessage[]>(`/projects/${projectId}/messages`),
   create: (
     projectId: string,
-    data: { body: string; clientVisible?: boolean; projectTaskId?: string }
+    data: {
+      body: string;
+      clientVisible?: boolean;
+      projectTaskId?: string;
+      replyToMessageId?: string;
+    }
   ) => api.post<ProjectMessage>(`/projects/${projectId}/messages`, data),
   updateVisibility: (projectId: string, messageId: string, clientVisible: boolean) =>
     api.patch<ProjectMessage>(`/projects/${projectId}/messages/${messageId}`, {
@@ -772,8 +777,16 @@ export const portalApi = {
     api.get<PortalProjectDetailResponse>(`/portal/projects/${id}`),
   getMessages: (projectId: string) =>
     api.get<ProjectMessage[]>(`/portal/projects/${projectId}/messages`),
-  postMessage: (projectId: string, body: string) =>
-    api.post<ProjectMessage>(`/portal/projects/${projectId}/messages`, { body }),
+  postMessage: (
+    projectId: string,
+    body: string,
+    meta?: { projectTaskId?: string; replyToMessageId?: string }
+  ) =>
+    api.post<ProjectMessage>(`/portal/projects/${projectId}/messages`, {
+      body,
+      projectTaskId: meta?.projectTaskId,
+      replyToMessageId: meta?.replyToMessageId,
+    }),
   getAssets: (projectId: string) =>
     api.get<ProjectAsset[]>(`/portal/projects/${projectId}/assets`),
   uploadAsset: (projectId: string, file: File) => {

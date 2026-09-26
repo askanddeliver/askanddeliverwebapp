@@ -1,12 +1,16 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, MessageSquare } from 'lucide-react';
 import { portalApi } from '../../services/api';
 import PortalStatusBadge from '../../components/portal/PortalStatusBadge';
 import SanitizedBrief from '../../components/portal/SanitizedBrief';
 import ProjectMessageThread from '../../components/portal/ProjectMessageThread';
 import ProjectAssetsPanel from '../../components/projects/ProjectAssetsPanel';
-import type { PortalProjectDetailResponse, ProjectMessage } from '../../types';
+import type {
+  MessageComposeFromTask,
+  PortalProjectDetailResponse,
+  ProjectMessage,
+} from '../../types';
 
 function PortalProjectDetail() {
   const { id } = useParams<{ id: string }>();
@@ -15,6 +19,9 @@ function PortalProjectDetail() {
   const [loading, setLoading] = useState(true);
   const [messagesLoading, setMessagesLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [composeFromTask, setComposeFromTask] = useState<MessageComposeFromTask | null>(
+    null
+  );
 
   const loadMessages = useCallback(async () => {
     if (!id) return;
@@ -49,10 +56,26 @@ function PortalProjectDetail() {
     return () => clearInterval(interval);
   }, [id, loadMessages]);
 
-  const handleSend = async (body: string, _clientVisible?: boolean) => {
+  const handleSend = async (
+    body: string,
+    _clientVisible?: boolean,
+    meta?: { projectTaskId?: string; replyToMessageId?: string }
+  ) => {
     if (!id) return;
-    const res = await portalApi.postMessage(id, body);
+    const res = await portalApi.postMessage(id, body, meta);
     setMessages((prev) => [...prev, res.data]);
+  };
+
+  const handleMessageFromTask = (task: {
+    _id: string;
+    title: string;
+  }) => {
+    setComposeFromTask({
+      projectTaskId: task._id,
+      taskTitle: task.title,
+      taskClientVisible: true,
+    });
+    document.getElementById('messages')?.scrollIntoView({ behavior: 'smooth' });
   };
 
   if (loading) {
@@ -128,7 +151,17 @@ function PortalProjectDetail() {
               >
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <span className="font-medium text-brand-charcoal">{t.title}</span>
-                  <PortalStatusBadge kind="task" status={t.status} />
+                  <div className="flex items-center gap-1.5">
+                    <PortalStatusBadge kind="task" status={t.status} />
+                    <button
+                      type="button"
+                      onClick={() => handleMessageFromTask(t)}
+                      className="rounded p-1 text-neutral-400 hover:bg-brand-sage/10 hover:text-brand-sage"
+                      title="Comment on this task"
+                    >
+                      <MessageSquare className="h-4 w-4" />
+                    </button>
+                  </div>
                 </div>
                 {t.description && (
                   <p className="mt-1 text-sm text-neutral-600">{t.description}</p>
@@ -146,13 +179,15 @@ function PortalProjectDetail() {
         <ProjectAssetsPanel projectId={project._id} variant="portal" />
       </section>
 
-      <section className="rounded-xl border border-neutral-200 bg-white p-6">
+      <section id="messages" className="rounded-xl border border-neutral-200 bg-white p-6">
         <ProjectMessageThread
           messages={messages}
           loading={messagesLoading}
           onSend={handleSend}
           onRefresh={loadMessages}
           projectTitle={project.title}
+          composeFromTask={composeFromTask}
+          onClearComposeFromTask={() => setComposeFromTask(null)}
           emptyLabel="No messages yet — say hello to your team."
         />
       </section>

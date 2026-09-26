@@ -49,7 +49,8 @@ async function loadWorkspaceProject(req: AuthRequest, projectId: string) {
 async function resolveTaskSnapshot(
   workspaceOwnerId: string,
   projectId: string,
-  projectTaskId: unknown
+  projectTaskId: unknown,
+  opts?: { requireClientVisible?: boolean }
 ): Promise<{ projectTaskId: string; taskTitle: string } | undefined> {
   if (typeof projectTaskId !== 'string' || !projectTaskId.trim()) {
     return undefined;
@@ -59,6 +60,7 @@ async function resolveTaskSnapshot(
     _id: projectTaskId,
     userId: workspaceOwnerId,
     projectId,
+    ...(opts?.requireClientVisible ? { clientVisible: true } : {}),
   })
     .select('title')
     .lean();
@@ -66,6 +68,30 @@ async function resolveTaskSnapshot(
   if (!task) throw createError('Task not found on this project', 400);
 
   return { projectTaskId: String(task._id), taskTitle: task.title };
+}
+
+async function resolveReplyParent(
+  workspaceOwnerId: string,
+  projectId: string,
+  replyToMessageId: unknown,
+  opts?: { requireClientVisible?: boolean }
+): Promise<{ replyToMessageId: string } | undefined> {
+  if (typeof replyToMessageId !== 'string' || !replyToMessageId.trim()) {
+    return undefined;
+  }
+
+  const parent = await ProjectMessage.findOne({
+    _id: replyToMessageId,
+    userId: workspaceOwnerId,
+    projectId,
+    ...(opts?.requireClientVisible ? { clientVisible: true } : {}),
+  })
+    .select('_id')
+    .lean();
+
+  if (!parent) throw createError('Message to reply to was not found', 400);
+
+  return { replyToMessageId: String(parent._id) };
 }
 
 function maybeNotifyClient(opts: {
@@ -127,6 +153,11 @@ router.post(
       projectId,
       req.body?.projectTaskId
     );
+    const replyParent = await resolveReplyParent(
+      workspaceOwnerId,
+      projectId,
+      req.body?.replyToMessageId
+    );
 
     const message = await ProjectMessage.create({
       userId: workspaceOwnerId,
@@ -139,6 +170,7 @@ router.post(
       ...(taskSnap
         ? { projectTaskId: taskSnap.projectTaskId, taskTitle: taskSnap.taskTitle }
         : {}),
+      ...(replyParent ? { replyToMessageId: replyParent.replyToMessageId } : {}),
     });
 
     maybeNotifyClient({
@@ -244,6 +276,19 @@ portalProjectMessagesRouter.post(
     const user = await User.findOne({ auth0Id: ctx.auth0Id }).lean();
     if (!user) throw createError('User not found', 404);
 
+    const taskSnap = await resolveTaskSnapshot(
+      ctx.workspaceOwnerId,
+      projectId,
+      req.body?.projectTaskId,
+      { requireClientVisible: true }
+    );
+    const replyParent = await resolveReplyParent(
+      ctx.workspaceOwnerId,
+      projectId,
+      req.body?.replyToMessageId,
+      { requireClientVisible: true }
+    );
+
     const message = await ProjectMessage.create({
       userId: ctx.workspaceOwnerId,
       projectId,
@@ -252,6 +297,10 @@ portalProjectMessagesRouter.post(
       authorRole: 'client',
       body,
       clientVisible: true,
+      ...(taskSnap
+        ? { projectTaskId: taskSnap.projectTaskId, taskTitle: taskSnap.taskTitle }
+        : {}),
+      ...(replyParent ? { replyToMessageId: replyParent.replyToMessageId } : {}),
     });
 
     notifyClientMessageToTeam({

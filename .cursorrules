@@ -314,7 +314,7 @@ export const NewModel = mongoose.model<INewModel>('NewModel', NewModelSchema);
 | TaskType | name, rate, color | userId (Pattern B) |
 | TimeEntry | projectId, taskTypeId, projectTaskId, startTime, endTime, duration, isRunning, invoiceId | userId (Pattern B, dual) |
 | ProjectTask | projectId, title, status, order, estimatedHours, clientVisible, assigneeAuth0Id | userId (Pattern B) |
-| ProjectMessage | projectId, authorAuth0Id, body, clientVisible, projectTaskId, taskTitle | userId (Pattern B) |
+| ProjectMessage | projectId, authorAuth0Id, body, clientVisible, projectTaskId, taskTitle, replyToMessageId | userId (Pattern B) |
 | ProjectAsset | projectId, uploadedByAuth0Id, originalName, mimeType, size, cloudinaryPublicId, resourceType, url, clientVisible | userId (Pattern B) |
 | TimeBlock | startTime, endTime, kind, projectId, recurrenceRule | userId (Pattern A) |
 | LineItem | clientId, projectId, description, amount, category, date, invoiceId | userId (Pattern A) |

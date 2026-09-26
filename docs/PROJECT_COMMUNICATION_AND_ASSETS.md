@@ -39,17 +39,17 @@ Flipping a team message to visible uses the same Resend path as a new client-vis
 
 ## Messages
 
-`ProjectMessage` (Pattern B) now includes optional `projectTaskId` and a **`taskTitle` snapshot** (survives rename).
+`ProjectMessage` (Pattern B) includes optional `projectTaskId` + **`taskTitle` snapshot**, and optional **`replyToMessageId`** (immediate parent only).
 
 | Method | Path | Who | Notes |
 |--------|------|-----|--------|
-| GET/POST | `/api/projects/:projectId/messages` | admin / assigned member | POST accepts `{ body, clientVisible?, projectTaskId? }` |
+| GET/POST | `/api/projects/:projectId/messages` | admin / assigned member | POST accepts `{ body, clientVisible?, projectTaskId?, replyToMessageId? }` |
 | PATCH | `/api/projects/:projectId/messages/:messageId` | admin / assigned member | `{ clientVisible }` only |
-| GET/POST | `/api/portal/projects/:projectId/messages` | client | GET visible only; POST always visible |
+| GET/POST | `/api/portal/projects/:projectId/messages` | client | GET visible only; POST always visible; may set `projectTaskId` (client-visible tasks) and `replyToMessageId` (visible parents) |
 
-**Hub:** compose toggle is shown for members (no longer forced internal). Thread badges are clickable Internal / Visible to client.
+**Hub:** compose toggle is shown for members (no longer forced internal). Thread badges are clickable Internal / Visible to client. **Reply** quotes only the immediate previous message — never the full chain.
 
-**From a task:** hub task row message action scrolls to `#messages` with a project + task chip. Default visibility follows the task’s `clientVisible`. Publishing an internal task name to the client confirms: “The client will see this task name.” Clients see the snapshot chip only — they do not gain the internal task list. Team chips link to `#tasks`; portal chips are static.
+**From a task (team and client):** task-row message action scrolls to `#messages` with a project + task chip. Team default visibility follows the task’s `clientVisible`. Publishing an internal task name to the client confirms: “The client will see this task name.” Portal tasks are already client-visible, so no confirm. Clients see the snapshot chip only — they do not gain the internal task list. Team chips link to `#tasks`; portal chips are static.
 
 ---
 
