@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useUserRole } from '../../contexts/UserContext';
 import { portalApi } from '../../services/api';
 import PortalStatusBadge from '../../components/portal/PortalStatusBadge';
+import PortalProjectJumpLinks from '../../components/portal/PortalProjectJumpLinks';
 import type { PortalDashboardResponse } from '../../types';
 
 function PortalHome() {
@@ -37,10 +38,17 @@ function PortalHome() {
       <h1 className="font-display text-display-sm mb-2 text-brand-charcoal">
         Welcome{firstName ? `, ${firstName}` : ''}
       </h1>
-      <p className="mb-8 text-neutral-600">
+      <p className="mb-2 text-neutral-600">
         {data?.companyName
           ? `${data.companyName} client portal — your projects and updates.`
           : 'Your client portal — projects, briefs, and messages.'}
+      </p>
+      <p className="mb-8 text-sm text-neutral-500">
+        Email alerts stay off until you turn them on in{' '}
+        <Link to="/portal/settings" className="text-brand-sage hover:underline">
+          Email settings
+        </Link>
+        .
       </p>
 
       {error && (
@@ -72,24 +80,26 @@ function PortalHome() {
         ) : (
           <div className="grid gap-4 sm:grid-cols-2">
             {data?.activeProjects.map((p) => (
-              <Link
+              <div
                 key={p._id}
-                to={`/portal/projects/${p._id}`}
                 className="rounded-xl border border-neutral-200 bg-white p-5 transition-shadow hover:shadow-md"
               >
-                <div className="mb-2 flex items-start justify-between gap-2">
-                  <h3 className="font-semibold text-brand-charcoal">{p.title}</h3>
-                  <PortalStatusBadge kind="project" status={p.status} />
-                </div>
-                {p.excerpt && (
-                  <p className="mb-2 line-clamp-2 text-sm text-neutral-500">{p.excerpt}</p>
-                )}
-                <p className="text-xs text-neutral-400">
-                  {p.openTaskCount > 0
-                    ? `${p.openTaskCount} open task${p.openTaskCount === 1 ? '' : 's'}`
-                    : 'No open tasks'}
-                </p>
-              </Link>
+                <Link to={`/portal/projects/${p._id}`} className="block">
+                  <div className="mb-2 flex items-start justify-between gap-2">
+                    <h3 className="font-semibold text-brand-charcoal">{p.title}</h3>
+                    <PortalStatusBadge kind="project" status={p.status} />
+                  </div>
+                  {p.excerpt && (
+                    <p className="mb-2 line-clamp-2 text-sm text-neutral-500">{p.excerpt}</p>
+                  )}
+                  <p className="text-xs text-neutral-400">
+                    {p.openTaskCount > 0
+                      ? `${p.openTaskCount} open task${p.openTaskCount === 1 ? '' : 's'}`
+                      : 'No open tasks'}
+                  </p>
+                </Link>
+                <PortalProjectJumpLinks projectId={p._id} className="mt-3 border-t border-neutral-100 pt-3" />
+              </div>
             ))}
           </div>
         )}
@@ -112,10 +122,10 @@ function PortalHome() {
                 </p>
                 {u.projectId && (
                   <Link
-                    to={`/portal/projects/${u.projectId}`}
+                    to={`/portal/projects/${u.projectId}#messages`}
                     className="mt-1 inline-block text-xs text-brand-sage hover:underline"
                   >
-                    View project
+                    Open message
                   </Link>
                 )}
               </li>

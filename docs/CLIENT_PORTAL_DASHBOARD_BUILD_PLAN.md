@@ -47,7 +47,7 @@ Full v1 scope is locked in [PLATFORM_EXPANSION_CLIENT_PORTAL_SPEC.md](./PLATFORM
 | Surface | Route | Status |
 |---------|-------|--------|
 | Portal shell | `ClientPortalLayout` + `PortalNav` | ✓ |
-| **Dashboard (home)** | `/portal` | ✓ — welcome, active project cards, recent message updates |
+| **Dashboard (home)** | `/portal` | ✓ — welcome, active project cards with jump links, recent message updates |
 | Project list | `/portal/projects` | ✓ — status tabs, open task counts |
 | **Project detail** | `/portal/projects/:id` | ✓ — brief, client-visible tasks, message thread |
 | Dashboard API | `GET /api/portal/dashboard` | ✓ |
@@ -59,8 +59,8 @@ Full v1 scope is locked in [PLATFORM_EXPANSION_CLIENT_PORTAL_SPEC.md](./PLATFORM
 | Widget | Implementation |
 |--------|----------------|
 | Welcome | Client first name + tenant `companyName` from SiteConfig |
-| Active projects | Up to 6 cards — `ACTIVE` and `PAUSED`, open task count |
-| Recent updates | Last 5 `clientVisible` messages across projects |
+| Active projects | Up to 6 cards — `ACTIVE` and `PAUSED`, open task count, jump links to Brief / Tasks / Files / Messages |
+| Recent updates | Last 5 `clientVisible` messages across projects (link opens `#messages`) |
 | Empty state | Contact `companyEmail` from SiteConfig |
 
 **Project detail sections today:**

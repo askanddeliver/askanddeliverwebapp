@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useLocation, useParams } from 'react-router-dom';
 import { ArrowLeft, MessageSquare } from 'lucide-react';
 import { portalApi } from '../../services/api';
 import PortalStatusBadge from '../../components/portal/PortalStatusBadge';
 import SanitizedBrief from '../../components/portal/SanitizedBrief';
 import ProjectMessageThread from '../../components/portal/ProjectMessageThread';
 import ProjectAssetsPanel from '../../components/projects/ProjectAssetsPanel';
+import PortalProjectJumpLinks from '../../components/portal/PortalProjectJumpLinks';
 import type {
   MessageComposeFromTask,
   PortalProjectDetailResponse,
@@ -14,6 +15,7 @@ import type {
 
 function PortalProjectDetail() {
   const { id } = useParams<{ id: string }>();
+  const location = useLocation();
   const [detail, setDetail] = useState<PortalProjectDetailResponse | null>(null);
   const [messages, setMessages] = useState<ProjectMessage[]>([]);
   const [loading, setLoading] = useState(true);
@@ -55,6 +57,17 @@ function PortalProjectDetail() {
     const interval = setInterval(loadMessages, 60_000);
     return () => clearInterval(interval);
   }, [id, loadMessages]);
+
+  useEffect(() => {
+    if (loading || !detail) return;
+    const hash = location.hash.replace('#', '');
+    if (!hash) return;
+    if (hash === 'messages' && messagesLoading) return;
+    const timer = window.setTimeout(() => {
+      document.getElementById(hash)?.scrollIntoView({ behavior: 'smooth' });
+    }, 80);
+    return () => window.clearTimeout(timer);
+  }, [loading, detail, location.hash, messagesLoading]);
 
   const handleSend = async (
     body: string,
@@ -124,7 +137,11 @@ function PortalProjectDetail() {
         </p>
       </div>
 
-      <section className="mb-8 rounded-xl border border-neutral-200 bg-white p-6">
+      <div className="sticky top-0 z-10 mb-6 rounded-lg border border-neutral-200 bg-brand-cream/95 px-4 py-2.5 backdrop-blur">
+        <PortalProjectJumpLinks projectId={project._id} inPage />
+      </div>
+
+      <section id="brief" className="mb-8 scroll-mt-16 rounded-xl border border-neutral-200 bg-white p-6">
         <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-neutral-500">
           Brief
         </h2>
@@ -134,7 +151,7 @@ function PortalProjectDetail() {
         />
       </section>
 
-      <section className="mb-8 rounded-xl border border-neutral-200 bg-white p-6">
+      <section id="tasks" className="mb-8 scroll-mt-16 rounded-xl border border-neutral-200 bg-white p-6">
         <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-neutral-500">
           Tasks
         </h2>
@@ -172,14 +189,14 @@ function PortalProjectDetail() {
         )}
       </section>
 
-      <section className="mb-8 rounded-xl border border-neutral-200 bg-white p-6">
+      <section id="files" className="mb-8 scroll-mt-16 rounded-xl border border-neutral-200 bg-white p-6">
         <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-neutral-500">
           Files
         </h2>
         <ProjectAssetsPanel projectId={project._id} variant="portal" />
       </section>
 
-      <section id="messages" className="rounded-xl border border-neutral-200 bg-white p-6">
+      <section id="messages" className="scroll-mt-16 rounded-xl border border-neutral-200 bg-white p-6">
         <ProjectMessageThread
           messages={messages}
           loading={messagesLoading}

@@ -224,21 +224,21 @@ If `STRIPE_SECRET_KEY` is unset, the app hides payment-link actions and the API 
 
 Use [Resend](https://resend.com) for workspace notifications (client messages → team, portal invites, client-visible updates). The same account can later send SaaS billing emails per [SAAS_CONVERSION_BUILD_PLAN.md](./docs/SAAS_CONVERSION_BUILD_PLAN.md).
 
-1. **Create a Resend account** and add your sending domain (e.g. `askanddeliver.com`).
+1. **Create a Resend account** and add the sending domain **`updates.askanddeliver.com`**.
 2. **Verify DNS** — add the SPF, DKIM, and (recommended) DMARC records Resend provides in your DNS host.
 3. **Create an API key** — Resend dashboard → API Keys → copy the key (`re_…`).
-4. Add to `server/.env`:
+4. Add to `server/.env` (and Railway for production):
    ```env
    RESEND_API_KEY=re_...
-   RESEND_FROM_EMAIL=notifications@yourdomain.com
+   RESEND_FROM_EMAIL=notify@updates.askanddeliver.com
    RESEND_FROM_NAME=Ask And Deliver
    FRONTEND_URL=http://localhost:5173
    # Leave false until you are ready to test — see RESEND_LOCAL_TEST_CHECKLIST.md
    RESEND_NOTIFICATIONS_ENABLED=false
    ```
-   - `RESEND_FROM_EMAIL` must use an address on your **verified** domain.
+   - `RESEND_FROM_EMAIL` must be an address **on the verified subdomain** (`…@updates.askanddeliver.com`). `notify@` is the mailbox we use; any local-part on that domain is allowed.
    - `RESEND_FROM_NAME` is the default sender display name; per-email sends can override with workspace `SiteConfig.companyName`.
-   - `FRONTEND_URL` is used for deep links in notification emails (same as Stripe redirect base).
+   - `FRONTEND_URL` is used for deep links in notification emails (same as Stripe redirect base). Production: `https://www.askanddeliver.com`.
    - **`RESEND_NOTIFICATIONS_ENABLED`** — master switch. When unset or not `true`, **no** notification emails send (including portal invites). User profile toggles are **opt-in** (off by default) on top of this.
    - **Do not use inline comments on the same line as env values** — put comments on the line above. Restart the dev server after changing `.env`.
 5. **Test locally** — follow [RESEND_LOCAL_TEST_CHECKLIST.md](./docs/RESEND_LOCAL_TEST_CHECKLIST.md) before enabling delivery or client-facing events.

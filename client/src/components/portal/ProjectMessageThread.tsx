@@ -116,12 +116,25 @@ function ProjectMessageThread({
   const [togglingId, setTogglingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const composeRef = useRef<HTMLTextAreaElement>(null);
+  const listRef = useRef<HTMLUListElement>(null);
+  const stickToBottomRef = useRef(true);
 
   const messagesById = useMemo(() => {
     const map = new Map<string, ProjectMessage>();
     for (const m of messages) map.set(m._id, m);
     return map;
   }, [messages]);
+
+  const scrollListToBottom = () => {
+    const el = listRef.current;
+    if (!el) return;
+    el.scrollTop = el.scrollHeight;
+  };
+
+  useEffect(() => {
+    if (loading) return;
+    if (stickToBottomRef.current) scrollListToBottom();
+  }, [messages, loading]);
 
   useEffect(() => {
     if (!composeFromTask) return;
@@ -155,6 +168,7 @@ function ProjectMessageThread({
 
     setSending(true);
     setError(null);
+    stickToBottomRef.current = true;
     try {
       await onSend(text, nextVisible, {
         projectTaskId: composeFromTask?.projectTaskId,
@@ -211,7 +225,15 @@ function ProjectMessageThread({
       ) : messages.length === 0 ? (
         <p className="py-4 text-sm text-neutral-500">{emptyLabel}</p>
       ) : (
-        <ul className="mb-4 max-h-80 space-y-3 overflow-y-auto pr-1">
+        <ul
+          ref={listRef}
+          onScroll={(e) => {
+            const el = e.currentTarget;
+            stickToBottomRef.current =
+              el.scrollHeight - el.scrollTop - el.clientHeight < 48;
+          }}
+          className="mb-4 max-h-80 space-y-3 overflow-y-auto pr-1"
+        >
           {messages.map((m) => {
             const parent = m.replyToMessageId
               ? messagesById.get(String(m.replyToMessageId))

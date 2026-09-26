@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { portalApi } from '../../services/api';
 import PortalStatusBadge from '../../components/portal/PortalStatusBadge';
+import PortalProjectJumpLinks from '../../components/portal/PortalProjectJumpLinks';
 import type { PortalProjectSummary, ProjectStatus } from '../../types';
 
 type StatusTab = ProjectStatus | 'ALL';
@@ -71,30 +72,30 @@ function PortalProjects() {
         <ul className="space-y-3">
           {projects.map((p) => (
             <li key={p._id}>
-              <Link
-                to={`/portal/projects/${p._id}`}
-                className="block rounded-xl border border-neutral-200 bg-white p-5 transition-shadow hover:shadow-md"
-              >
-                <div className="flex flex-wrap items-start justify-between gap-2">
-                  <div className="min-w-0 flex-1">
-                    <h2 className="font-semibold text-brand-charcoal">{p.title}</h2>
-                    {p.excerpt && (
-                      <p className="mt-1 line-clamp-2 text-sm text-neutral-500">{p.excerpt}</p>
+              <div className="rounded-xl border border-neutral-200 bg-white p-5 transition-shadow hover:shadow-md">
+                <Link to={`/portal/projects/${p._id}`} className="block">
+                  <div className="flex flex-wrap items-start justify-between gap-2">
+                    <div className="min-w-0 flex-1">
+                      <h2 className="font-semibold text-brand-charcoal">{p.title}</h2>
+                      {p.excerpt && (
+                        <p className="mt-1 line-clamp-2 text-sm text-neutral-500">{p.excerpt}</p>
+                      )}
+                    </div>
+                    <PortalStatusBadge kind="project" status={p.status} />
+                  </div>
+                  <div className="mt-3 flex flex-wrap gap-3 text-xs text-neutral-400">
+                    <span>
+                      Updated {new Date(p.updatedAt).toLocaleDateString()}
+                    </span>
+                    {p.openTaskCount > 0 && (
+                      <span>
+                        {p.openTaskCount} open task{p.openTaskCount === 1 ? '' : 's'}
+                      </span>
                     )}
                   </div>
-                  <PortalStatusBadge kind="project" status={p.status} />
-                </div>
-                <div className="mt-3 flex flex-wrap gap-3 text-xs text-neutral-400">
-                  <span>
-                    Updated {new Date(p.updatedAt).toLocaleDateString()}
-                  </span>
-                  {p.openTaskCount > 0 && (
-                    <span>
-                      {p.openTaskCount} open task{p.openTaskCount === 1 ? '' : 's'}
-                    </span>
-                  )}
-                </div>
-              </Link>
+                </Link>
+                <PortalProjectJumpLinks projectId={p._id} className="mt-3 border-t border-neutral-100 pt-3" />
+              </div>
             </li>
           ))}
         </ul>

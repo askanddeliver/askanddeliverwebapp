@@ -131,7 +131,7 @@ Two gates must allow a send (except portal invite, which skips user preferences)
 |----------|-------------------|-------|
 | `RESEND_NOTIFICATIONS_ENABLED` | Must parse as true (`true`, `1`, `yes`) | Default **off** when unset |
 | `RESEND_API_KEY` | Yes | |
-| `RESEND_FROM_EMAIL` | Yes | Verified domain |
+| `RESEND_FROM_EMAIL` | Yes | Must be `@updates.askanddeliver.com` |
 | `FRONTEND_URL` | For deep links | e.g. `http://localhost:5173` |
 
 **`.env` pitfall:** Do not put inline comments on the same line as the value (`RESEND_NOTIFICATIONS_ENABLED=true # comment`). dotenv may include the comment in the value. Put comments on their own line above. Parsing in `emailConfig.ts` strips trailing `#` as a safety net.
@@ -161,9 +161,9 @@ Use **Save notification settings** on member/client pages (separate from main pr
 
 ```env
 RESEND_API_KEY=re_...
-RESEND_FROM_EMAIL=notifications@yourdomain.com
+RESEND_FROM_EMAIL=notify@updates.askanddeliver.com
 RESEND_FROM_NAME=Ask And Deliver
-FRONTEND_URL=https://app.askanddeliver.com
+FRONTEND_URL=https://www.askanddeliver.com
 # Master switch — must be true to send; user toggles are opt-in separately
 RESEND_NOTIFICATIONS_ENABLED=false
 ```
@@ -172,10 +172,10 @@ See [SETUP.md](../SETUP.md) Resend section and [RESEND_LOCAL_TEST_CHECKLIST.md](
 
 ### Domain checklist (operator)
 
-- [ ] Domain added and verified in Resend dashboard
+- [ ] Domain `updates.askanddeliver.com` added and verified in Resend
 - [ ] SPF, DKIM, DMARC DNS records published
 - [ ] Test send from Resend dashboard to confirm deliverability
-- [ ] `RESEND_FROM_EMAIL` uses verified subdomain (e.g. `notify@`, `notifications@`)
+- [ ] `RESEND_FROM_EMAIL` is on that subdomain (canonical: `notify@updates.askanddeliver.com`)
 
 ### Dependencies
 
