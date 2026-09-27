@@ -1,18 +1,20 @@
 import { loadWorkspaceEmailBrand } from '../brandContext';
 import { enqueueEmailNotification } from '../notificationService';
 import { sendBrandedEmailToProjectStakeholders } from '../sendToStakeholders';
-import { buildClientMessageToTeamEmail } from '../templates/clientMessageToTeam';
+import { buildTeamMessageToTeamEmail } from '../templates/teamMessageToTeam';
 
-export interface NotifyClientMessageToTeamParams {
+export interface NotifyTeamMessageToTeamParams {
   workspaceOwnerId: string;
   projectId: string;
   projectTitle: string;
   assignedMemberIds?: string[];
+  authorAuth0Id: string;
   authorName: string;
   messageBody: string;
 }
 
-export function notifyClientMessageToTeam(params: NotifyClientMessageToTeamParams): void {
+/** Email admin + assigned members (except the author) when a teammate posts. */
+export function notifyTeamMessageToTeam(params: NotifyTeamMessageToTeamParams): void {
   enqueueEmailNotification(async () => {
     const brand = await loadWorkspaceEmailBrand(params.workspaceOwnerId);
     await sendBrandedEmailToProjectStakeholders({
@@ -21,13 +23,14 @@ export function notifyClientMessageToTeam(params: NotifyClientMessageToTeamParam
         assignedMemberIds: params.assignedMemberIds,
         includeAdmin: true,
         includeAssigned: true,
-        preferenceKey: 'clientMessages',
+        excludeAuth0Ids: [params.authorAuth0Id],
+        preferenceKey: 'teamMessages',
       },
       brand,
       projectId: params.projectId,
       hash: '#messages',
       build: (projectUrl) =>
-        buildClientMessageToTeamEmail({
+        buildTeamMessageToTeamEmail({
           brand,
           projectTitle: params.projectTitle,
           authorName: params.authorName,

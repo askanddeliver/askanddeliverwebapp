@@ -11,7 +11,11 @@ import { asyncHandler, createError } from '../middleware/errorHandler';
 import { Project, User, ProjectMessage, ProjectTask } from '../models';
 import { findClientProject, requirePortalContext } from '../lib/portalScope';
 import { memberHasProjectAccess } from '../lib/memberProjects';
-import { notifyClientMessageToTeam, notifyTeamMessageToClient } from '../lib/email';
+import {
+  notifyClientMessageToTeam,
+  notifyTeamMessageToClient,
+  notifyTeamMessageToTeam,
+} from '../lib/email';
 import type { ProjectMessageAuthorRole } from '../models/ProjectMessage';
 
 const router = Router({ mergeParams: true });
@@ -171,6 +175,16 @@ router.post(
         ? { projectTaskId: taskSnap.projectTaskId, taskTitle: taskSnap.taskTitle }
         : {}),
       ...(replyParent ? { replyToMessageId: replyParent.replyToMessageId } : {}),
+    });
+
+    notifyTeamMessageToTeam({
+      workspaceOwnerId,
+      projectId,
+      projectTitle: project.title,
+      assignedMemberIds: project.assignedMemberIds,
+      authorAuth0Id: auth0Id,
+      authorName: user.name,
+      messageBody: body,
     });
 
     maybeNotifyClient({

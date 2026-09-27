@@ -29,6 +29,7 @@ export interface IUserEmailNotificationPreferences {
   clientVisibleReplies?: boolean;
   taskCompleted?: boolean;
   invoiceSent?: boolean;
+  teamMessages?: boolean;
   digest?: 'none' | 'daily' | 'weekly';
 }
 
@@ -150,6 +151,7 @@ const userSchema = new Schema<IUser>(
         clientVisibleReplies: { type: Boolean },
         taskCompleted: { type: Boolean },
         invoiceSent: { type: Boolean },
+        teamMessages: { type: Boolean },
         digest: { type: String, enum: ['none', 'daily', 'weekly'] },
       },
     },

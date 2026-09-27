@@ -7,6 +7,7 @@ type PrefKey = keyof Pick<
   | 'clientVisibleReplies'
   | 'taskCompleted'
   | 'invoiceSent'
+  | 'teamMessages'
 >;
 
 const TOGGLE_DEFS: Record<
@@ -19,12 +20,32 @@ const TOGGLE_DEFS: Record<
       label: 'Client messages',
       description: 'Email when a client posts a message on a project',
     },
+    {
+      key: 'teamMessages',
+      label: 'Team messages',
+      description: 'Email when a teammate posts on a project (internal or client-visible)',
+    },
+    {
+      key: 'taskCompleted',
+      label: 'Task completed',
+      description: 'Email when a project task is marked complete',
+    },
   ],
   member: [
     {
       key: 'clientMessages',
       label: 'Client messages',
       description: 'Email when a client posts on a project you are assigned to',
+    },
+    {
+      key: 'teamMessages',
+      label: 'Team messages',
+      description: 'Email when a teammate posts on a project you are assigned to',
+    },
+    {
+      key: 'taskCompleted',
+      label: 'Task completed',
+      description: 'Email when a task is marked complete on a project you are assigned to',
     },
     {
       key: 'projectAssignments',

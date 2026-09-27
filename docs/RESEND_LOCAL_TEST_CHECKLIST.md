@@ -56,6 +56,12 @@ Repeat Phase 0 actions. Still **no sends** (recipients have not opted in).
 - [ ] Use a **test client account** (your email) to post on a portal project message
 - [ ] **Expect:** admin inbox receives email
 - [ ] Turn **off** Client messages → Save → post again → **no email**
+- [ ] Admin `/profile` → turn **on** **Team messages** → Save
+- [ ] From a **member** (or second admin session), post on the project
+- [ ] **Expect:** admin inbox receives teammate-message email; the poster does not
+- [ ] Admin `/profile` → turn **on** **Task completed** → Save
+- [ ] From a member, mark a task complete
+- [ ] **Expect:** admin inbox receives task-complete email
 
 ---
 
@@ -121,11 +127,13 @@ Only when you intend to test invites to an address you own:
 | Action | Who | Opt-in toggle |
 |--------|-----|---------------|
 | Client posts portal message | Admin + assigned members | **Client messages** |
+| Teammate posts project message | Admin + assigned members except author | **Team messages** |
 | Admin posts client-visible message | Client portal users | **Team updates** |
 | Admin creates project with assignees | All initial assignees | **Project assignments** |
 | Admin adds new assignees on update | New assignees only | **Project assignments** |
 | Admin invites client portal user | Invitee email | Env gate only |
 | Invoice DRAFT → SENT (`INVOICE` only) | Client portal users | **Invoices** |
+| Task newly COMPLETED | Admin + assigned members except actor | **Task completed** |
 | Client-visible task newly COMPLETED | Client portal users | **Task completed** |
 
 **Not wired:** per-task assignee email · email digests (RN-4).

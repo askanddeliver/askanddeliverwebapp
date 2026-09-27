@@ -21,7 +21,7 @@ export {
   enqueueEmailNotification,
 } from './notificationService';
 export type { NotificationEventId } from './notificationService';
-export { getProjectStakeholderEmails, getMemberEmail, getClientPortalEmails, getInvoiceClientEmails } from './recipients';
+export { getProjectStakeholderEmails, getProjectStakeholderRecipients, getMemberEmail, getClientPortalEmails, getInvoiceClientEmails } from './recipients';
 export {
   isEmailPreferenceEnabled,
   mergeNotificationPreferences,
@@ -35,9 +35,11 @@ export type {
 export { notifyClientMessageToTeam } from './notifications/clientMessageToTeam';
 export { notifyClientPortalInvite } from './notifications/clientPortalInvite';
 export { notifyTeamMessageToClient } from './notifications/teamMessageToClient';
+export { notifyTeamMessageToTeam } from './notifications/teamMessageToTeam';
 export { notifyInvoiceSentToClient } from './notifications/invoiceSentToClient';
 export { notifyClientTaskCompleted } from './notifications/clientTaskCompleted';
-export { maybeNotifyClientTaskCompleted } from './taskCompletionNotify';
+export { notifyTeamTaskCompleted } from './notifications/teamTaskCompleted';
+export { maybeNotifyTaskCompleted, maybeNotifyClientTaskCompleted } from './taskCompletionNotify';
 export {
   notifyMemberAssignedToProject,
   notifyMembersAssignedToProject,

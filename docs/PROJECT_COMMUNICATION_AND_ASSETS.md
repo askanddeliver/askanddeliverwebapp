@@ -33,7 +33,7 @@ Allowlist is MIME **and** extension. Same Cloudinary account as portfolio and in
 - Clients only list `clientVisible: true`. Internal names never leak on portal list/GET.
 - Access follows **project assignment** (team) or CRM **`clientId`** (client). 404 on probe.
 
-Flipping a team message to visible uses the same Resend path as a new client-visible post (`notifyTeamMessageToClient`).
+Flipping a team message to visible uses the same Resend path as a new client-visible post (`notifyTeamMessageToClient`). Teammate posts also email the **workspace admin and assigned members** who opted in to **Team messages** (`notifyTeamMessageToTeam`); the author is never emailed. Completing a task emails opted-in teammates (`taskCompleted`) as well as portal users when the task is client-visible.
 
 ---
 
@@ -86,4 +86,5 @@ Out of this slice: per-file member ACL, versioning, folders, unread bell, PSD in
 | Task → message | `client/src/components/projectTasks/ProjectTaskList.tsx` |
 | Models | `server/src/models/ProjectMessage.ts`, `ProjectAsset.ts` |
 | Routes | `server/src/routes/projectMessages.ts`, `projectAssets.ts`, `portal.ts` |
+| Team emails | `server/src/lib/email/notifications/teamMessageToTeam.ts`, `teamTaskCompleted.ts` |
 | Upload | `server/src/lib/cloudinaryUpload.ts`, `projectAssetUpload.ts` |

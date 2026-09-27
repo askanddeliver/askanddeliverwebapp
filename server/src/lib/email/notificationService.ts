@@ -9,6 +9,8 @@ export type NotificationEventId =
   | 'member.task.assigned'
   | 'client.portal.invite'
   | 'team.message.client_visible'
+  | 'team.message.posted'
+  | 'team.task.completed'
   | 'client.task.completed'
   | 'client.invoice.sent';
 

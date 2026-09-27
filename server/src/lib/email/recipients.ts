@@ -17,6 +17,12 @@ export interface ProjectStakeholderEmailOptions {
   preferenceKey?: EmailNotificationPreferenceKey;
 }
 
+export interface ProjectStakeholderRecipient {
+  email: string;
+  role: 'admin' | 'member';
+  auth0Id: string;
+}
+
 function emailFromUser(user: {
   email?: string;
   notificationPreferences?: IUserNotificationPreferences;
@@ -25,10 +31,10 @@ function emailFromUser(user: {
   return email || null;
 }
 
-/** Resolve unique active user emails for workspace admin + project assignees. */
-export async function getProjectStakeholderEmails(
+/** Resolve unique active admin/member recipients for workspace admin + project assignees. */
+export async function getProjectStakeholderRecipients(
   options: ProjectStakeholderEmailOptions
-): Promise<string[]> {
+): Promise<ProjectStakeholderRecipient[]> {
   const {
     workspaceOwnerId,
     assignedMemberIds = [],
@@ -58,16 +64,32 @@ export async function getProjectStakeholderEmails(
   const users = await User.find({
     auth0Id: { $in: [...auth0Ids] },
     status: 'active',
+    role: { $in: ['admin', 'member'] },
   })
-    .select('email notificationPreferences')
+    .select('auth0Id email role notificationPreferences')
     .lean();
 
-  const emails = users
-    .filter((u) => isEmailPreferenceEnabled(u.notificationPreferences, preferenceKey))
-    .map((u) => emailFromUser(u))
-    .filter((e): e is string => !!e);
+  const seen = new Set<string>();
+  const recipients: ProjectStakeholderRecipient[] = [];
 
-  return [...new Set(emails)];
+  for (const u of users) {
+    if (!isEmailPreferenceEnabled(u.notificationPreferences, preferenceKey)) continue;
+    const email = emailFromUser(u);
+    if (!email || seen.has(email)) continue;
+    if (u.role !== 'admin' && u.role !== 'member') continue;
+    seen.add(email);
+    recipients.push({ email, role: u.role, auth0Id: u.auth0Id });
+  }
+
+  return recipients;
+}
+
+/** Resolve unique active user emails for workspace admin + project assignees. */
+export async function getProjectStakeholderEmails(
+  options: ProjectStakeholderEmailOptions
+): Promise<string[]> {
+  const recipients = await getProjectStakeholderRecipients(options);
+  return recipients.map((r) => r.email);
 }
 
 export async function getMemberEmail(

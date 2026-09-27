@@ -5,7 +5,7 @@ import mongoose from 'mongoose';
 import { ProjectTask, Client, Project, User } from '../models';
 import { validateOptionalWorkspaceMemberAuth0Id } from '../lib/memberValidation';
 import { memberHasProjectAccess, getMemberProjectFilter } from '../lib/memberProjects';
-import { maybeNotifyClientTaskCompleted } from '../lib/email/taskCompletionNotify';
+import { maybeNotifyTaskCompleted } from '../lib/email/taskCompletionNotify';
 
 const router = Router();
 
@@ -336,7 +336,7 @@ router.put(
       throw createError('Project task not found', 404);
     }
 
-    await maybeNotifyClientTaskCompleted(existing, task);
+    await maybeNotifyTaskCompleted(existing, task, auth0Id);
 
     res.json(task);
   })
@@ -398,7 +398,7 @@ router.patch(
       throw createError('Project task not found', 404);
     }
 
-    await maybeNotifyClientTaskCompleted(existing, task);
+    await maybeNotifyTaskCompleted(existing, task, auth0Id);
 
     res.json(task);
   })

@@ -21,6 +21,7 @@ export interface UserEmailNotificationPreferences {
   clientVisibleReplies?: boolean;
   taskCompleted?: boolean;
   invoiceSent?: boolean;
+  teamMessages?: boolean;
   digest?: 'none' | 'daily' | 'weekly';
 }
 

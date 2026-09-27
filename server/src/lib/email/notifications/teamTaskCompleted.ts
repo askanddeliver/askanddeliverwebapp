@@ -1,18 +1,19 @@
 import { loadWorkspaceEmailBrand } from '../brandContext';
 import { enqueueEmailNotification } from '../notificationService';
 import { sendBrandedEmailToProjectStakeholders } from '../sendToStakeholders';
-import { buildClientMessageToTeamEmail } from '../templates/clientMessageToTeam';
+import { buildClientTaskCompletedEmail } from '../templates/clientTaskCompleted';
 
-export interface NotifyClientMessageToTeamParams {
+export interface NotifyTeamTaskCompletedParams {
   workspaceOwnerId: string;
   projectId: string;
   projectTitle: string;
+  taskTitle: string;
   assignedMemberIds?: string[];
-  authorName: string;
-  messageBody: string;
+  excludeAuth0Ids?: string[];
 }
 
-export function notifyClientMessageToTeam(params: NotifyClientMessageToTeamParams): void {
+/** Email admin + assigned members when a task is marked complete. */
+export function notifyTeamTaskCompleted(params: NotifyTeamTaskCompletedParams): void {
   enqueueEmailNotification(async () => {
     const brand = await loadWorkspaceEmailBrand(params.workspaceOwnerId);
     await sendBrandedEmailToProjectStakeholders({
@@ -21,17 +22,17 @@ export function notifyClientMessageToTeam(params: NotifyClientMessageToTeamParam
         assignedMemberIds: params.assignedMemberIds,
         includeAdmin: true,
         includeAssigned: true,
-        preferenceKey: 'clientMessages',
+        excludeAuth0Ids: params.excludeAuth0Ids,
+        preferenceKey: 'taskCompleted',
       },
       brand,
       projectId: params.projectId,
-      hash: '#messages',
+      hash: '#tasks',
       build: (projectUrl) =>
-        buildClientMessageToTeamEmail({
+        buildClientTaskCompletedEmail({
           brand,
           projectTitle: params.projectTitle,
-          authorName: params.authorName,
-          messageBody: params.messageBody,
+          taskTitle: params.taskTitle,
           projectUrl,
         }),
     });

@@ -1,5 +1,6 @@
 import { Project } from '../../models';
 import { notifyClientTaskCompleted } from './notifications/clientTaskCompleted';
+import { notifyTeamTaskCompleted } from './notifications/teamTaskCompleted';
 
 interface TaskCompletionCandidate {
   userId: string;
@@ -9,28 +10,43 @@ interface TaskCompletionCandidate {
   status: string;
 }
 
-/** Fire client task-completed email when a client-visible task newly reaches COMPLETED. */
-export async function maybeNotifyClientTaskCompleted(
+/** Fire task-completed emails when a task newly reaches COMPLETED. */
+export async function maybeNotifyTaskCompleted(
   before: TaskCompletionCandidate,
-  after: TaskCompletionCandidate
+  after: TaskCompletionCandidate,
+  actorAuth0Id?: string
 ): Promise<void> {
   if (after.status !== 'COMPLETED' || before.status === 'COMPLETED') return;
-  if (!after.clientVisible) return;
 
   const project = await Project.findOne({
     _id: after.projectId,
     userId: after.userId,
   })
-    .select('title clientId')
+    .select('title clientId assignedMemberIds')
     .lean();
 
-  if (!project?.clientId) return;
+  if (!project) return;
+
+  const projectId = String(project._id);
+  notifyTeamTaskCompleted({
+    workspaceOwnerId: after.userId,
+    projectId,
+    projectTitle: project.title,
+    taskTitle: after.title,
+    assignedMemberIds: project.assignedMemberIds,
+    excludeAuth0Ids: actorAuth0Id ? [actorAuth0Id] : [],
+  });
+
+  if (!after.clientVisible || !project.clientId) return;
 
   notifyClientTaskCompleted({
     workspaceOwnerId: after.userId,
     clientId: String(project.clientId),
-    projectId: String(after.projectId),
+    projectId,
     projectTitle: project.title,
     taskTitle: after.title,
   });
 }
+
+/** @deprecated Use maybeNotifyTaskCompleted */
+export const maybeNotifyClientTaskCompleted = maybeNotifyTaskCompleted;

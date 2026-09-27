@@ -82,14 +82,16 @@ This is the **authoritative reference** for what sends email today. All sends ar
 | 4 | **Admin** | Adds new assignees on project update | `PUT /api/projects/:id` (only **newly added** auth0 ids) | New assignees only | `projectAssignments` | **Project assignments** (member) |
 | 5 | **Admin** | Invites user to client portal | `POST /api/users/invite-client` | Invitee email from request | *(none — env gate only)* | — |
 | 6 | **Admin** | Marks invoice **DRAFT → SENT** | Invoice status transition | Portal users for invoice's client | `invoiceSent` | **Invoices** (client) |
-| 7 | **Admin or member** | Marks task **COMPLETED** | `PUT /api/project-tasks/:id` or `PATCH …/status` | Portal users for project's client | `taskCompleted` | **Task completed** (client) |
+| 7 | **Admin or member** | Marks task **COMPLETED** | `PUT /api/project-tasks/:id` or `PATCH …/status` | Portal users (client-visible tasks) **and** workspace admin + assigned members (any task) | `taskCompleted` | **Task completed** (client, admin, member) |
+| 8 | **Admin or member** | Posts a project message (any visibility) | `POST /api/projects/:projectId/messages` | Workspace admin + assigned members **except the author** | `teamMessages` | **Team messages** (admin/member) |
 
 ### Per-trigger conditions
 
 **#1 Client message → team**  
 - Fires on every portal message.  
 - Recipients must have opted in to `clientMessages`.  
-- Message author is never emailed (client role).
+- Message author is never emailed (client role).  
+- Deep links: admin `{FRONTEND_URL}/projects/:id#messages`; member `{FRONTEND_URL}/member/projects/:id#messages`.
 
 **#2 Team message → client**  
 - Recipients are **invited portal users only** (`role: client`, matching `clientId`, `status: active`) who opted in to **Team updates**.  
@@ -111,10 +113,16 @@ This is the **authoritative reference** for what sends email today. All sends ar
 - **CRM `Client.email` is not used** — portal users with `invoiceSent: true` only. Uninvited contacts are not emailed.
 
 **#7 Task completed**  
-- Task must be **`clientVisible: true`**.  
 - Status must **newly** become `COMPLETED` (was not already completed).  
-- Project must have a linked client.  
-- Recipients are invited portal users who opted in to **Task completed** — same rule as #2.
+- **Team:** any completed task emails workspace admin + assigned members who opted in to **Task completed**. The person who marked it complete is not emailed. Deep links: admin `/projects/:id#tasks`; member `/member/projects/:id#tasks`.  
+- **Client:** task must also be **`clientVisible: true`**, project must have a linked client, and recipients are invited portal users who opted in — same rule as #2.
+
+**#8 Team message → teammates**  
+- Fires on every team POST (internal or client-visible). PATCH visibility flips do **not** re-notify the team.  
+- Recipients are workspace admin + `assignedMemberIds` who opted in to `teamMessages`.  
+- The message **author is excluded**.  
+- Deep links match #1 (admin vs member hub).  
+- If the post is also client-visible, #2 still fires separately for portal users.
 
 ### Not wired (documented for future)
 
@@ -149,9 +157,10 @@ Stored on `User.notificationPreferences.email`. **Opt-in only:** value must be *
 | Preference key | Roles | Settings page |
 |----------------|-------|---------------|
 | `clientMessages` | admin, member | `/profile` · `/member/profile` |
+| `teamMessages` | admin, member | `/profile` · `/member/profile` |
 | `projectAssignments` | member | `/member/profile` |
 | `clientVisibleReplies` | client | `/portal/settings` |
-| `taskCompleted` | client | `/portal/settings` |
+| `taskCompleted` | admin, member, client | `/profile` · `/member/profile` · `/portal/settings` |
 | `invoiceSent` | client | `/portal/settings` |
 | `digest` | reserved | Not implemented (RN-4) |
 
@@ -245,11 +254,13 @@ Stable event IDs for logging and future digest grouping. See [Triggers by action
 
 | Event ID | Status | Deep link base |
 |----------|--------|----------------|
-| `client.message.posted` | ✅ | `{FRONTEND_URL}/projects/:id#messages` |
+| `client.message.posted` | ✅ | Admin `{FRONTEND_URL}/projects/:id#messages`; member `/member/projects/:id#messages` |
 | `member.assigned.project` | ✅ | `{FRONTEND_URL}/member/projects/:id` |
 | `client.portal.invite` | ✅ | `{FRONTEND_URL}/portal` |
 | `team.message.client_visible` | ✅ | `{FRONTEND_URL}/portal/projects/:id#messages` |
+| `team.message.posted` | ✅ | Admin `{FRONTEND_URL}/projects/:id#messages`; member `/member/projects/:id#messages` |
 | `client.task.completed` | ✅ | `{FRONTEND_URL}/portal/projects/:id#tasks` |
+| `team.task.completed` | ✅ | Admin `{FRONTEND_URL}/projects/:id#tasks`; member `/member/projects/:id#tasks` |
 | `client.invoice.sent` | ✅ | `{FRONTEND_URL}/portal/invoices/:id` |
 
 ### Not shipped
@@ -294,7 +305,13 @@ interface EmailTemplate {
 
 **Subject:** `[{companyName}] New client message on {projectTitle}`
 
-**Body:** Author name, message excerpt (first 280 chars), CTA button "View in project hub" → `{FRONTEND_URL}/projects/{projectId}#messages`
+**Body:** Author name, message excerpt (first 280 chars), CTA button "View in project hub" → admin `{FRONTEND_URL}/projects/{projectId}#messages`; member `{FRONTEND_URL}/member/projects/{projectId}#messages`
+
+### Example: teammate message → team
+
+**Subject:** `[{companyName}] New message on {projectTitle}`
+
+**Body:** Author name, excerpt, CTA → same hub URLs as client message → team
 
 ### Example: client-visible team message → client
 
@@ -323,10 +340,10 @@ Notifications call `enqueueEmailNotification()` so the HTTP response is not bloc
 
 | File | After success |
 |------|---------------|
-| `server/src/routes/projectMessages.ts` | Portal POST → `notifyClientMessageToTeam`; team POST or PATCH to `clientVisible: true` → `notifyTeamMessageToClient` |
+| `server/src/routes/projectMessages.ts` | Portal POST → `notifyClientMessageToTeam`; team POST → `notifyTeamMessageToTeam` (and `notifyTeamMessageToClient` when `clientVisible`); PATCH to `clientVisible: true` → `notifyTeamMessageToClient` |
 | `server/src/routes/users.ts` | `invite-client` → `notifyClientPortalInvite` |
 | `server/src/routes/projects.ts` | Create → all assignees; update → newly added assignees only |
-| `server/src/routes/projectTasks.ts` | `maybeNotifyClientTaskCompleted` on PUT / PATCH status |
+| `server/src/routes/projectTasks.ts` | `maybeNotifyTaskCompleted` on PUT / PATCH status (team + client) |
 | `server/src/routes/invoices.ts` | DRAFT → SENT + `INVOICE` kind → `notifyInvoiceSentToClient` |
 
 Recipient helpers in `server/src/lib/email/recipients.ts` filter by `isEmailPreferenceEnabled()` except portal invite (direct to invitee email).
@@ -343,7 +360,7 @@ Recipient helpers in `server/src/lib/email/recipients.ts` filter by `isEmailPref
 | **RN-3** | Invoice + task + preferences | Invoice SENT; task completed; profile toggles | ✅ Shipped |
 | **RN-4** | Digests + debounce | Cron digests; burst rollup; optional `member.task.assigned` | ⏸ Deferred |
 
-**Paused after RN-3.** Use [RESEND_LOCAL_TEST_CHECKLIST.md](./RESEND_LOCAL_TEST_CHECKLIST.md) before production enablement.
+**Paused after RN-3** (digests still deferred). Contributor alerts (`teamMessages`, team `taskCompleted`) shipped 2026-09-27. Use [RESEND_LOCAL_TEST_CHECKLIST.md](./RESEND_LOCAL_TEST_CHECKLIST.md) before production enablement.
 
 ---
 
@@ -352,8 +369,11 @@ Recipient helpers in `server/src/lib/email/recipients.ts` filter by `isEmailPref
 - [ ] Missing `RESEND_API_KEY` — app runs; emails skipped with warn log
 - [ ] Invalid recipient — logged, no crash
 - [ ] Client message notifies admin + assignees, not the client author
-- [ ] Internal message (`clientVisible: false`) — no client email
+- [ ] Teammate post notifies opted-in admin/assigned members, not the author
+- [ ] Teammate email CTA uses `/projects/:id` for admin and `/member/projects/:id` for members
+- [ ] Internal message (`clientVisible: false`) — no client email; team still notified if `teamMessages` is on
 - [ ] Client-visible message — all portal users for that client notified
+- [ ] Completing a task emails opted-in teammates; completing it yourself does not email you
 - [ ] Invite email contains working login link
 - [ ] From domain passes SPF/DKIM (check Resend dashboard + mail tester)
 - [ ] No PII/rates in email body for client-facing templates
@@ -370,6 +390,7 @@ Recipient helpers in `server/src/lib/email/recipients.ts` filter by `isEmailPref
 | Enqueue | `server/src/lib/email/notificationService.ts` |
 | Preferences (server) | `server/src/lib/email/notificationPreferences.ts` |
 | Recipients | `server/src/lib/email/recipients.ts` |
+| Role-aware hub sends | `server/src/lib/email/sendToStakeholders.ts` |
 | Event handlers | `server/src/lib/email/notifications/*.ts` |
 | Templates | `server/src/lib/email/templates/*.ts` |
 | Task completion helper | `server/src/lib/email/taskCompletionNotify.ts` |
@@ -409,3 +430,4 @@ Do not bundle RN-4 with unrelated work (reporting filters, dashboards) — keep 
 | 2026-07-17 | **RN-2** — portal invite; client-visible team message → clients |
 | 2026-07-17 | **RN-3** — invoice sent + task completed emails; `notificationPreferences` + profile UI |
 | 2026-08-14 | **Stopping point** — triggers-by-action reference, delivery gates, shipped vs deferred; `parseEnvFlag` for inline `.env` comments; pause before RN-4 |
+| 2026-09-27 | Contributor alerts — `teamMessages` + team `taskCompleted` for admin/members; role-aware hub deep links |
