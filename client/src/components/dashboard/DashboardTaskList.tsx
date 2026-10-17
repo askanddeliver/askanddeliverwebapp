@@ -7,7 +7,8 @@ import {
   ListTodo,
   Play,
   ChevronDown,
-  ChevronRight,
+  ChevronUp,
+  Briefcase,
 } from 'lucide-react';
 import type { Project, ProjectTask } from '../../types';
 import { sortProjectTasksByOrder } from '../../utils/projectTasks';
@@ -143,13 +144,18 @@ export function DashboardTaskList({
     [projects, projectTasks]
   );
 
-  const [expandedClients, setExpandedClients] = useState<Record<string, boolean>>(
-    {}
+  const [expandedTaskIds, setExpandedTaskIds] = useState<Set<string>>(
+    () => new Set()
   );
   const [busyTaskId, setBusyTaskId] = useState<string | null>(null);
 
-  const toggleClient = (key: string) => {
-    setExpandedClients((prev) => ({ ...prev, [key]: !prev[key] }));
+  const toggleOpenTasks = (projectId: string) => {
+    setExpandedTaskIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(projectId)) next.delete(projectId);
+      else next.add(projectId);
+      return next;
+    });
   };
 
   const handleCycleStatus = async (task: ProjectTask) => {
@@ -211,49 +217,68 @@ export function DashboardTaskList({
       </div>
 
       <div className="space-y-4">
-        {groups.map((group) => {
-          const expanded = !!expandedClients[group.clientSortKey];
-          return (
-            <div
-              key={group.clientSortKey}
-              className="border border-gray-100 rounded-lg overflow-hidden"
-            >
-              <button
-                type="button"
-                onClick={() => toggleClient(group.clientSortKey)}
-                className="w-full flex items-center gap-2 px-3 py-2 bg-gray-50 hover:bg-gray-100/80 transition-colors text-left"
-              >
-                {expanded ? (
-                  <ChevronDown className="w-4 h-4 text-gray-500 flex-shrink-0" />
-                ) : (
-                  <ChevronRight className="w-4 h-4 text-gray-500 flex-shrink-0" />
-                )}
-                <span className="font-semibold text-gray-800 text-sm">
+        {groups.map((group) => (
+          <article
+            key={group.clientSortKey}
+            className="overflow-hidden rounded-xl border border-gray-200 bg-white"
+          >
+            <header className="flex items-start gap-3 border-b border-gray-100 bg-gray-50/80 px-4 py-3">
+              <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary-50 text-primary-700">
+                <Briefcase className="h-4 w-4" />
+              </span>
+              <div className="min-w-0 flex-1">
+                <h3 className="truncate text-sm font-semibold text-gray-900">
                   {group.clientName}
-                </span>
-              </button>
+                </h3>
+                <p className="mt-0.5 text-xs text-gray-500">
+                  {group.projectBlocks.length}{' '}
+                  {group.projectBlocks.length === 1 ? 'project' : 'projects'}
+                </p>
+              </div>
+            </header>
 
-              {expanded && (
-                <div className="divide-y divide-gray-50">
-                  {group.projectBlocks.map(({ project, tasks }) => (
-                    <div key={project._id} className="px-3 py-2">
-                      <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">
-                        <Link
-                          to={`${projectHubBase}/${project._id}#tasks`}
-                          className="hover:text-primary-700 hover:underline"
-                        >
-                          {project.title}
-                        </Link>
-                      </p>
-                      <ul className="space-y-1">
+            <ul className="divide-y divide-gray-100">
+              {group.projectBlocks.map(({ project, tasks }) => {
+                const tasksExpanded = expandedTaskIds.has(project._id);
+                const hubTo = `${projectHubBase}/${project._id}`;
+
+                return (
+                  <li key={project._id} className="px-4 py-3">
+                    <div className="flex min-w-0 items-start justify-between gap-2">
+                      <Link
+                        to={`${hubTo}#tasks`}
+                        className="min-w-0 truncate font-medium text-gray-900 hover:text-primary-700 hover:underline"
+                      >
+                        {project.title}
+                      </Link>
+                    </div>
+
+                    {tasks.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => toggleOpenTasks(project._id)}
+                        aria-expanded={tasksExpanded}
+                        className="mt-1.5 inline-flex items-center gap-0.5 text-xs text-gray-400 hover:text-gray-700"
+                      >
+                        {tasks.length} open{' '}
+                        {tasks.length === 1 ? 'task' : 'tasks'}
+                        {tasksExpanded ? (
+                          <ChevronUp className="h-3 w-3" aria-hidden />
+                        ) : (
+                          <ChevronDown className="h-3 w-3" aria-hidden />
+                        )}
+                      </button>
+                    )}
+
+                    {tasksExpanded && tasks.length > 0 && (
+                      <ul className="mt-2 space-y-1">
                         {tasks.map((task) => {
-                          const playDisabled =
-                            isTimerRunning || !hasTaskTypes;
+                          const playDisabled = isTimerRunning || !hasTaskTypes;
                           const statusBusy = busyTaskId === task._id;
                           return (
                             <li
                               key={task._id}
-                              className="flex items-start gap-2 py-1.5 rounded-md hover:bg-gray-50/80 -mx-1 px-1"
+                              className="flex items-start gap-2 rounded-md py-1.5 -mx-1 px-1 hover:bg-gray-50/80"
                             >
                               {onToggleStatus ? (
                                 <button
@@ -298,13 +323,13 @@ export function DashboardTaskList({
                           );
                         })}
                       </ul>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          );
-        })}
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          </article>
+        ))}
       </div>
     </div>
   );
