@@ -13,10 +13,12 @@ This document is the **index** for the expansion program. Companion docs:
 | [PLATFORM_EXPANSION_PROMPTS.md](./PLATFORM_EXPANSION_PROMPTS.md) | Sequential Cursor prompts — one concern per session/PR |
 | [PLATFORM_EXPANSION_DISCIPLINES_AND_TASK_TYPES.md](./PLATFORM_EXPANSION_DISCIPLINES_AND_TASK_TYPES.md) | Discipline vs Task Type model, A&D seed list, assignability flags |
 | [PLATFORM_EXPANSION_INTAKE_FORM_SPEC.md](./PLATFORM_EXPANSION_INTAKE_FORM_SPEC.md) | Default intake step flow, fields, required/optional, A&D seed form |
-| [PLATFORM_EXPANSION_CLIENT_PORTAL_SPEC.md](./PLATFORM_EXPANSION_CLIENT_PORTAL_SPEC.md) | Client portal v1 — projects, brief, tasks, per-project messaging |
-| [CLIENT_PORTAL_DASHBOARD_BUILD_PLAN.md](./CLIENT_PORTAL_DASHBOARD_BUILD_PLAN.md) | Client dashboard v1 status, v1.1 roadmap, Resend hooks |
-| [PROJECT_HUB_BUILD_PLAN.md](./PROJECT_HUB_BUILD_PLAN.md) | Admin/member unified project detail — brief, tasks, entries, budget, messages, team |
-| [RESEND_NOTIFICATIONS_BUILD_PLAN.md](./RESEND_NOTIFICATIONS_BUILD_PLAN.md) | Transactional email — **RN-0–RN-3 shipped**, paused at RN-4 (triggers-by-action reference) |
+| [PLATFORM_EXPANSION_CLIENT_PORTAL_SPEC.md](./PLATFORM_EXPANSION_CLIENT_PORTAL_SPEC.md) | Client portal v1 — projects, brief, tasks, requests, files, per-project messaging |
+| [CLIENT_PORTAL_DASHBOARD_BUILD_PLAN.md](./CLIENT_PORTAL_DASHBOARD_BUILD_PLAN.md) | Client dashboard — unread + task requests shipped; v1.1 invoices still planned |
+| [PROJECT_HUB_BUILD_PLAN.md](./PROJECT_HUB_BUILD_PLAN.md) | Admin/member project hub — requests, files, Notify picker, unread |
+| [ONBOARDING_UX_EXPANSIONS_BUILD_PLAN.md](./ONBOARDING_UX_EXPANSIONS_BUILD_PLAN.md) | Unread, pins, client task requests (slices A–C shipped) |
+| [PROJECT_COMMUNICATION_AND_ASSETS.md](./PROJECT_COMMUNICATION_AND_ASSETS.md) | One project thread + files library; Notify None/@/Team |
+| [RESEND_NOTIFICATIONS_BUILD_PLAN.md](./RESEND_NOTIFICATIONS_BUILD_PLAN.md) | Transactional email — **RN-0–RN-3 shipped**, paused at RN-4; Notify picker + task-request emails |
 | [REPORTS_WORKBENCH_BUILD_PLAN.md](./REPORTS_WORKBENCH_BUILD_PLAN.md) | Reports workbench — **Phases 0–7 shipped** (September 2026): filter rail, output kinds, `/reports/saved`, `/payroll`, `/backups`; retainer remaining-hours as-of period end |
 
 **Related existing docs:** [SAAS_CONVERSION_BUILD_PLAN.md](./SAAS_CONVERSION_BUILD_PLAN.md) (subscription/multi-domain layer), [PROJECT_BILLING_MODES_BUILD_PLAN.md](./PROJECT_BILLING_MODES_BUILD_PLAN.md) (hourly / fixed / retainer documents), [REPORTS_WORKBENCH_BUILD_PLAN.md](./REPORTS_WORKBENCH_BUILD_PLAN.md) (Reports IA + remaining hours), [Design System Update/design_handoff_admin_redesign/](./Design%20System%20Update/design_handoff_admin_redesign/) (admin shell target), [Internal_Workspace_and_Block_Time_Concept.md](./Internal_Workspace_and_Block_Time_Concept.md), [BLOCK_TIME_AND_INTERNAL_WORKSPACE_BUILD_PLAN.md](./BLOCK_TIME_AND_INTERNAL_WORKSPACE_BUILD_PLAN.md).
@@ -336,3 +338,4 @@ Locked in working session (July 2026):
 | 2026-07-03 | **Phases 1–9 complete** — lead scoping, intake builder, dynamic renderer, disciplines, roles, member hub, client portal, admin command center, assignment & capacity |
 | 2026-07-03 | **Phase 11** — merged `PLATFORM_EXPANSION_CURSORRULES.md` into `.cursorrules`; updated ARCHITECTURE, README, SETUP |
 | 2026-07-17 | Added client dashboard, project hub, and Resend notifications build plans |
+| 2026-10-16 | Onboarding expansions shipped — unread, pins, client task requests, Notify None/@/Team |

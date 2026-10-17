@@ -1,6 +1,6 @@
 # Client Portal Dashboard — Build Plan
 
-**Status:** v1 shipped · v1.1+ planned (July 2026)  
+**Status:** v1 shipped · unread (CP-4) and task requests (onboarding C) shipped · v1.1 invoices still planned  
 **Parent:** [PLATFORM_EXPANSION_CLIENT_PORTAL_SPEC.md](./PLATFORM_EXPANSION_CLIENT_PORTAL_SPEC.md)  
 **Related:** [PROJECT_HUB_BUILD_PLAN.md](./PROJECT_HUB_BUILD_PLAN.md) · [RESEND_NOTIFICATIONS_BUILD_PLAN.md](./RESEND_NOTIFICATIONS_BUILD_PLAN.md) · [ONBOARDING_UX_EXPANSIONS_BUILD_PLAN.md](./ONBOARDING_UX_EXPANSIONS_BUILD_PLAN.md)
 
@@ -49,7 +49,7 @@ Full v1 scope is locked in [PLATFORM_EXPANSION_CLIENT_PORTAL_SPEC.md](./PLATFORM
 | Portal shell | `ClientPortalLayout` + `PortalNav` | ✓ |
 | **Dashboard (home)** | `/portal` | ✓ — welcome, active project cards with jump links, recent message updates |
 | Project list | `/portal/projects` | ✓ — status tabs, open task counts |
-| **Project detail** | `/portal/projects/:id` | ✓ — brief, client-visible tasks, message thread |
+| **Project detail** | `/portal/projects/:id` | ✓ — brief, client-visible tasks, task requests, files, message thread |
 | Dashboard API | `GET /api/portal/dashboard` | ✓ |
 | Project APIs | `GET /api/portal/projects`, `GET /api/portal/projects/:id` | ✓ |
 | Messages | `GET/POST /api/portal/projects/:id/messages` | ✓ — 60s polling |
@@ -59,7 +59,7 @@ Full v1 scope is locked in [PLATFORM_EXPANSION_CLIENT_PORTAL_SPEC.md](./PLATFORM
 | Widget | Implementation |
 |--------|----------------|
 | Welcome | Client first name + tenant `companyName` from SiteConfig |
-| Active projects | Up to 6 cards — `ACTIVE` and `PAUSED`, open task count, jump links to Brief / Tasks / Files / Messages |
+| Active projects | Up to 6 cards — `ACTIVE` and `PAUSED`, open task count, unread badge, jump links to Brief / Tasks / Requests / Files / Messages |
 | Recent updates | Last 5 `clientVisible` messages across projects (link opens `#messages`) |
 | Empty state | Contact `companyEmail` from SiteConfig |
 
@@ -69,8 +69,9 @@ Full v1 scope is locked in [PLATFORM_EXPANSION_CLIENT_PORTAL_SPEC.md](./PLATFORM
 |---------|----------------|
 | Brief | `SanitizedBrief` — HTML from `Project.brief`, fallback to `description` |
 | Tasks | `clientVisible: true` only — title, description, status badge |
+| Requests | `#requests` — submit a task suggestion; status Waiting / Added / Not added |
 | Files | Client-visible `ProjectAsset` list + upload (always visible); delete own |
-| Messages | `ProjectMessageThread` — client can read + reply; task-name chips are static |
+| Messages | `ProjectMessageThread` — client can read + reply; task-name chips are static; no Notify picker |
 
 ---
 
@@ -84,7 +85,7 @@ Enhancements that improve orientation without changing the read-mostly model.
 |-------------|----------|-------------|
 | **Task status in recent updates** | P1 | Include client-visible task status changes (not only messages) in the activity feed |
 | **Paused / completed summary** | P2 | Secondary row or collapsible section for non-active projects with link to filtered list |
-| **Unread message indicator** | P2 | Badge on project cards when new `clientVisible` messages since last visit (requires `User.lastPortalVisitAt` or per-project read cursor — see [Open decisions](#open-decisions)) |
+| **Unread message indicator** | **Shipped (CP-4)** | Per-project `User.projectMessageReads`; no cursor → 0 |
 | **Invoices snippet** | P1 (v1.1) | Card linking to `/portal/invoices` when SENT invoices exist — see spec v1.1 |
 | **Email digest opt-in** | P3 | Weekly summary via Resend — after transactional notifications ship |
 
@@ -93,7 +94,7 @@ Enhancements that improve orientation without changing the read-mostly model.
 ```
 /portal                          Home — project summary + recent activity
 /portal/projects                 Project list
-/portal/projects/:id             Project hub (brief + tasks + files + messages)
+/portal/projects/:id             Project hub (brief + tasks + requests + files + messages)
 /portal/invoices                 (v1.1) SENT/PAID invoices
 ```
 
@@ -126,6 +127,8 @@ The client project hub is **functionally complete for v1**. Optional follow-ons:
 | `GET /api/portal/projects` | List with `openTaskCount` |
 | `GET /api/portal/projects/:id` | Project + client-visible tasks |
 | `GET/POST /api/portal/projects/:id/messages` | Thread |
+| `POST /api/portal/projects/:id/messages/read` | Mark thread read |
+| `GET/POST /api/portal/projects/:id/task-suggestions` | Task requests |
 | `GET/POST/DELETE /api/portal/projects/:id/assets` | Client-visible files; upload always visible; delete own |
 
 ### v1.1 additions
@@ -189,9 +192,9 @@ Client toggles: `/portal/settings`. Templates use SiteConfig branding (`companyN
 | **CP-2** | Dashboard activity feed | Task status changes in recent updates | — |
 | **CP-3** | Portal invoices v1.1 | `/portal/invoices` + pay links | Payment links (existing) |
 | **CP-4** | Unread badges | Per-project read cursor on `User`; counts on portal cards | ✅ Shipped (onboarding slice A) |
-| **CP-5** | Client task requests | Dedicated intake; admin approves → creates `ProjectTask` | Specced as slice C in the same plan |
+| **CP-5** | Client task requests | Dedicated intake; admin approves → creates `ProjectTask` | ✅ Shipped (onboarding slice C) |
 
-**Recommendation:** Unread (CP-4 / slice A) is the next portal-adjacent ship for onboarded clients and members. Invoices UI (CP-3) remains separate.
+**Recommendation:** CP-4 and CP-5 are live. Next portal-adjacent work is invoices UI (CP-3) and optional activity-feed (CP-2).
 
 ---
 
@@ -214,6 +217,8 @@ Client toggles: `/portal/settings`. Templates use SiteConfig branding (`companyN
 - [ ] Resend: client-visible message triggers email to linked portal users
 - [ ] No rate/budget/entry fields in any portal API response
 - [ ] Hard refresh on `/portal` — no auth 401 burst (tokenReady gate)
+- [ ] Unread badge on a card clears after opening `#messages`
+- [ ] Client can submit a task request; admin approve creates a client-visible task
 
 ---
 
@@ -225,6 +230,7 @@ Client toggles: `/portal/settings`. Templates use SiteConfig branding (`companyN
 | Portal scope helper | `server/src/lib/portalScope.ts` |
 | Project messages | `server/src/routes/projectMessages.ts` |
 | Portal pages | `client/src/pages/portal/` |
+| Portal task requests | `client/src/components/portal/PortalTaskRequestSection.tsx` |
 | Portal API client | `client/src/services/api.ts` (`portalApi`) |
 | App routes | `client/src/App.tsx` (`/portal/*`) |
 | Full v1 spec | [PLATFORM_EXPANSION_CLIENT_PORTAL_SPEC.md](./PLATFORM_EXPANSION_CLIENT_PORTAL_SPEC.md) |
@@ -239,3 +245,4 @@ Client toggles: `/portal/settings`. Templates use SiteConfig branding (`companyN
 | 2026-08-14 | CP-1 marked shipped; Resend section aligned with RN-3 stopping point |
 | 2026-10-16 | CP-4 unread locked to User read cursor; CP-5 task requests pointed at onboarding expansions plan |
 | 2026-10-16 | **CP-4 shipped** — portal cards show unread message counts (onboarding slice A) |
+| 2026-10-16 | **CP-5 / slice C shipped** — portal `#requests` task suggestions; admin approve on hub |

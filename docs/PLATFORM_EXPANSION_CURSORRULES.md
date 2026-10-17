@@ -177,8 +177,10 @@ Server: `resolvePublicWorkspace(req)` — subdomain (future) or `DEFAULT_PUBLIC_
 
 - `ProjectMessage` with **`clientVisible` toggle** on compose (default `false`) **and** PATCH after send — admin and assigned members.
 - Optional `projectTaskId` + `taskTitle` snapshot (compose from hub task row).
+- Hub compose **Notify** None / @ / Team (`notifyMode`); not an access ACL. Portal compose has no picker.
 - Project files: `ProjectAsset` on Cloudinary — [PROJECT_COMMUNICATION_AND_ASSETS.md](./PROJECT_COMMUNICATION_AND_ASSETS.md).
-- No DMs or @mentions. Email: Resend (see notifications plan).
+- No DMs or extra chat rooms. Email: Resend (see notifications plan).
+- Clients submit `ProjectTaskSuggestion`; they do not write `ProjectTask`.
 
 ---
 

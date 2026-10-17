@@ -2,7 +2,9 @@
 
 **Status:** v1 shipped (July 2026)  
 **Parent:** [PLATFORM_EXPANSION_BUILD_PLAN.md](./PLATFORM_EXPANSION_BUILD_PLAN.md)  
-**See also:** [PLATFORM_EXPANSION_ARCHITECTURE.md](./PLATFORM_EXPANSION_ARCHITECTURE.md) · [CLIENT_PORTAL_DASHBOARD_BUILD_PLAN.md](./CLIENT_PORTAL_DASHBOARD_BUILD_PLAN.md) (v1.1 + notifications)
+**See also:** [PLATFORM_EXPANSION_ARCHITECTURE.md](./PLATFORM_EXPANSION_ARCHITECTURE.md) · [CLIENT_PORTAL_DASHBOARD_BUILD_PLAN.md](./CLIENT_PORTAL_DASHBOARD_BUILD_PLAN.md) (v1.1 + notifications) · [ONBOARDING_UX_EXPANSIONS_BUILD_PLAN.md](./ONBOARDING_UX_EXPANSIONS_BUILD_PLAN.md) (unread + task requests) · [PROJECT_COMMUNICATION_AND_ASSETS.md](./PROJECT_COMMUNICATION_AND_ASSETS.md)
+
+**Shipped after v1 (do not regress):** unread message badges (per-project read cursor); portal **Request a task** (`ProjectTaskSuggestion`, admin approve); files library; jump nav including Requests. Team hub Notify None/@/Team does **not** apply to portal compose.
 
 This document locks **client portal v1** scope: project browsing, brief, tasks with status, and **per-project communication** — all scoped to the authenticated client's CRM record.
 
@@ -39,7 +41,7 @@ The client portal is a **read-mostly project hub** with **two-way project-scoped
 ```
 /portal                          Home — project summary + recent activity
 /portal/projects                 Project list (browse)
-/portal/projects/:id             Project hub (brief + tasks + messages)
+/portal/projects/:id             Project hub (brief + tasks + requests + files + messages)
 /portal/invoices                 (v1.1) SENT/PAID invoices
 /portal/invoices/:id             (v1.1) Invoice detail + pay link
 ```
@@ -105,9 +107,9 @@ Project.find({
 
 ### Project detail — `/portal/projects/:id`
 
-**Purpose:** Single project hub — brief, tasks, communication. This is the core v1 screen.
+**Purpose:** Single project hub — brief, tasks, requests, files, communication. This is the core v1 screen (files + requests shipped after v1).
 
-**Layout (three sections, one scrollable page or tabs):**
+**Layout (scrollable sections):**
 
 ```
 ┌─────────────────────────────────────────────────────────┐
@@ -120,8 +122,14 @@ Project.find({
 │  TASKS                                                   │
 │  Client-visible tasks only · status markers              │
 ├─────────────────────────────────────────────────────────┤
+│  REQUESTS (#requests)                                    │
+│  Submit a task suggestion; Waiting / Added / Not added   │
+├─────────────────────────────────────────────────────────┤
+│  FILES                                                   │
+│  Client-visible ProjectAsset list + upload               │
+├─────────────────────────────────────────────────────────┤
 │  MESSAGES                                                │
-│  Thread · client can read + reply                          │
+│  Thread · client can read + reply (no Notify picker)     │
 └─────────────────────────────────────────────────────────┘
 ```
 
@@ -228,6 +236,9 @@ interface IProjectMessage {
   clientVisible: boolean;      // default false for admin/member; always true for client posts
   projectTaskId?: ObjectId;    // optional compose-from-task
   taskTitle?: string;          // snapshot at send (survives rename)
+  replyToMessageId?: ObjectId;
+  notifyMode?: 'none' | 'mentions' | 'team';  // hub only; portal POST is none
+  mentionedAuth0Ids?: string[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -237,10 +248,13 @@ interface IProjectMessage {
 
 | Method | Path | Auth | Behavior |
 |--------|------|------|----------|
-| `GET` | `/api/portal/projects/:id/messages` | `requireClient` | `clientVisible: true` only |
-| `POST` | `/api/portal/projects/:id/messages` | `requireClient` | Body `{ body }` — force `clientVisible: true`, `authorRole: client` |
+| `GET` | `/api/portal/projects/:id/messages` | `requireClient` | `clientVisible: true` only; strips notify/mention fields |
+| `POST` | `/api/portal/projects/:id/messages` | `requireClient` | Body `{ body }` — force `clientVisible: true`, `authorRole: client`, `notifyMode: none` |
+| `POST` | `/api/portal/projects/:id/messages/read` | `requireClient` | Set unread cursor |
+| `GET/POST` | `/api/portal/projects/:id/task-suggestions` | `requireClient` | Task requests |
 | `GET` | `/api/projects/:id/messages` | member/admin | All messages (internal + client) |
-| `POST` | `/api/projects/:id/messages` | member/admin | Body `{ body, clientVisible?, projectTaskId? }` — default `clientVisible: false` |
+| `POST` | `/api/projects/:id/messages` | member/admin | Body `{ body, clientVisible?, projectTaskId?, notifyMode?, mentionedAuth0Ids? }` — default `clientVisible: false`, `notifyMode: none` |
+| `POST` | `/api/projects/:id/messages/read` | member/admin | Set unread cursor |
 | `PATCH` | `/api/projects/:id/messages/:messageId` | member/admin | `{ clientVisible }` — flipping to true emails the client |
 
 Portal project detail endpoint may **embed** recent messages or use separate messages fetch — prefer separate fetch for simpler pagination later.
@@ -269,6 +283,7 @@ On admin/member **project detail** (existing Projects page):
     status: 'ACTIVE' | 'PAUSED' | 'COMPLETED';
     updatedAt: string;
     openTaskCount: number;  // client-visible, not COMPLETED
+    unreadMessageCount: number; // 0 if never opened the thread
   }>
 }
 ```

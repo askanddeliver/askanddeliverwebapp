@@ -2,7 +2,7 @@
 
 Shipped 2026-09-25. Admin/member hubs and the client portal share one project thread and one project file library. Visibility is two-tier (internal vs client), not per-person ACL.
 
-See also: [PROJECT_HUB_BUILD_PLAN.md](./PROJECT_HUB_BUILD_PLAN.md), [PLATFORM_EXPANSION_CLIENT_PORTAL_SPEC.md](./PLATFORM_EXPANSION_CLIENT_PORTAL_SPEC.md), [RESEND_NOTIFICATIONS_BUILD_PLAN.md](./RESEND_NOTIFICATIONS_BUILD_PLAN.md), [ONBOARDING_UX_EXPANSIONS_BUILD_PLAN.md](./ONBOARDING_UX_EXPANSIONS_BUILD_PLAN.md) (slices A–C shipped).
+See also: [PROJECT_HUB_BUILD_PLAN.md](./PROJECT_HUB_BUILD_PLAN.md), [PLATFORM_EXPANSION_CLIENT_PORTAL_SPEC.md](./PLATFORM_EXPANSION_CLIENT_PORTAL_SPEC.md), [RESEND_NOTIFICATIONS_BUILD_PLAN.md](./RESEND_NOTIFICATIONS_BUILD_PLAN.md), [ONBOARDING_UX_EXPANSIONS_BUILD_PLAN.md](./ONBOARDING_UX_EXPANSIONS_BUILD_PLAN.md) (unread, pins, task requests shipped; message Notify None/@/Team shipped after).
 
 ---
 
@@ -44,10 +44,16 @@ Flipping a team message to visible uses the same Resend path as a new client-vis
 | Method | Path | Who | Notes |
 |--------|------|-----|--------|
 | GET/POST | `/api/projects/:projectId/messages` | admin / assigned member | POST accepts `{ body, clientVisible?, projectTaskId?, replyToMessageId?, notifyMode?, mentionedAuth0Ids? }` |
+| POST | `/api/projects/:projectId/messages/read` | admin / assigned member | Set unread cursor |
 | PATCH | `/api/projects/:projectId/messages/:messageId` | admin / assigned member | `{ clientVisible }` only |
 | GET/POST | `/api/portal/projects/:projectId/messages` | client | GET visible only; POST always visible; may set `projectTaskId` (client-visible tasks) and `replyToMessageId` (visible parents) |
+| POST | `/api/portal/projects/:projectId/messages/read` | client | Set unread cursor |
 
-**Hub:** compose toggle is shown for members (no longer forced internal). **Notify** is None (default, thread only), **@** (picked people; task compose pre-fills assignee), or **Team** (admin + assigned). Thread badges are clickable Internal / Visible to client. **Reply** quotes only the immediate previous message — never the full chain. Portal GET omits notify/mention fields.
+**Hub:** compose toggle is shown for members (no longer forced internal). **Notify** is None (default, thread only), **@** (picked people; task compose pre-fills assignee), or **Team** (admin + assigned). Email follows recipient prefs **All messages**, **Team messages**, and **@ mentions** (legacy `teamMessages: true` with unset `allMessages` still counts as All). Thread badges are clickable Internal / Visible to client. **Reply** quotes only the immediate previous message — never the full chain. Portal GET omits notify/mention fields. Portal compose has no Notify picker.
+
+**Unread (in-app, not email):** `User.projectMessageReads` per project. No cursor → count 0. Mark-read when the messages section is on screen. See onboarding slice A.
+
+**Projects list:** open-task rows under each project start **collapsed**; the “N open tasks” label expands them. Unread badges on the title still deep-link to `#messages`.
 
 **From a task (team and client):** task-row message action scrolls to `#messages` with a project + task chip. Team default visibility follows the task’s `clientVisible`. Publishing an internal task name to the client confirms: “The client will see this task name.” Portal tasks are already client-visible, so no confirm. Clients see the snapshot chip only — they do not gain the internal task list. Team chips link to `#tasks`; portal chips are static.
 
@@ -69,7 +75,7 @@ Pattern B, `userId` = workspace owner.
 
 **Jump nav:** sticky **Jump to** chips on the admin/member hub and portal project page (and portal home/list cards). Portal: Brief, Tasks, Requests, Files, Messages. Hub adds Team, Budget (admin), Requests (above Tasks), Time. Messages is the emphasized chip.
 
-Out of this slice: per-file member ACL, versioning, folders, unread bell, PSD in-browser preview.
+Out of this slice: per-file member ACL, versioning, folders, in-app notification bell, extra chat rooms, PSD in-browser preview.
 
 ---
 
@@ -99,6 +105,8 @@ Email: team `taskSuggestions` on submit; submitter `taskSuggestionApproved` on a
 | Portal detail | `client/src/pages/portal/PortalProjectDetail.tsx` |
 | Thread | `client/src/components/portal/ProjectMessageThread.tsx` |
 | Hub messages | `client/src/components/projects/ProjectMessagesPanel.tsx` |
+| Notify picker | `client/src/components/projects/MessageNotifyPicker.tsx` |
+| Unread badge | `client/src/components/projects/UnreadCountBadge.tsx` |
 | Files table | `client/src/components/projects/ProjectAssetsPanel.tsx` |
 | Task → message | `client/src/components/projectTasks/ProjectTaskList.tsx` |
 | Models | `server/src/models/ProjectMessage.ts`, `ProjectAsset.ts`, `ProjectTaskSuggestion.ts` |

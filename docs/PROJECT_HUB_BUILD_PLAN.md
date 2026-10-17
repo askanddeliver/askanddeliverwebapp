@@ -1,8 +1,8 @@
 # Project Hub — Unified Project Detail View
 
-**Status:** In progress (v1 — PH-1 through PH-5)  
+**Status:** v1 shipped (PH-1–5) · follow-ons: files, unread, pins, task requests, message Notify picker  
 **Parent:** [PLATFORM_EXPANSION_BUILD_PLAN.md](./PLATFORM_EXPANSION_BUILD_PLAN.md)  
-**Related:** [CLIENT_PORTAL_DASHBOARD_BUILD_PLAN.md](./CLIENT_PORTAL_DASHBOARD_BUILD_PLAN.md) · [PROJECT_BILLING_MODES_BUILD_PLAN.md](./PROJECT_BILLING_MODES_BUILD_PLAN.md) · [RESEND_NOTIFICATIONS_BUILD_PLAN.md](./RESEND_NOTIFICATIONS_BUILD_PLAN.md)
+**Related:** [CLIENT_PORTAL_DASHBOARD_BUILD_PLAN.md](./CLIENT_PORTAL_DASHBOARD_BUILD_PLAN.md) · [PROJECT_BILLING_MODES_BUILD_PLAN.md](./PROJECT_BILLING_MODES_BUILD_PLAN.md) · [RESEND_NOTIFICATIONS_BUILD_PLAN.md](./RESEND_NOTIFICATIONS_BUILD_PLAN.md) · [PROJECT_COMMUNICATION_AND_ASSETS.md](./PROJECT_COMMUNICATION_AND_ASSETS.md) · [ONBOARDING_UX_EXPANSIONS_BUILD_PLAN.md](./ONBOARDING_UX_EXPANSIONS_BUILD_PLAN.md)
 
 This document defines a **dedicated project detail page** for **admin and member** roles — a single screen where everything about one project is visible in isolation: brief, tasks, time entries, budget (admin), messages, team, and project metadata.
 
@@ -110,6 +110,9 @@ Layout order (desktop — single column, max-width ~960px):
 │  Mode-specific: burn bar | agreed fee | retainer utilization │
 │  Period selector: all · month · 30d (reuse Projects page)    │
 ├──────────────────────────────────────────────────────────────┤
+│  CLIENT REQUESTS (#requests)                                 │
+│  ProjectTaskSuggestionsPanel — admin approve/decline         │
+├──────────────────────────────────────────────────────────────┤
 │  TASKS                                                       │
 │  ProjectTaskList — full CRUD, reorder (admin), clientVisible │
 ├──────────────────────────────────────────────────────────────┤
@@ -121,7 +124,7 @@ Layout order (desktop — single column, max-width ~960px):
 │  ProjectAssetsPanel — Cloudinary library, Internal/Client    │
 ├──────────────────────────────────────────────────────────────┤
 │  MESSAGES                                                    │
-│  ProjectMessagesPanel — clientVisible toggle (admin/member)  │
+│  ProjectMessagesPanel — clientVisible + Notify None/@/Team   │
 │  Compose-from-task chip; PATCH existing visibility           │
 └──────────────────────────────────────────────────────────────┘
 * Edit / Archive / Delete — admin only, header actions
@@ -163,6 +166,10 @@ Back link returns to the list (`/projects` or `/member/projects`). Optional `loc
 
 Members: **section hidden entirely**.
 
+#### Client requests
+
+Admin/member hub `#requests` above Tasks. Pending client suggestions; admin **Add as task** / **Decline**. Members read-only. See [ONBOARDING_UX_EXPANSIONS_BUILD_PLAN.md](./ONBOARDING_UX_EXPANSIONS_BUILD_PLAN.md) slice C.
+
 #### Tasks
 
 Reuse `ProjectTaskList` with existing props:
@@ -179,9 +186,9 @@ Reuse `ProjectTaskList` with existing props:
 
 #### Messages
 
-Reuse `ProjectMessagesPanel` — expanded by default on the hub; full thread including internal messages; compose with `clientVisible` toggle for **admin and assigned members**. Existing posts can be flipped anytime (`PATCH`). Task-row message action scrolls here with a project + task chip (`projectTaskId` + `taskTitle` snapshot).
+Reuse `ProjectMessagesPanel` — expanded by default on the hub; full thread including internal messages; compose with `clientVisible` toggle **and Notify None / @ / Team** for **admin and assigned members**. Existing posts can be flipped anytime (`PATCH`). Task-row message action scrolls here with a project + task chip (`projectTaskId` + `taskTitle` snapshot) and pre-fills @ with the task assignee.
 
-**Shipped follow-on:** project file library — see [PROJECT_COMMUNICATION_AND_ASSETS.md](./PROJECT_COMMUNICATION_AND_ASSETS.md).
+**Shipped follow-ons:** files, unread badges, client task requests, message notify routing — [PROJECT_COMMUNICATION_AND_ASSETS.md](./PROJECT_COMMUNICATION_AND_ASSETS.md).
 
 ---
 
@@ -193,7 +200,7 @@ Hub page parallel-fetches:
 
 | Call | Purpose |
 |------|---------|
-| `GET /api/projects/:id` | Project + populated client + `assignedMembers` |
+| `GET /api/projects/:id` | Project + populated client + `assignedMembers` + `mentionableMembers` + `unreadMessageCount` |
 | `GET /api/project-tasks?projectId=:id` | Tasks |
 | `GET /api/time-entries?projectIds[]=:id` | Entries |
 | `GET /api/projects/budget-burn?projectIds[]=:id&startDate&endDate` | Burn (admin) |
@@ -240,10 +247,13 @@ Hub page parallel-fetches:
 
 Shared `ProjectHub` infers list path from `/member` vs `/projects`.
 
-### Projects list changes (v1)
+### Projects list changes (v1 + follow-ons)
 
-- Slim `ProjectCard`: title, client, preview, status, billing chip, HOURLY burn (admin), **Open project** link.
-- Remove inline `ProjectTaskList` and `ProjectMessagesPanel` from admin **and** member lists.
+- Client-grouped cards (`ClientProjectsCard`): title, status, billing chip, HOURLY burn (admin), **Open project** link.
+- Admin **pins** a client; pinned cards first, then A–Z. Members see the same order.
+- Unread message badge on the project title (deep-link `#messages`).
+- Open-task list under each project starts **collapsed**; expand via “N open tasks”.
+- No inline full `ProjectTaskList` or `ProjectMessagesPanel` on the list.
 
 ### Design tokens
 
@@ -260,7 +270,8 @@ Use admin redesign panels (`AdminPanel`, `AdminPageHeader`) where the hub lives 
 | Tasks | Full CRUD + reorder + clientVisible | Create/update/status |
 | Time entries | All workspace entries on project | Own entries only |
 | Files | All + upload + visibility toggle; admin may delete any | All on assigned projects + upload + toggle; delete own |
-| Messages | All + compose + clientVisible toggle (send and after) | Same (no financial leakage) |
+| Messages | All + compose + clientVisible + Notify None/@/Team | Same (no financial leakage) |
+| Client requests | Approve / decline | Read-only queue |
 | Team | View + edit assignments | View names only |
 | Project edit/archive/delete | Yes | No |
 
@@ -278,7 +289,7 @@ Existing middleware on routes enforces this — hub is primarily a **composition
 | Reports invoice line | `/projects/:id#entries` |
 | Client portal (admin view) | Admin opens same project at `/projects/:id` — not portal route |
 
-Use URL hash for scroll-to-section. Sticky **Jump to** chips on the hub (`ProjectJumpNav`) cover Team, Brief, Budget (admin), Tasks, Time, Files, Messages.
+Use URL hash for scroll-to-section. Sticky **Jump to** chips on the hub (`ProjectJumpNav`) cover Team, Brief, Budget (admin), Requests, Tasks, Time, Files, Messages.
 
 ---
 
@@ -307,7 +318,9 @@ Use URL hash for scroll-to-section. Sticky **Jump to** chips on the hub (`Projec
 - [ ] Budget burn matches Projects list card for same period filters
 - [ ] Deep link `#messages` scrolls to messages section
 - [ ] Breadcrumb and back link return to Projects / My projects
-- [ ] Slim list cards no longer show inline tasks or messages
+- [ ] Slim list cards: tasks collapsed until expanded; no inline message thread
+- [ ] `#requests` scrolls to client request queue
+- [ ] Notify None does not email teammates who only have Team/@ prefs on
 
 ---
 
@@ -317,7 +330,10 @@ Use URL hash for scroll-to-section. Sticky **Jump to** chips on the hub (`Projec
 |-------|----------|
 | Projects list | `client/src/pages/Projects.tsx` |
 | Project hub | `client/src/pages/ProjectHub.tsx` |
-| Project card (slim) | `client/src/components/projects/ProjectCard.tsx` |
+| Client cards | `client/src/components/projects/ClientProjectsCard.tsx` |
+| Unread badge | `client/src/components/projects/UnreadCountBadge.tsx` |
+| Notify picker | `client/src/components/projects/MessageNotifyPicker.tsx` |
+| Client requests | `client/src/components/projects/ProjectTaskSuggestionsPanel.tsx` |
 | Project modal | `client/src/components/projects/ProjectModal.tsx` |
 | Task list | `client/src/components/projectTasks/ProjectTaskList.tsx` |
 | Messages | `client/src/components/projects/ProjectMessagesPanel.tsx` |
@@ -335,6 +351,7 @@ Use URL hash for scroll-to-section. Sticky **Jump to** chips on the hub (`Projec
 
 | Date | Change |
 |------|--------|
+| 2026-10-16 | Unread badges, workspace pins, client requests, collapsed list tasks, Notify None/@/Team |
 | 2026-09-25 | Sticky Jump to chips on hub (and stronger portal chips) |
 | 2026-09-25 | Files library + member/anytime message visibility + compose-from-task — [PROJECT_COMMUNICATION_AND_ASSETS.md](./PROJECT_COMMUNICATION_AND_ASSETS.md) |
 | 2026-07-17 | Initial build plan — admin/member unified project hub |

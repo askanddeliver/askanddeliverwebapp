@@ -1,6 +1,6 @@
 # Onboarding UX expansions — Build Plan
 
-**Status:** Slices A–C shipped  
+**Status:** Slices A–C shipped · follow-ons: collapsed list tasks, message Notify None/@/Team  
 **Date:** 2026-10-16  
 **Parent:** live Projects list, Project Hub, client portal, Resend notifications  
 **Related:** [CLIENT_PORTAL_DASHBOARD_BUILD_PLAN.md](./CLIENT_PORTAL_DASHBOARD_BUILD_PLAN.md) · [PROJECT_COMMUNICATION_AND_ASSETS.md](./PROJECT_COMMUNICATION_AND_ASSETS.md) · [RESEND_NOTIFICATIONS_BUILD_PLAN.md](./RESEND_NOTIFICATIONS_BUILD_PLAN.md) · [PROJECT_HUB_BUILD_PLAN.md](./PROJECT_HUB_BUILD_PLAN.md)
@@ -39,7 +39,7 @@ Out of this program: in-app notification bell, sidebar unread totals, email dige
 
 ### Problem
 
-Email is opt-in and easy to miss with several active projects. The hub shows **total** message count, not unread. Portal home shows recent visible messages, not whether this viewer has seen them. Docs already deferred an “unread bell.”
+**Shipped.** Email is opt-in and easy to miss with several active projects. Before this slice the hub showed **total** message count, not unread. Portal home showed recent visible messages, not whether this viewer had seen them. An in-app notification bell is still out of scope.
 
 ### Outcome
 
@@ -97,7 +97,7 @@ Helper (server): `countUnreadProjectMessages({ workspaceOwnerId, projectIds, vie
 
 Do **not** add a sidebar bell in A.
 
-Email prefs (`teamMessages`, `clientMessages`, `clientVisibleReplies`) stay unchanged. Unread is the in-app backup.
+Email prefs are orthogonal. Unread is the in-app backup. Hub compose later added Notify None/@/Team (`allMessages` / `teamMessages` / `mentionMessages`) — that does not change unread counting.
 
 ### Test
 
@@ -357,3 +357,5 @@ A unread  →  B pins  →  C harden GET + suggestion model + UI + email
 | 2026-10-16 | **Slice A shipped** — per-project read cursor, list badges, mark-read when the thread is on screen |
 | 2026-10-16 | **Slice B shipped** — admin workspace pins on client cards; members see the same order |
 | 2026-10-16 | **Slice C shipped** — client task requests; admin approve creates `ProjectTask`; `GET /api/project-tasks` 403 for client JWTs |
+| 2026-10-16 | **List follow-on** — open-task lists on client cards start collapsed |
+| 2026-10-16 | **Message notify** — hub compose None / @ / Team; prefs `allMessages`, `teamMessages`, `mentionMessages` (see [PROJECT_COMMUNICATION_AND_ASSETS.md](./PROJECT_COMMUNICATION_AND_ASSETS.md)) |

@@ -228,10 +228,10 @@ All layouts consume `AdminThemeContext` (or renamed `WorkspaceThemeContext`) for
 - Clients, LineItems, Invoices, Proposals, Portfolio, SiteConfig, Uploads, **IntakeForm**, **ClientInvite**
 
 **Pattern B** — `userId = await getWorkspaceOwnerId(req)`:
-- Projects, TaskTypes, ProjectTasks, TimeEntries, Reports, Export, **ProjectMessage**, **ProjectAsset**, **TimeBlock**
+- Projects, TaskTypes, ProjectTasks, ProjectTaskSuggestions, TimeEntries, Reports, Export, **ProjectMessage**, **ProjectAsset**, **TimeBlock**
 
 **Pattern C** — Client-scoped (new):
-- Portal queries: `{ userId: workspaceOwnerId, clientId: user.clientId }` on Project, Invoice, ProjectMessage, ProjectAsset
+- Portal queries: `{ userId: workspaceOwnerId, clientId: user.clientId }` on Project, Invoice, ProjectMessage, ProjectAsset, ProjectTaskSuggestion
 
 **Pattern D** — Public with resolved workspace:
 - `POST /api/leads/public`, `GET /api/intake-forms/public`, portfolio, site-config
@@ -243,9 +243,12 @@ User
  ├── role: admin | member | client
  ├── clientId? → Client (portal users only)
  ├── disciplines[], availability
+ ├── notificationPreferences.email
+ ├── projectMessageReads  ← per-project lastReadAt; missing key ⇒ unread 0
  │
 Client (CRM)
  ├── ... existing fields
+ ├── pinned?: boolean              ← admin workspace pin on Projects list
  └──< User.clientId (portal users)
 
 IntakeForm (userId)
@@ -268,10 +271,16 @@ ProjectTask
  ├── assigneeAuth0Id?: string
  └── clientVisible?: boolean       ← default false
 
+ProjectTaskSuggestion (userId, Pattern B; portal writes Pattern C)
+ ├── PENDING | APPROVED | DECLINED
+ └── createdTaskId? after admin approve
+
 ProjectMessage (userId, Pattern B)
  ├── projectId, authorAuth0Id, body
  ├── clientVisible: boolean
  ├── projectTaskId?, taskTitle?     ← compose-from-task snapshot
+ ├── notifyMode?: none | mentions | team
+ └── mentionedAuth0Ids?            ← hub email routing, not ACL
 
 ProjectAsset (userId, Pattern B)
  ├── projectId, uploadedByAuth0Id, originalName, url
@@ -517,17 +526,22 @@ interface IProjectMessage {
   clientVisible: boolean;
   projectTaskId?: ObjectId;
   taskTitle?: string;
+  replyToMessageId?: ObjectId;
+  notifyMode?: 'none' | 'mentions' | 'team';
+  mentionedAuth0Ids?: string[];
+  mentionedNames?: string[];
   createdAt: Date;
   updatedAt: Date;
 }
 ```
 
 **Routes:**
-- `GET /api/projects/:id/messages` — admin/member: all; client portal: `clientVisible: true` only
-- `POST /api/projects/:id/messages` — admin/member; **`clientVisible` defaults `false`**; members may set true
+- `GET /api/projects/:id/messages` — admin/member: all; client portal: `clientVisible: true` only (portal GET strips notify/mention fields)
+- `POST /api/projects/:id/messages` — admin/member; **`clientVisible` defaults `false`**; optional `notifyMode` none/@/team
+- `POST /api/projects/:id/messages/read` — mark unread cursor
 - `PATCH /api/projects/:id/messages/:messageId` — admin/member flip `clientVisible`
 
-Project files: Cloudinary `ProjectAsset` — [PROJECT_COMMUNICATION_AND_ASSETS.md](./PROJECT_COMMUNICATION_AND_ASSETS.md).
+Project files: Cloudinary `ProjectAsset` — [PROJECT_COMMUNICATION_AND_ASSETS.md](./PROJECT_COMMUNICATION_AND_ASSETS.md). Unread, pins, task requests, and Notify None/@/Team: [ONBOARDING_UX_EXPANSIONS_BUILD_PLAN.md](./ONBOARDING_UX_EXPANSIONS_BUILD_PLAN.md).
 
 v1 scope originally: project-scoped threads only. Email notifications shipped separately (Resend). Files library shipped 2026-09-25.
 

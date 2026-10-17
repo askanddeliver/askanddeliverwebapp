@@ -1,8 +1,8 @@
 # Resend Notifications — Build Plan
 
-**Status:** **Paused at RN-3** (Aug 2026) — RN-0–RN-3 shipped and documented; RN-4+ deferred  
+**Status:** **Paused at RN-4** (digests) — RN-0–RN-3 plus contributor alerts, task-request emails, and Notify None/@/Team shipped  
 **Provider:** [Resend](https://resend.com) — domain verified for Ask And Deliver  
-**Related:** [CLIENT_PORTAL_DASHBOARD_BUILD_PLAN.md](./CLIENT_PORTAL_DASHBOARD_BUILD_PLAN.md) · [PROJECT_HUB_BUILD_PLAN.md](./PROJECT_HUB_BUILD_PLAN.md) · [SAAS_CONVERSION_BUILD_PLAN.md](./SAAS_CONVERSION_BUILD_PLAN.md) (platform billing email — separate concern)
+**Related:** [CLIENT_PORTAL_DASHBOARD_BUILD_PLAN.md](./CLIENT_PORTAL_DASHBOARD_BUILD_PLAN.md) · [PROJECT_HUB_BUILD_PLAN.md](./PROJECT_HUB_BUILD_PLAN.md) · [ONBOARDING_UX_EXPANSIONS_BUILD_PLAN.md](./ONBOARDING_UX_EXPANSIONS_BUILD_PLAN.md) · [PROJECT_COMMUNICATION_AND_ASSETS.md](./PROJECT_COMMUNICATION_AND_ASSETS.md) · [SAAS_CONVERSION_BUILD_PLAN.md](./SAAS_CONVERSION_BUILD_PLAN.md) (platform billing email — separate concern)
 
 This document plans **transactional email** for workspace notifications: members first, clients second. Platform SaaS billing emails (trial ending, payment failed) remain in the SaaS conversion doc — same Resend account, different trigger sources.
 
@@ -19,7 +19,7 @@ Notification work is **intentionally paused** here so other efforts (reporting f
 | Area | Done |
 |------|------|
 | Resend client, `sendEmail`, env gates, branded layout | ✅ |
-| Seven event types wired (see [Triggers by action](#triggers-by-action)) | ✅ |
+| Event types wired (see [Triggers by action](#triggers-by-action) — includes #8–#10 follow-ons) | ✅ |
 | Per-user opt-in toggles + profile UI (admin, member, client) | ✅ |
 | Local test checklist | ✅ |
 | `parseEnvFlag` — inline `#` comments on env values no longer break the master switch | ✅ |
@@ -383,7 +383,7 @@ Recipient helpers in `server/src/lib/email/recipients.ts` filter by `isEmailPref
 | **RN-3** | Invoice + task + preferences | Invoice SENT; task completed; profile toggles | ✅ Shipped |
 | **RN-4** | Digests + debounce | Cron digests; burst rollup; optional `member.task.assigned` | ⏸ Deferred |
 
-**Paused after RN-3** (digests still deferred). Contributor alerts (`teamMessages`, team `taskCompleted`) shipped 2026-09-27. Task-request emails (`taskSuggestions`, `taskSuggestionApproved`) shipped 2026-10-16 with slice C. Use [RESEND_LOCAL_TEST_CHECKLIST.md](./RESEND_LOCAL_TEST_CHECKLIST.md) before production enablement.
+**Paused after RN-3** (digests still deferred). Contributor alerts shipped 2026-09-27. Task-request emails shipped 2026-10-16. Hub **Notify None / @ / Team** (`allMessages`, `teamMessages`, `mentionMessages`) shipped 2026-10-16. Use [RESEND_LOCAL_TEST_CHECKLIST.md](./RESEND_LOCAL_TEST_CHECKLIST.md) before production enablement.
 
 ---
 
@@ -392,9 +392,11 @@ Recipient helpers in `server/src/lib/email/recipients.ts` filter by `isEmailPref
 - [ ] Missing `RESEND_API_KEY` — app runs; emails skipped with warn log
 - [ ] Invalid recipient — logged, no crash
 - [ ] Client message notifies admin + assignees, not the client author
-- [ ] Teammate post notifies opted-in admin/assigned members, not the author
+- [ ] Teammate Notify **None** emails only **All messages** (legacy Team-on if All unset)
+- [ ] Teammate Notify **Team** emails Team or All prefs; author excluded
+- [ ] Teammate Notify **@** emails mentioned people with @ or All prefs
 - [ ] Teammate email CTA uses `/projects/:id` for admin and `/member/projects/:id` for members
-- [ ] Internal message (`clientVisible: false`) — no client email; team still notified if `teamMessages` is on
+- [ ] Internal message (`clientVisible: false`) — no client email; team email still follows Notify + prefs
 - [ ] Client-visible message — all portal users for that client notified
 - [ ] Completing a task emails opted-in teammates; completing it yourself does not email you
 - [ ] Invite email contains working login link

@@ -28,7 +28,10 @@ A full-featured time tracking, client management, and invoicing application buil
 - **Rich-text briefs** — WYSIWYG project brief editor powered by Tiptap (bold, italic, lists, undo/redo)
 - **Portfolio-aligned fields** — Projects include excerpt, year, categories, disciplines, challenge, solution, and results fields for seamless conversion to portfolio case studies
 - **Archive vs. delete** — Soft-archive projects to hide them, or permanently delete
-- **Project tasks** — Break projects into individual tasks with status (TODO, IN_PROGRESS, COMPLETED), drag-and-drop ordering, and estimated hours
+- **Project hub** — Admin `/projects/:id` and member `/member/projects/:id`: team, brief, budget (admin), client requests, tasks, time, files, messages
+- **Client cards** — `/projects` groups by client; admins pin hot clients; unread message badges; open-task lists start collapsed
+- **Project tasks** — Break projects into individual tasks with status (TODO, IN_PROGRESS, COMPLETED), drag-and-drop ordering, estimated hours, client visibility, and optional assignee
+- **Client task requests** — Portal users suggest tasks; admin approves (creates a board task) or declines; members see the queue read-only
 
 ### Task Type Configuration
 - **Task types** — Define billable categories (e.g., Design, Development, Strategy) with hourly rates and color coding
@@ -77,7 +80,9 @@ A full-featured time tracking, client management, and invoicing application buil
 - **Admin invite only** — `POST /api/users/invite-client` from Clients page; no client self-signup
 - **Project hub** — Clients see their projects (excludes ARCHIVED)
 - **Brief & tasks** — Sanitized HTML brief; tasks where `clientVisible: true`
-- **Per-project messaging** — Client read/reply in project detail; admin compose with visibility toggle
+- **Task requests** — Dedicated `#requests` intake; team reviews before a task appears on the board
+- **Per-project messaging** — Client read/reply in project detail; team compose with Internal / Visible to client (notify picker is hub-only)
+- **Unread counts** — Portal cards show messages this client has not opened yet
 
 ### Admin Command Center
 - **Dashboard widgets** — Unbilled WIP, invoice aging, active projects, open tasks
@@ -120,6 +125,7 @@ A full-featured time tracking, client management, and invoicing application buil
 - **Remove team members** — Admins can remove members from the workspace
 - **Invite link** — Share your app URL; new users sign up, then admins add them via email
 - **Primary admin** — Set `PRIMARY_ADMIN_EMAIL` in env to ensure the intended owner always has admin
+- **Email notifications** — Opt-in Resend alerts (see [docs/RESEND_NOTIFICATIONS_BUILD_PLAN.md](docs/RESEND_NOTIFICATIONS_BUILD_PLAN.md)); hub messages use Notify None / @ / Team
 - **Member permissions** — Members track time on assigned projects; admins manage clients, leads, reports, portfolio, task types, and team
 - **Client permissions** — Clients see only their portal data; never rates, margins, or other clients
 - **Financial privacy** — Members and clients cannot see hourly rates or dollar amounts inappropriately
@@ -434,12 +440,14 @@ See [SETUP.md](SETUP.md) for detailed MongoDB Atlas, Auth0, Cloudinary, and Stri
 | `GET` | `/api/clients/:id` | Get single client |
 | `POST` | `/api/clients` | Create client (name, company, email, businessEntity, address, paymentPreference, taskDiscounts) |
 | `PUT` | `/api/clients/:id` | Update client |
+| `PATCH` | `/api/clients/:id/pin` | Pin or unpin client card on Projects (admin) |
 | `DELETE` | `/api/clients/:id` | Delete client |
 
 #### Projects
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| `GET` | `/api/projects` | List projects (filters: status, search, sort, clientId) |
+| `GET` | `/api/projects` | List projects (filters: status, search, sort, clientId); includes `unreadMessageCount` |
+| `GET` | `/api/projects/:id` | Project hub payload (`assignedMembers`, `mentionableMembers`, `unreadMessageCount`) |
 | `GET` | `/api/projects/counts` | Project counts by status |
 | `GET` | `/api/projects/client/:clientId` | Projects by client |
 | `GET` | `/api/projects/budget-burn` | HOURLY projects with budget: billed vs budget (`projectIds`, optional `startDate` / `endDate`) |
@@ -473,7 +481,7 @@ See [SETUP.md](SETUP.md) for detailed MongoDB Atlas, Auth0, Cloudinary, and Stri
 #### Project Tasks
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| `GET` | `/api/project-tasks` | List project tasks (query: projectId) |
+| `GET` | `/api/project-tasks` | List project tasks (query: projectId); admin/member only — client JWTs 403 |
 | `GET` | `/api/project-tasks/:id` | Get single project task |
 | `POST` | `/api/project-tasks` | Create project task |
 | `PUT` | `/api/project-tasks/reorder` | Reorder tasks within a project |
@@ -573,10 +581,14 @@ See [SETUP.md](SETUP.md) for detailed MongoDB Atlas, Auth0, Cloudinary, and Stri
 #### Client Portal
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| `GET` | `/api/portal/projects` | Client's projects |
-| `GET` | `/api/portal/projects/:id` | Project detail (brief, client-visible tasks) |
-| `GET` | `/api/portal/projects/:id/messages` | Project message thread |
+| `GET` | `/api/portal/dashboard` | Home widgets (unread counts on cards) |
+| `GET` | `/api/portal/projects` | Client's projects (`unreadMessageCount`) |
+| `GET` | `/api/portal/projects/:id` | Project detail (brief, client-visible tasks, request queue) |
+| `GET` | `/api/portal/projects/:id/messages` | Visible thread |
 | `POST` | `/api/portal/projects/:id/messages` | Client reply |
+| `POST` | `/api/portal/projects/:id/messages/read` | Mark thread read |
+| `GET/POST` | `/api/portal/projects/:id/task-suggestions` | List / submit task requests |
+| `GET/POST/DELETE` | `/api/portal/projects/:id/assets` | Client-visible files; upload always visible; delete own |
 
 #### Dashboard (Admin)
 | Method | Endpoint | Description |
@@ -589,7 +601,16 @@ See [SETUP.md](SETUP.md) for detailed MongoDB Atlas, Auth0, Cloudinary, and Stri
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | `GET` | `/api/projects/:projectId/messages` | List messages (admin/member) |
-| `POST` | `/api/projects/:projectId/messages` | Compose message (clientVisible toggle) |
+| `POST` | `/api/projects/:projectId/messages` | Compose (`clientVisible`, `notifyMode` none/mentions/team, `mentionedAuth0Ids`) |
+| `POST` | `/api/projects/:projectId/messages/read` | Mark thread read for the viewer |
+| `PATCH` | `/api/projects/:projectId/messages/:messageId` | Flip `clientVisible` |
+
+#### Task requests
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/api/projects/:projectId/task-suggestions` | Queue (admin / assigned member) |
+| `POST` | `/api/projects/:projectId/task-suggestions/:id/approve` | Admin: create task |
+| `POST` | `/api/projects/:projectId/task-suggestions/:id/decline` | Admin: decline |
 
 #### Uploads (Cloudinary)
 | Method | Endpoint | Description |
@@ -615,13 +636,13 @@ See [SETUP.md](SETUP.md) for detailed MongoDB Atlas, Auth0, Cloudinary, and Stri
 ## Data Models
 
 ### User
-Auth0-linked user profile with `auth0Id`, `email`, `name`, `picture`, and `nickname`. Roles: **admin**, **member**, **client**, **pending**. Members have `workspaceOwnerId`; clients have `clientId`. Profile fields: `disciplines`, `disciplineTasks`, `availability`, `bio`, `payoutPreference` (PayPal/Zelle/Venmo handle — not bank numbers). Admins set `earnedRates` for margin tracking.
+Auth0-linked user profile with `auth0Id`, `email`, `name`, `picture`, and `nickname`. Roles: **admin**, **member**, **client**, **pending**. Members have `workspaceOwnerId`; clients have `clientId`. Profile fields: `disciplines`, `disciplineTasks`, `availability`, `bio`, `payoutPreference` (PayPal/Zelle/Venmo handle — not bank numbers). Admins set `earnedRates` for margin tracking. Opt-in `notificationPreferences.email` (including `allMessages`, `teamMessages`, `mentionMessages`). `projectMessageReads` stores per-project last-read times for unread badges.
 
 ### Lead
 Workspace-scoped pipeline record with `userId` (workspace owner). Top-level intake columns plus `responses` (dynamic answers), `suggestedMemberAuth0Id`, status/priority, notes, and conversion links (`convertedClientId`, `convertedProjectId`).
 
 ### Client
-Client record with `name`, `company`, `email`, `businessEntity` (official entity name for invoices), `address` (for invoices), `paymentPreference` (ACH | MAILED, defaults to MAILED), and a `taskDiscounts` map — a `Map<string, number>` where each key is a TaskType ID and the value is a discount percentage (0–100).
+Client record with `name`, `company`, `email`, `businessEntity` (official entity name for invoices), `address` (for invoices), `paymentPreference` (ACH | MAILED, defaults to MAILED), optional `pinned` (workspace-level Projects card order), and a `taskDiscounts` map — a `Map<string, number>` where each key is a TaskType ID and the value is a discount percentage (0–100).
 
 ### Project
 Linked to a Client. Tracks `title`, `description`, `brief`, `status`, optional `budget`, billing modes, portfolio-aligned fields, and `assignedMemberIds` (member Auth0 subs).
@@ -633,7 +654,16 @@ Billable categories (e.g., "Design", "Development") with `name`, `rate` (hourly)
 Time records with `startTime`, `endTime`, `duration` (seconds), and `isRunning` flag for live timer support. Linked to Project, TaskType, and optionally a ProjectTask. Duration accumulates across pause/resume cycles.
 
 ### ProjectTask
-Sub-tasks within a Project. Tracks `title`, `description`, `status`, `order`, `estimatedHours`, `clientVisible` (portal), and optional `assigneeAuth0Id`.
+Sub-tasks within a Project. Tracks `title`, `description`, `status`, `order`, `estimatedHours`, `clientVisible` (portal), and optional `assigneeAuth0Id`. Clients do not write this model; they submit `ProjectTaskSuggestion` rows.
+
+### ProjectTaskSuggestion
+Portal task request (`PENDING` / `APPROVED` / `DECLINED`). Admin approve creates a `ProjectTask` and sets `createdTaskId`.
+
+### ProjectMessage
+Per-project thread. Two-tier `clientVisible`; optional task snapshot and reply parent; `notifyMode` (`none` / `mentions` / `team`) plus mention ids (hub email routing only — not an access ACL).
+
+### ProjectAsset
+Per-project Cloudinary file. Two-tier `clientVisible`; clients upload as always-visible. Team can toggle visibility after upload.
 
 ### LineItem
 Fixed-cost billing entries for non-hourly charges. Linked to a Client and optionally a Project. Tracks `description`, `amount`, `category` (e.g., Software/Plugin, Hosting, Subcontractor), and `date`. Included alongside time entries in invoices and CSV exports. Optional `invoiceId` when included on a SENT invoice.

@@ -56,9 +56,14 @@ Repeat Phase 0 actions. Still **no sends** (recipients have not opted in).
 - [ ] Use a **test client account** (your email) to post on a portal project message
 - [ ] **Expect:** admin inbox receives email
 - [ ] Turn **off** Client messages → Save → post again → **no email**
-- [ ] Admin `/profile` → turn **on** **Team messages** → Save
-- [ ] From a **member** (or second admin session), post on the project
-- [ ] **Expect:** admin inbox receives teammate-message email; the poster does not
+- [ ] Admin `/profile` → turn **on** **All messages** → Save
+- [ ] From a **member** (or second admin session), post with Notify **None**
+- [ ] **Expect:** admin inbox receives email; the poster does not
+- [ ] Turn **All** off, turn **Team messages** on → Save
+- [ ] Member posts with Notify **None** → **no** email; Notify **Team** → email
+- [ ] Turn **Team** off, turn **@ mentions** on → Save
+- [ ] Member posts with Notify **@** targeting the admin → email; Notify **Team** with All off → **no** email
+- [ ] Legacy: `teamMessages: true` with `allMessages` unset still counts as All until the user saves the new toggles
 - [ ] Admin `/profile` → turn **on** **Task completed** → Save
 - [ ] From a member, mark a task complete
 - [ ] **Expect:** admin inbox receives task-complete email

@@ -205,7 +205,7 @@ The application uses a workspace-based multi-tenancy model where all data is sco
 
 **Pattern A — Direct userId scoping**: `userId = extractUserId(req)`. Admin-only data where members have no access. Entity's `userId` matches the authenticated user's Auth0 sub.
 
-**Pattern B — Workspace scoping**: `userId = await getWorkspaceOwnerId(req)`. Shared data that both admin and members can read. Used for Projects, TaskTypes, ProjectTasks, TimeEntries, Reports, Export, **Leads**, Dashboard aggregates, ProjectMessages.
+**Pattern B — Workspace scoping**: `userId = await getWorkspaceOwnerId(req)`. Shared data that both admin and members can read. Used for Projects, TaskTypes, ProjectTasks, ProjectTaskSuggestions, TimeEntries, Reports, Export, **Leads**, Dashboard aggregates, ProjectMessages, ProjectAssets.
 
 **Pattern C — Client portal scoping**: Every portal API uses `requireClient` and queries `{ userId: workspaceOwnerId, clientId: user.clientId }`. Never accept clientId from request body.
 
@@ -224,6 +224,7 @@ User (auth0Id)
  │     ├── taskDiscounts: Map<TaskType._id, discountPercent>
  │     ├── businessEntity, address, paymentPreference
  │     │
+ │     ├── pinned?: boolean (admin workspace pin on Projects list)
  │     ├──> Project (clientId, userId)
  │     │     ├── status: ACTIVE | PAUSED | COMPLETED | ARCHIVED
  │     │     ├── billingMode: HOURLY | FIXED_PRICE | HOUR_RETAINER (+ agreedAmount, retainerHoursTotal, retainerAdjustmentHours, fixedPriceInvoiceLabel as applicable)
@@ -233,9 +234,19 @@ User (auth0Id)
  │     │     │
  │     │     ├──> ProjectTask (projectId, userId)
  │     │     │     ├── status: TODO | IN_PROGRESS | COMPLETED
- │     │     │     ├── order, estimatedHours
+ │     │     │     ├── order, estimatedHours, clientVisible, assigneeAuth0Id
  │     │     │     │
  │     │     │     └──< TimeEntry.projectTaskId
+ │     │     │
+ │     │     ├──> ProjectTaskSuggestion (projectId, clientId, userId)
+ │     │     │     ├── PENDING | APPROVED | DECLINED
+ │     │     │     └── createdTaskId? → ProjectTask (on approve)
+ │     │     │
+ │     │     ├──> ProjectMessage (projectId, userId)
+ │     │     │     ├── clientVisible, notifyMode none|mentions|team
+ │     │     │     └── optional projectTaskId + replyToMessageId
+ │     │     │
+ │     │     ├──> ProjectAsset (projectId, userId) — Cloudinary library
  │     │     │
  │     │     ├──> TimeEntry (projectId, taskTypeId, userId)
  │     │     │     ├── startTime, endTime, duration, isRunning
@@ -313,6 +324,8 @@ bio?: string
 earnedRates?: Record<string, number> (taskTypeId → earned hourly rate)
 payoutPreference?: { method: PAYPAL | ZELLE | VENMO | OTHER, handle, notes? } (no bank account numbers)
 invitedBy?: string
+notificationPreferences.email?: { allMessages, teamMessages, mentionMessages, clientMessages, … }
+projectMessageReads?: Map<projectId, lastReadAt>  // unread badges; missing key ⇒ 0
 ```
 
 #### Client
@@ -324,6 +337,7 @@ email?: string
 businessEntity?: string (official entity for invoices)
 address?: string (for invoices)
 paymentPreference?: 'MAILED' | 'ACH' (default: MAILED)
+pinned?: boolean (workspace-level Projects card order; admin PATCH /api/clients/:id/pin)
 taskDiscounts: Map<string, number> (taskTypeId → discount 0-100%)
 ```
 
@@ -667,17 +681,17 @@ askanddeliver.com (Vercel)  ──HTTPS──>  Railway (server)
 
 ## File Index
 
-### Server Routes (23 + webhook)
+### Server Routes (25 + webhook)
 
 | File | Mount | Auth Pattern |
 |------|-------|-------------|
 | `routes/health.ts` | `/api/health` | None |
 | `routes/users.ts` | `/api/users` | checkJwt; requireAdmin on admin endpoints; invite-client |
-| `routes/clients.ts` | `/api/clients` | checkJwt + requireAdmin |
+| `routes/clients.ts` | `/api/clients` | checkJwt + requireAdmin; `PATCH /:id/pin` |
 | `routes/projects.ts` | `/api/projects` | checkJwt; requireAdmin on writes |
 | `routes/taskTypes.ts` | `/api/task-types` | checkJwt; requireAdmin on writes |
 | `routes/timeEntries.ts` | `/api/time-entries` | checkJwt (internal admin check for scoping) |
-| `routes/projectTasks.ts` | `/api/project-tasks` | checkJwt; requireAdmin on writes |
+| `routes/projectTasks.ts` | `/api/project-tasks` | checkJwt + requireMemberOrAdmin (client JWTs 403) |
 | `routes/timeBlocks.ts` | `/api/time-blocks` | checkJwt |
 | `routes/reports.ts` | `/api/reports` | checkJwt + requireAdmin |
 | `routes/invoices.ts` | `/api/invoices` | checkJwt + requireAdmin |
@@ -693,10 +707,12 @@ askanddeliver.com (Vercel)  ──HTTPS──>  Railway (server)
 | `routes/member.ts` | `/api/member` | requireMemberOrAdmin |
 | `routes/portal.ts` | `/api/portal` | requireClient |
 | `routes/dashboard.ts` | `/api/dashboard` | checkJwt + admin |
-| `routes/projectMessages.ts` | `/api/projects/:projectId/messages` | checkJwt |
+| `routes/projectMessages.ts` | `/api/projects/:projectId/messages` | checkJwt (notifyMode; mark-read) |
+| `routes/projectAssets.ts` | `/api/projects/:projectId/assets` | checkJwt |
+| `routes/projectTaskSuggestions.ts` | `/api/projects/:projectId/task-suggestions` | checkJwt + requireMemberOrAdmin; requireAdmin on approve/decline |
 | `routes/webhooks.ts` | `/api/webhooks/stripe` | Stripe signature (no JWT; raw body) |
 
-### Server Models (16 active)
+### Server Models (18 active)
 
 | File | Collection | Key Indexes |
 |------|-----------|-------------|
@@ -708,7 +724,9 @@ askanddeliver.com (Vercel)  ──HTTPS──>  Railway (server)
 | `models/Invoice.ts` | invoices | `{ userId, status }`, `{ userId, createdAt }`, `{ userId, documentKind }`, `{ userId, invoiceNumber }` (unique) |
 | `models/Proposal.ts` | proposals | `{ userId, status }`, `{ userId, proposalNumber }` |
 | `models/ProjectTask.ts` | projecttasks | `{ projectId, order }`, `userId` |
+| `models/ProjectTaskSuggestion.ts` | projecttasksuggestions | `{ projectId, status }`, `userId` |
 | `models/ProjectMessage.ts` | projectmessages | `{ projectId, createdAt }` |
+| `models/ProjectAsset.ts` | projectassets | `{ projectId, createdAt }`, `userId` |
 | `models/TimeBlock.ts` | timeblocks | `{ userId, startTime }` |
 | `models/LineItem.ts` | lineitems | `{ userId, clientId }`, `{ userId, date }` |
 | `models/FilterPreset.ts` | filterpresets | `{ userId, kind, name }` (unique), `{ userId, kind, updatedAt }` |
