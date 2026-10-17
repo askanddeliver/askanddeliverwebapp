@@ -1,10 +1,12 @@
 import { Link } from 'react-router-dom';
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import {
   Archive,
   ArrowRight,
   Briefcase,
   CheckCircle2,
+  ChevronDown,
+  ChevronUp,
   Circle,
   Clock,
   Pencil,
@@ -60,6 +62,18 @@ export function ClientProjectsCard({
 }: ClientProjectsCardProps) {
   const projectCount = group.projects.length;
   const isPinned = group.pinned === true;
+  const [expandedTaskIds, setExpandedTaskIds] = useState<Set<string>>(
+    () => new Set()
+  );
+
+  const toggleOpenTasks = (projectId: string) => {
+    setExpandedTaskIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(projectId)) next.delete(projectId);
+      else next.add(projectId);
+      return next;
+    });
+  };
 
   return (
     <article className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
@@ -113,6 +127,7 @@ export function ClientProjectsCard({
           );
           const budgetBurn = budgetBurnByProjectId?.[project._id];
           const isArchived = project.status === 'ARCHIVED';
+          const tasksExpanded = expandedTaskIds.has(project._id);
 
           return (
             <li
@@ -189,10 +204,20 @@ export function ClientProjectsCard({
                       {projectBillingSummary(project, showBudget)}
                     </span>
                     {openTasks.length > 0 && (
-                      <span className="text-xs text-gray-400">
+                      <button
+                        type="button"
+                        onClick={() => toggleOpenTasks(project._id)}
+                        aria-expanded={tasksExpanded}
+                        className="inline-flex items-center gap-0.5 text-xs text-gray-400 hover:text-gray-700"
+                      >
                         {openTasks.length} open{' '}
                         {openTasks.length === 1 ? 'task' : 'tasks'}
-                      </span>
+                        {tasksExpanded ? (
+                          <ChevronUp className="h-3 w-3" aria-hidden />
+                        ) : (
+                          <ChevronDown className="h-3 w-3" aria-hidden />
+                        )}
+                      </button>
                     )}
                   </div>
 
@@ -224,7 +249,7 @@ export function ClientProjectsCard({
                       </div>
                     )}
 
-                  {openTasks.length > 0 && (
+                  {tasksExpanded && openTasks.length > 0 && (
                     <ul className="mt-2 space-y-0.5">
                       {openTasks.slice(0, 6).map((task) => (
                         <li key={task._id}>
