@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { MessageSquare } from 'lucide-react';
 import { projectMessagesApi } from '../../services/api';
+import { useMarkProjectMessagesRead } from '../../hooks/useMarkProjectMessagesRead';
 import ProjectMessageThread from '../portal/ProjectMessageThread';
 import type { MessageComposeFromTask, ProjectMessage } from '../../types';
 
@@ -26,17 +27,24 @@ function ProjectMessagesPanel({
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState(defaultExpanded || hideToggle);
 
+  const markRead = useCallback(
+    (id: string) => projectMessagesApi.markRead(id),
+    []
+  );
+  const { sectionRef, markIfVisible } = useMarkProjectMessagesRead(projectId, markRead);
+
   const loadMessages = useCallback(async () => {
     setLoading(true);
     try {
       const res = await projectMessagesApi.list(projectId);
       setMessages(res.data || []);
+      markIfVisible();
     } catch {
       setMessages([]);
     } finally {
       setLoading(false);
     }
-  }, [projectId]);
+  }, [projectId, markIfVisible]);
 
   useEffect(() => {
     if (expanded || hideToggle) loadMessages();
@@ -70,7 +78,10 @@ function ProjectMessagesPanel({
   };
 
   return (
-    <div className={hideToggle ? '' : 'mt-4 border-t border-gray-100 pt-4'}>
+    <div
+      ref={sectionRef}
+      className={hideToggle ? '' : 'mt-4 border-t border-gray-100 pt-4'}
+    >
       {!hideToggle && (
         <button
           type="button"

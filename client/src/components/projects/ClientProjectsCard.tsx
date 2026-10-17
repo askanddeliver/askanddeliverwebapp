@@ -15,6 +15,7 @@ import { formatCurrency } from '../../utils/calculations';
 import { projectBillingSummary } from '../../utils/projectBilling';
 import { sortProjectTasksByOrder } from '../../utils/projectTasks';
 import type { ClientProjectGroup } from '../../utils/projectClient';
+import UnreadCountBadge from './UnreadCountBadge';
 
 const projectStatusStyles: Record<string, string> = {
   ACTIVE: 'bg-green-50 text-green-700 border-green-200',
@@ -77,6 +78,8 @@ export function ClientProjectsCard({
       <ul className="divide-y divide-gray-100">
         {group.projects.map((project) => {
           const hubTo = `${hubPathPrefix}/${project._id}`;
+          const hubToUnread =
+            (project.unreadMessageCount ?? 0) > 0 ? `${hubTo}#messages` : hubTo;
           const openTasks = sortProjectTasksByOrder(
             openTasksByProjectId[project._id] || []
           );
@@ -92,10 +95,11 @@ export function ClientProjectsCard({
                 <div className="min-w-0 flex-1">
                   <div className="flex items-start justify-between gap-2">
                     <Link
-                      to={hubTo}
-                      className="min-w-0 font-medium text-gray-900 hover:text-primary-700 hover:underline"
+                      to={hubToUnread}
+                      className="flex min-w-0 items-center gap-2 font-medium text-gray-900 hover:text-primary-700 hover:underline"
                     >
-                      {project.title}
+                      <span className="truncate">{project.title}</span>
+                      <UnreadCountBadge count={project.unreadMessageCount} />
                     </Link>
                     {canEdit && (
                       <div className="flex shrink-0 items-center gap-0.5">

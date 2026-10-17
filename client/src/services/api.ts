@@ -737,6 +737,8 @@ export const dashboardApi = {
 export const projectMessagesApi = {
   list: (projectId: string) =>
     api.get<ProjectMessage[]>(`/projects/${projectId}/messages`),
+  markRead: (projectId: string) =>
+    api.post<{ lastReadAt: string }>(`/projects/${projectId}/messages/read`),
   create: (
     projectId: string,
     data: {
@@ -777,6 +779,8 @@ export const portalApi = {
     api.get<PortalProjectDetailResponse>(`/portal/projects/${id}`),
   getMessages: (projectId: string) =>
     api.get<ProjectMessage[]>(`/portal/projects/${projectId}/messages`),
+  markMessagesRead: (projectId: string) =>
+    api.post<{ lastReadAt: string }>(`/portal/projects/${projectId}/messages/read`),
   postMessage: (
     projectId: string,
     body: string,

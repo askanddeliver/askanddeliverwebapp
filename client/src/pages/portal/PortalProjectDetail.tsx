@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link, useLocation, useParams } from 'react-router-dom';
 import { ArrowLeft, MessageSquare } from 'lucide-react';
 import { portalApi } from '../../services/api';
+import { useMarkProjectMessagesRead } from '../../hooks/useMarkProjectMessagesRead';
 import PortalStatusBadge from '../../components/portal/PortalStatusBadge';
 import SanitizedBrief from '../../components/portal/SanitizedBrief';
 import ProjectMessageThread from '../../components/portal/ProjectMessageThread';
@@ -25,18 +26,25 @@ function PortalProjectDetail() {
     null
   );
 
+  const markRead = useCallback(
+    (projectId: string) => portalApi.markMessagesRead(projectId),
+    []
+  );
+  const { sectionRef, markIfVisible } = useMarkProjectMessagesRead(id, markRead);
+
   const loadMessages = useCallback(async () => {
     if (!id) return;
     setMessagesLoading(true);
     try {
       const res = await portalApi.getMessages(id);
       setMessages(res.data || []);
+      markIfVisible();
     } catch {
       /* keep existing messages */
     } finally {
       setMessagesLoading(false);
     }
-  }, [id]);
+  }, [id, markIfVisible]);
 
   useEffect(() => {
     if (!id) return;
@@ -199,7 +207,11 @@ function PortalProjectDetail() {
         <ProjectAssetsPanel projectId={project._id} variant="portal" />
       </section>
 
-      <section id="messages" className="scroll-mt-16 rounded-xl border border-neutral-200 bg-white p-6">
+      <section
+        id="messages"
+        className="scroll-mt-16 rounded-xl border border-neutral-200 bg-white p-6"
+      >
+        <div ref={sectionRef}>
         <ProjectMessageThread
           messages={messages}
           loading={messagesLoading}
@@ -210,6 +222,7 @@ function PortalProjectDetail() {
           onClearComposeFromTask={() => setComposeFromTask(null)}
           emptyLabel="No messages yet — say hello to your team."
         />
+        </div>
       </section>
     </div>
   );

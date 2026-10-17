@@ -129,6 +129,8 @@ export interface Project {
   assignedMemberIds?: string[];
   /** Resolved on GET /api/projects/:id — not stored on the model */
   assignedMembers?: ProjectAssignedMember[];
+  /** Viewer-scoped; 0 when this user has never opened the thread */
+  unreadMessageCount?: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -240,6 +242,7 @@ export interface PortalProjectSummary {
   status: ProjectStatus;
   updatedAt: string;
   openTaskCount: number;
+  unreadMessageCount?: number;
 }
 
 export interface PortalProjectDetail {

@@ -124,6 +124,8 @@ This is the **authoritative reference** for what sends email today. All sends ar
 - Deep links match #1 (admin vs member hub).  
 - If the post is also client-visible, #2 still fires separately for portal users.
 
+**In-app unread (orthogonal):** Project list and portal cards show a per-user unread count from `User.projectMessageReads`. That is not an email trigger and does not use these preference keys. See [ONBOARDING_UX_EXPANSIONS_BUILD_PLAN.md](./ONBOARDING_UX_EXPANSIONS_BUILD_PLAN.md) slice A.
+
 ### Not wired (documented for future)
 
 | Event ID | Planned trigger | Status |
@@ -431,3 +433,4 @@ Do not bundle RN-4 with unrelated work (reporting filters, dashboards) — keep 
 | 2026-07-17 | **RN-3** — invoice sent + task completed emails; `notificationPreferences` + profile UI |
 | 2026-08-14 | **Stopping point** — triggers-by-action reference, delivery gates, shipped vs deferred; `parseEnvFlag` for inline `.env` comments; pause before RN-4 |
 | 2026-09-27 | Contributor alerts — `teamMessages` + team `taskCompleted` for admin/members; role-aware hub deep links |
+| 2026-10-16 | In-app unread counts (slice A) — orthogonal to Resend; documented under triggers |

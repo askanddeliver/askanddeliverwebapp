@@ -9,6 +9,7 @@ import { getEffectiveRate, parseDateStart, parseDateEnd } from '../utils/calcula
 import { validateWorkspaceMemberAuth0Ids } from '../lib/memberValidation';
 import { notifyMembersAssignedToProject } from '../lib/email';
 import { memberHasProjectAccess, stripProjectFinancials } from '../lib/memberProjects';
+import { attachUnreadMessageCounts } from '../lib/unreadProjectMessages';
 
 const BILLING_MODES: ProjectBillingMode[] = ['HOURLY', 'FIXED_PRICE', 'HOUR_RETAINER'];
 
@@ -78,7 +79,8 @@ router.get(
   '/',
   asyncHandler(async (req: AuthRequest, res: Response) => {
     const workspaceOwnerId = await getWorkspaceOwnerId(req);
-    if (!workspaceOwnerId) throw createError('Workspace access required', 403);
+    const auth0Id = extractUserId(req);
+    if (!workspaceOwnerId || !auth0Id) throw createError('Workspace access required', 403);
 
     const { status, search, sort, clientId } = req.query;
 
@@ -125,7 +127,12 @@ router.get(
       .sort(sortOption)
       .lean();
 
-    res.json(projects);
+    res.json(
+      await attachUnreadMessageCounts(projects, {
+        workspaceOwnerId,
+        viewerAuth0Id: auth0Id,
+      })
+    );
   })
 );
 
@@ -316,15 +323,20 @@ router.get(
         role: m.role,
       }));
 
+    const [withUnread] = await attachUnreadMessageCounts([project], {
+      workspaceOwnerId,
+      viewerAuth0Id: currentUser.auth0Id,
+    });
+
     if (isMember) {
       res.json({
-        ...stripProjectFinancials(project as Record<string, unknown>),
+        ...stripProjectFinancials(withUnread as Record<string, unknown>),
         assignedMembers,
       });
       return;
     }
 
-    res.json({ ...project, assignedMembers });
+    res.json({ ...withUnread, assignedMembers });
   })
 );
 

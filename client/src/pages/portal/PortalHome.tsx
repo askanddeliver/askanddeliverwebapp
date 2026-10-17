@@ -5,6 +5,7 @@ import { portalApi } from '../../services/api';
 import PortalStatusBadge from '../../components/portal/PortalStatusBadge';
 import PortalProjectJumpLinks from '../../components/portal/PortalProjectJumpLinks';
 import type { PortalDashboardResponse } from '../../types';
+import UnreadCountBadge from '../../components/projects/UnreadCountBadge';
 
 function PortalHome() {
   const { user } = useUserRole();
@@ -84,9 +85,19 @@ function PortalHome() {
                 key={p._id}
                 className="rounded-xl border border-neutral-200 bg-white p-5 transition-shadow hover:shadow-md"
               >
-                <Link to={`/portal/projects/${p._id}`} className="block">
+                <Link
+                  to={
+                    (p.unreadMessageCount ?? 0) > 0
+                      ? `/portal/projects/${p._id}#messages`
+                      : `/portal/projects/${p._id}`
+                  }
+                  className="block"
+                >
                   <div className="mb-2 flex items-start justify-between gap-2">
-                    <h3 className="font-semibold text-brand-charcoal">{p.title}</h3>
+                    <h3 className="flex min-w-0 items-center gap-2 font-semibold text-brand-charcoal">
+                      <span className="truncate">{p.title}</span>
+                      <UnreadCountBadge count={p.unreadMessageCount} tone="portal" />
+                    </h3>
                     <PortalStatusBadge kind="project" status={p.status} />
                   </div>
                   {p.excerpt && (

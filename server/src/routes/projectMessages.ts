@@ -16,6 +16,7 @@ import {
   notifyTeamMessageToClient,
   notifyTeamMessageToTeam,
 } from '../lib/email';
+import { markProjectMessagesRead } from '../lib/unreadProjectMessages';
 import type { ProjectMessageAuthorRole } from '../models/ProjectMessage';
 
 const router = Router({ mergeParams: true });
@@ -133,6 +134,18 @@ router.get(
       .lean();
 
     res.json(messages);
+  })
+);
+
+// POST /api/projects/:projectId/messages/read
+router.post(
+  '/read',
+  asyncHandler(async (req: AuthRequest, res: Response) => {
+    const projectId = req.params.projectId;
+    const { auth0Id } = await loadWorkspaceProject(req, projectId);
+    const lastReadAt = await markProjectMessagesRead(auth0Id, projectId);
+    if (!lastReadAt) throw createError('User not found', 404);
+    res.json({ lastReadAt });
   })
 );
 
@@ -274,6 +287,18 @@ portalProjectMessagesRouter.get(
       .lean();
 
     res.json(messages);
+  })
+);
+
+portalProjectMessagesRouter.post(
+  '/read',
+  asyncHandler(async (req: AuthRequest, res: Response) => {
+    const ctx = await requirePortalContext(req);
+    const projectId = req.params.projectId;
+    await findClientProject(projectId, ctx.workspaceOwnerId, ctx.clientId);
+    const lastReadAt = await markProjectMessagesRead(ctx.auth0Id, projectId);
+    if (!lastReadAt) throw createError('User not found', 404);
+    res.json({ lastReadAt });
   })
 );
 

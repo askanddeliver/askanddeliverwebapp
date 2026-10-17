@@ -13,6 +13,7 @@ import {
   findMemberProjects,
   stripProjectFinancials,
 } from '../lib/memberProjects';
+import { attachUnreadMessageCounts } from '../lib/unreadProjectMessages';
 import memberTimeBlockRoutes from './memberTimeBlocks';
 
 const router = Router();
@@ -85,7 +86,18 @@ router.get(
     }
 
     const projects = await findMemberProjects(workspaceOwnerId, auth0Id);
-    res.json(projects.map((p) => stripProjectFinancials(p as Record<string, unknown>)));
+    const stripped = projects.map((p) =>
+      stripProjectFinancials(p as Record<string, unknown>)
+    );
+    res.json(
+      await attachUnreadMessageCounts(
+        stripped as Array<Record<string, unknown> & { _id: unknown }>,
+        {
+          workspaceOwnerId,
+          viewerAuth0Id: auth0Id,
+        }
+      )
+    );
   })
 );
 

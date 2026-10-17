@@ -2,7 +2,7 @@
 
 Shipped 2026-09-25. Admin/member hubs and the client portal share one project thread and one project file library. Visibility is two-tier (internal vs client), not per-person ACL.
 
-See also: [PROJECT_HUB_BUILD_PLAN.md](./PROJECT_HUB_BUILD_PLAN.md), [PLATFORM_EXPANSION_CLIENT_PORTAL_SPEC.md](./PLATFORM_EXPANSION_CLIENT_PORTAL_SPEC.md), [RESEND_NOTIFICATIONS_BUILD_PLAN.md](./RESEND_NOTIFICATIONS_BUILD_PLAN.md).
+See also: [PROJECT_HUB_BUILD_PLAN.md](./PROJECT_HUB_BUILD_PLAN.md), [PLATFORM_EXPANSION_CLIENT_PORTAL_SPEC.md](./PLATFORM_EXPANSION_CLIENT_PORTAL_SPEC.md), [RESEND_NOTIFICATIONS_BUILD_PLAN.md](./RESEND_NOTIFICATIONS_BUILD_PLAN.md), [ONBOARDING_UX_EXPANSIONS_BUILD_PLAN.md](./ONBOARDING_UX_EXPANSIONS_BUILD_PLAN.md) (slice A unread badges shipped; client task *requests* are not messages — they become tasks only after admin approve).
 
 ---
 

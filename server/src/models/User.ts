@@ -57,6 +57,8 @@ export interface IUser extends Document {
   payoutPreference?: IUserPayoutPreference;
   earnedRates?: Record<string, number>;
   notificationPreferences?: IUserNotificationPreferences;
+  /** projectId hex → last time this user loaded that project's message thread */
+  projectMessageReads?: Map<string, Date>;
   status: UserStatus;
   invitedBy?: string;
   createdAt: Date;
@@ -154,6 +156,11 @@ const userSchema = new Schema<IUser>(
         teamMessages: { type: Boolean },
         digest: { type: String, enum: ['none', 'daily', 'weekly'] },
       },
+    },
+    projectMessageReads: {
+      type: Map,
+      of: Date,
+      default: {},
     },
     status: {
       type: String,

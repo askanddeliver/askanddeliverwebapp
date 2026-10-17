@@ -12,6 +12,7 @@ import {
   requirePortalContext,
   toPortalProjectSummary,
 } from '../lib/portalScope';
+import { attachUnreadMessageCounts } from '../lib/unreadProjectMessages';
 import { portalProjectMessagesRouter } from './projectMessages';
 import { portalProjectAssetsRouter } from './projectAssets';
 
@@ -79,11 +80,19 @@ router.get(
         openTaskCount: await openTaskCount(ctx.workspaceOwnerId, p._id),
       }))
     );
+    const activeProjectsWithUnread = await attachUnreadMessageCounts(
+      projectsWithCounts,
+      {
+        workspaceOwnerId: ctx.workspaceOwnerId,
+        viewerAuth0Id: ctx.auth0Id,
+        clientVisibleOnly: true,
+      }
+    );
 
     res.json({
       companyName: config?.companyName,
       companyEmail: config?.companyEmail,
-      activeProjects: projectsWithCounts,
+      activeProjects: activeProjectsWithUnread,
       recentUpdates: recentMessages.map((m) => ({
         _id: String(m._id),
         body: m.body,
@@ -133,8 +142,13 @@ router.get(
         openTaskCount: await openTaskCount(ctx.workspaceOwnerId, p._id),
       }))
     );
+    const projectsWithUnread = await attachUnreadMessageCounts(projectsWithCounts, {
+      workspaceOwnerId: ctx.workspaceOwnerId,
+      viewerAuth0Id: ctx.auth0Id,
+      clientVisibleOnly: true,
+    });
 
-    res.json({ projects: projectsWithCounts });
+    res.json({ projects: projectsWithUnread });
   })
 );
 

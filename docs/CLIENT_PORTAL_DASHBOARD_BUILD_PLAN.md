@@ -2,7 +2,7 @@
 
 **Status:** v1 shipped · v1.1+ planned (July 2026)  
 **Parent:** [PLATFORM_EXPANSION_CLIENT_PORTAL_SPEC.md](./PLATFORM_EXPANSION_CLIENT_PORTAL_SPEC.md)  
-**Related:** [PROJECT_HUB_BUILD_PLAN.md](./PROJECT_HUB_BUILD_PLAN.md) · [RESEND_NOTIFICATIONS_BUILD_PLAN.md](./RESEND_NOTIFICATIONS_BUILD_PLAN.md)
+**Related:** [PROJECT_HUB_BUILD_PLAN.md](./PROJECT_HUB_BUILD_PLAN.md) · [RESEND_NOTIFICATIONS_BUILD_PLAN.md](./RESEND_NOTIFICATIONS_BUILD_PLAN.md) · [ONBOARDING_UX_EXPANSIONS_BUILD_PLAN.md](./ONBOARDING_UX_EXPANSIONS_BUILD_PLAN.md)
 
 This document covers the **client-facing dashboard** at `/portal` and the **client project detail** at `/portal/projects/:id`. It records what is already live, what remains, and how Resend notifications tie in.
 
@@ -188,9 +188,10 @@ Client toggles: `/portal/settings`. Templates use SiteConfig branding (`companyN
 | **CP-1** | Resend — client events | Invite, client-visible messages, task completed, invoice sent | ✅ Shipped (RN-2–RN-3) |
 | **CP-2** | Dashboard activity feed | Task status changes in recent updates | — |
 | **CP-3** | Portal invoices v1.1 | `/portal/invoices` + pay links | Payment links (existing) |
-| **CP-4** | Team strip + unread badges | Light team visibility, read cursors | CP-2 optional |
+| **CP-4** | Unread badges | Per-project read cursor on `User`; counts on portal cards | ✅ Shipped (onboarding slice A) |
+| **CP-5** | Client task requests | Dedicated intake; admin approves → creates `ProjectTask` | Specced as slice C in the same plan |
 
-**Recommendation:** Next client portal priority is **CP-3** (invoices UI) so invoice email deep links resolve.
+**Recommendation:** Unread (CP-4 / slice A) is the next portal-adjacent ship for onboarded clients and members. Invoices UI (CP-3) remains separate.
 
 ---
 
@@ -198,7 +199,7 @@ Client toggles: `/portal/settings`. Templates use SiteConfig branding (`companyN
 
 | # | Question | Options | Recommendation |
 |---|----------|---------|----------------|
-| 1 | Unread tracking | Per-user `lastPortalVisitAt` vs per-project read cursor | Per-project cursor on `User` map — scales better for multi-project clients |
+| 1 | Unread tracking | Per-user `lastPortalVisitAt` vs per-project read cursor | **Locked:** per-project cursor on `User` (`projectMessageReads`). No cursor ⇒ count 0. See onboarding expansions slice A. |
 | 2 | Team visibility | Names only vs names + role labels | First name + avatar only |
 | 3 | Invoice email | Portal users only vs also CRM `Client.email` | **Portal users only** (shipped) |
 
@@ -236,3 +237,5 @@ Client toggles: `/portal/settings`. Templates use SiteConfig branding (`companyN
 |------|--------|
 | 2026-07-17 | Initial build plan — v1 status, v1.1 roadmap, Resend hooks |
 | 2026-08-14 | CP-1 marked shipped; Resend section aligned with RN-3 stopping point |
+| 2026-10-16 | CP-4 unread locked to User read cursor; CP-5 task requests pointed at onboarding expansions plan |
+| 2026-10-16 | **CP-4 shipped** — portal cards show unread message counts (onboarding slice A) |
