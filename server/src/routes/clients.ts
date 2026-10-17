@@ -84,6 +84,31 @@ router.post(
   })
 );
 
+// PATCH /api/clients/:id/pin — workspace pin for Projects list cards
+router.patch(
+  '/:id/pin',
+  asyncHandler(async (req: AuthRequest, res: Response) => {
+    const userId = extractUserId(req);
+    if (!userId) throw createError('User ID not found in token', 401);
+
+    if (typeof req.body?.pinned !== 'boolean') {
+      throw createError('pinned must be a boolean', 400);
+    }
+
+    const client = await Client.findOneAndUpdate(
+      { _id: req.params.id, userId },
+      { pinned: req.body.pinned },
+      { new: true, runValidators: true }
+    );
+
+    if (!client) {
+      throw createError('Client not found', 404);
+    }
+
+    res.json(client);
+  })
+);
+
 // PUT /api/clients/:id - Update client
 router.put(
   '/:id',

@@ -177,6 +177,22 @@ function Projects() {
     }
   };
 
+  const handlePinClient = async (clientId: string, pinned: boolean) => {
+    try {
+      await clientsApi.setPinned(clientId, pinned);
+      setProjects((prev) =>
+        prev.map((project) => {
+          if (typeof project.clientId !== 'object' || !project.clientId) return project;
+          if (project.clientId._id !== clientId) return project;
+          return { ...project, clientId: { ...project.clientId, pinned } };
+        })
+      );
+    } catch (err) {
+      console.error('Failed to update pin:', err);
+      setError('Failed to update pin');
+    }
+  };
+
   return (
     <div className="w-full">
       {/* Header */}
@@ -375,6 +391,7 @@ function Projects() {
           onEdit={handleEdit}
           onDelete={handleDelete}
           onArchive={handleArchive}
+          onPinClient={isAdmin ? handlePinClient : undefined}
         />
       )}
 

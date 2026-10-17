@@ -15,6 +15,7 @@ interface ProjectListProps {
   onEdit: (project: Project) => void;
   onDelete: (id: string) => void;
   onArchive: (id: string) => void;
+  onPinClient?: (clientId: string, pinned: boolean) => void;
 }
 
 export function ProjectList({
@@ -28,6 +29,7 @@ export function ProjectList({
   onEdit,
   onDelete,
   onArchive,
+  onPinClient,
 }: ProjectListProps) {
   if (projects.length === 0) {
     return (
@@ -57,6 +59,7 @@ export function ProjectList({
           onEdit={onEdit}
           onDelete={onDelete}
           onArchive={onArchive}
+          onPinClient={onPinClient}
         />
       ))}
     </div>

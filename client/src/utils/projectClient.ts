@@ -25,6 +25,7 @@ export interface ClientProjectGroup {
   clientName: string;
   clientCompany?: string;
   isInternal?: boolean;
+  pinned?: boolean;
   projects: Project[];
 }
 
@@ -43,6 +44,7 @@ export function groupProjectsByClient(projects: Project[]): ClientProjectGroup[]
         clientName: client?.name || 'Unknown client',
         clientCompany: client?.company,
         isInternal: client?.isInternal,
+        pinned: client?.pinned === true,
         projects: [],
       });
     }
@@ -51,7 +53,10 @@ export function groupProjectsByClient(projects: Project[]): ClientProjectGroup[]
 
   return order
     .map((id) => groups.get(id)!)
-    .sort((a, b) => a.clientName.localeCompare(b.clientName, undefined, { sensitivity: 'base' }));
+    .sort((a, b) => {
+      if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
+      return a.clientName.localeCompare(b.clientName, undefined, { sensitivity: 'base' });
+    });
 }
 
 export function openTasksByProject(

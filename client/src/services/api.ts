@@ -192,6 +192,8 @@ export const clientsApi = {
   create: (data: Partial<Client>) => api.post<Client>('/clients', data),
   update: (id: string, data: Partial<Client> & { calendarColor?: string | null }) =>
     api.put<Client>(`/clients/${id}`, data),
+  setPinned: (id: string, pinned: boolean) =>
+    api.patch<Client>(`/clients/${id}/pin`, { pinned }),
   delete: (id: string) => api.delete(`/clients/${id}`),
 };
 

@@ -8,6 +8,7 @@ import {
   Circle,
   Clock,
   Pencil,
+  Pin,
   Trash2,
 } from 'lucide-react';
 import type { Project, ProjectBudgetBurn, ProjectTask } from '../../types';
@@ -41,6 +42,7 @@ interface ClientProjectsCardProps {
   onEdit: (project: Project) => void;
   onDelete: (id: string) => void;
   onArchive: (id: string) => void;
+  onPinClient?: (clientId: string, pinned: boolean) => void;
 }
 
 export function ClientProjectsCard({
@@ -54,8 +56,10 @@ export function ClientProjectsCard({
   onEdit,
   onDelete,
   onArchive,
+  onPinClient,
 }: ClientProjectsCardProps) {
   const projectCount = group.projects.length;
+  const isPinned = group.pinned === true;
 
   return (
     <article className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
@@ -71,8 +75,32 @@ export function ClientProjectsCard({
             {group.clientCompany ? `${group.clientCompany} · ` : ''}
             {projectCount} {projectCount === 1 ? 'project' : 'projects'}
             {group.isInternal ? ' · Internal' : ''}
+            {isPinned ? ' · Pinned' : ''}
           </p>
         </div>
+        {canEdit && onPinClient && !group.clientId.startsWith('__unknown_') ? (
+          <button
+            type="button"
+            onClick={() => onPinClient(group.clientId, !isPinned)}
+            className={`mt-0.5 shrink-0 rounded-lg p-1.5 ${
+              isPinned
+                ? 'text-primary-700 hover:bg-primary-50'
+                : 'text-gray-400 hover:bg-gray-100 hover:text-gray-700'
+            }`}
+            aria-label={isPinned ? 'Unpin client' : 'Pin client'}
+            title={isPinned ? 'Unpin client' : 'Pin client to top'}
+          >
+            <Pin className={`h-4 w-4 ${isPinned ? 'fill-current' : ''}`} />
+          </button>
+        ) : isPinned ? (
+          <span
+            className="mt-0.5 shrink-0 rounded-lg p-1.5 text-primary-700"
+            title="Pinned to top"
+            aria-label="Pinned to top"
+          >
+            <Pin className="h-4 w-4 fill-current" />
+          </span>
+        ) : null}
       </header>
 
       <ul className="divide-y divide-gray-100">

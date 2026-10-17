@@ -96,6 +96,8 @@ export interface Client {
   isInternal?: boolean;
   /** Hex color for Block Time (optional; UI may hash id when unset). Null clears on update. */
   calendarColor?: string | null;
+  /** Workspace pin — floats this client’s card above A–Z on Projects. */
+  pinned?: boolean;
   taskDiscounts: Record<string, number>;
   createdAt: string;
   updatedAt: string;

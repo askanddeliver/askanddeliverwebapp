@@ -51,7 +51,7 @@ export async function findMemberProjects(
 ) {
   const filter = await getMemberProjectFilter(workspaceOwnerId, memberAuth0Id);
   return Project.find(filter)
-    .populate('clientId', 'name company')
+    .populate('clientId', 'name company isInternal pinned')
     .sort({ updatedAt: -1 })
     .lean();
 }
