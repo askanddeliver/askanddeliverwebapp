@@ -37,7 +37,7 @@ function ProjectHub() {
   const { id } = useParams<{ id: string }>();
   const location = useLocation();
   const navigate = useNavigate();
-  const { isAdmin } = useUserRole();
+  const { isAdmin, user } = useUserRole();
 
   const isMemberHub = location.pathname.startsWith('/member/');
   const listPath = isMemberHub ? '/member/projects' : '/projects';
@@ -371,6 +371,7 @@ function ProjectHub() {
       projectTaskId: task._id,
       taskTitle: task.title,
       taskClientVisible: Boolean(task.clientVisible),
+      assigneeAuth0Id: task.assigneeAuth0Id,
     });
     document.getElementById('messages')?.scrollIntoView({ behavior: 'smooth' });
   };
@@ -557,6 +558,8 @@ function ProjectHub() {
                 hideToggle
                 composeFromTask={composeFromTask}
                 onClearComposeFromTask={() => setComposeFromTask(null)}
+                mentionableMembers={project.mentionableMembers || project.assignedMembers || []}
+                currentUserAuth0Id={user?.auth0Id}
               />
             </div>
           </AdminPanel>

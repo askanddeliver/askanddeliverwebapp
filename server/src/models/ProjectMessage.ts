@@ -1,6 +1,7 @@
 import mongoose, { Document, Schema } from 'mongoose';
 
 export type ProjectMessageAuthorRole = 'admin' | 'member' | 'client';
+export type ProjectMessageNotifyMode = 'none' | 'mentions' | 'team';
 
 export interface IProjectMessage extends Document {
   userId: string;
@@ -16,6 +17,10 @@ export interface IProjectMessage extends Document {
   taskTitle?: string;
   /** Immediate parent in a reply chain (preview shows this message only) */
   replyToMessageId?: mongoose.Types.ObjectId;
+  /** Who to email; does not change who can read the thread */
+  notifyMode?: ProjectMessageNotifyMode;
+  mentionedAuth0Ids?: string[];
+  mentionedNames?: string[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -68,6 +73,19 @@ const ProjectMessageSchema = new Schema<IProjectMessage>(
     replyToMessageId: {
       type: Schema.Types.ObjectId,
       ref: 'ProjectMessage',
+    },
+    notifyMode: {
+      type: String,
+      enum: ['none', 'mentions', 'team'],
+      default: 'none',
+    },
+    mentionedAuth0Ids: {
+      type: [String],
+      default: [],
+    },
+    mentionedNames: {
+      type: [String],
+      default: [],
     },
   },
   {

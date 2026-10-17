@@ -1,8 +1,19 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { RefreshCw, Reply, Send, X } from 'lucide-react';
-import type { MessageComposeFromTask, ProjectMessage } from '../../types';
+import type {
+  MessageComposeFromTask,
+  ProjectAssignedMember,
+  ProjectMessage,
+  ProjectMessageNotifyMode,
+} from '../../types';
+import MessageNotifyPicker from '../projects/MessageNotifyPicker';
 
-export type MessageSendMeta = { projectTaskId?: string; replyToMessageId?: string };
+export type MessageSendMeta = {
+  projectTaskId?: string;
+  replyToMessageId?: string;
+  notifyMode?: ProjectMessageNotifyMode;
+  mentionedAuth0Ids?: string[];
+};
 
 interface ProjectMessageThreadProps {
   messages: ProjectMessage[];
@@ -22,7 +33,9 @@ interface ProjectMessageThreadProps {
   /** When true, task chips deep-link to #tasks (hub). Portal keeps them static. */
   linkTaskChips?: boolean;
   emptyLabel?: string;
-}
+  mentionableMembers?: ProjectAssignedMember[];
+  currentUserAuth0Id?: string;
+};
 
 function formatWhen(iso: string): string {
   return new Date(iso).toLocaleString(undefined, {
@@ -108,10 +121,14 @@ function ProjectMessageThread({
   projectTitle,
   linkTaskChips = false,
   emptyLabel = 'No messages yet.',
+  mentionableMembers = [],
+  currentUserAuth0Id,
 }: ProjectMessageThreadProps) {
   const [body, setBody] = useState('');
   const [clientVisible, setClientVisible] = useState(false);
   const [replyTo, setReplyTo] = useState<ProjectMessage | null>(null);
+  const [notifyMode, setNotifyMode] = useState<ProjectMessageNotifyMode>('none');
+  const [mentionedIds, setMentionedIds] = useState<string[]>([]);
   const [sending, setSending] = useState(false);
   const [togglingId, setTogglingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -139,7 +156,11 @@ function ProjectMessageThread({
   useEffect(() => {
     if (!composeFromTask) return;
     setClientVisible(Boolean(composeFromTask.taskClientVisible));
-  }, [composeFromTask]);
+    const assignee = composeFromTask.assigneeAuth0Id;
+    if (assignee && assignee !== currentUserAuth0Id) {
+      setMentionedIds([assignee]);
+    }
+  }, [composeFromTask, currentUserAuth0Id]);
 
   const confirmClientSeesTaskName = (): boolean => {
     return window.confirm('The client will see this task name.');
@@ -166,6 +187,11 @@ function ProjectMessageThread({
       return;
     }
 
+    if (showVisibilityToggle && notifyMode === 'mentions' && mentionedIds.length === 0) {
+      setError('Choose at least one person to mention');
+      return;
+    }
+
     setSending(true);
     setError(null);
     stickToBottomRef.current = true;
@@ -173,9 +199,14 @@ function ProjectMessageThread({
       await onSend(text, nextVisible, {
         projectTaskId: composeFromTask?.projectTaskId,
         replyToMessageId: replyTo?._id,
+        ...(showVisibilityToggle
+          ? { notifyMode, mentionedAuth0Ids: mentionedIds }
+          : {}),
       });
       setBody('');
       setReplyTo(null);
+      setNotifyMode('none');
+      setMentionedIds([]);
       if (showVisibilityToggle) setClientVisible(false);
       onClearComposeFromTask?.();
     } catch {
@@ -303,6 +334,16 @@ function ProjectMessageThread({
                     />
                   </div>
                 )}
+                {showVisibilityToggle && m.notifyMode === 'team' && (
+                  <p className="mb-1 text-[11px] text-neutral-400">Notified team</p>
+                )}
+                {showVisibilityToggle &&
+                  m.notifyMode === 'mentions' &&
+                  (m.mentionedNames || []).length > 0 && (
+                    <p className="mb-1 text-[11px] text-neutral-400">
+                      Notified {m.mentionedNames?.join(', ')}
+                    </p>
+                  )}
                 <p className="whitespace-pre-wrap text-sm text-neutral-800">{m.body}</p>
               </li>
             );
@@ -352,21 +393,36 @@ function ProjectMessageThread({
           disabled={sending}
         />
         {showVisibilityToggle && (
-          <label className="mt-2 flex cursor-pointer items-center gap-2 text-sm text-neutral-600">
-            <input
-              type="checkbox"
-              checked={clientVisible}
-              onChange={(e) => setClientVisible(e.target.checked)}
-              className="rounded border-neutral-300"
+          <>
+            <MessageNotifyPicker
+              mode={notifyMode}
+              onModeChange={setNotifyMode}
+              mentionable={mentionableMembers}
+              mentionedIds={mentionedIds}
+              onMentionedIdsChange={setMentionedIds}
+              currentUserAuth0Id={currentUserAuth0Id}
+              disabled={sending}
             />
-            Visible to client portal
-          </label>
+            <label className="mt-2 flex cursor-pointer items-center gap-2 text-sm text-neutral-600">
+              <input
+                type="checkbox"
+                checked={clientVisible}
+                onChange={(e) => setClientVisible(e.target.checked)}
+                className="rounded border-neutral-300"
+              />
+              Visible to client portal
+            </label>
+          </>
         )}
         {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
         <div className="mt-3 flex justify-end">
           <button
             type="submit"
-            disabled={sending || !body.trim()}
+            disabled={
+              sending ||
+              !body.trim() ||
+              (showVisibilityToggle && notifyMode === 'mentions' && mentionedIds.length === 0)
+            }
             className="btn-primary inline-flex items-center gap-1.5 text-sm"
           >
             <Send className="h-4 w-4" />

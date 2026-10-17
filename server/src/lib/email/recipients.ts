@@ -15,6 +15,8 @@ export interface ProjectStakeholderEmailOptions {
   excludeAuth0Ids?: string[];
   /** When set, omit users who opted out of this email type. */
   preferenceKey?: EmailNotificationPreferenceKey;
+  /** When set, used instead of preferenceKey. */
+  receiveEmail?: (preferences: IUserNotificationPreferences | undefined) => boolean;
 }
 
 export interface ProjectStakeholderRecipient {
@@ -42,6 +44,7 @@ export async function getProjectStakeholderRecipients(
     includeAssigned = true,
     excludeAuth0Ids = [],
     preferenceKey = 'clientMessages',
+    receiveEmail,
   } = options;
 
   const exclude = new Set(excludeAuth0Ids);
@@ -73,7 +76,10 @@ export async function getProjectStakeholderRecipients(
   const recipients: ProjectStakeholderRecipient[] = [];
 
   for (const u of users) {
-    if (!isEmailPreferenceEnabled(u.notificationPreferences, preferenceKey)) continue;
+    const optedIn = receiveEmail
+      ? receiveEmail(u.notificationPreferences)
+      : isEmailPreferenceEnabled(u.notificationPreferences, preferenceKey);
+    if (!optedIn) continue;
     const email = emailFromUser(u);
     if (!email || seen.has(email)) continue;
     if (u.role !== 'admin' && u.role !== 'member') continue;

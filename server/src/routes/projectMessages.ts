@@ -17,7 +17,10 @@ import {
   notifyTeamMessageToTeam,
 } from '../lib/email';
 import { markProjectMessagesRead } from '../lib/unreadProjectMessages';
-import type { ProjectMessageAuthorRole } from '../models/ProjectMessage';
+import type {
+  ProjectMessageAuthorRole,
+  ProjectMessageNotifyMode,
+} from '../models/ProjectMessage';
 
 const router = Router({ mergeParams: true });
 
@@ -99,6 +102,54 @@ async function resolveReplyParent(
   return { replyToMessageId: String(parent._id) };
 }
 
+async function parseNotifyOptions(
+  raw: unknown,
+  workspaceOwnerId: string,
+  assignedMemberIds: string[] | undefined,
+  authorAuth0Id: string
+): Promise<{
+  notifyMode: ProjectMessageNotifyMode;
+  mentionedAuth0Ids: string[];
+  mentionedNames: string[];
+}> {
+  const body = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {};
+  const notifyMode: ProjectMessageNotifyMode =
+    body.notifyMode === 'mentions' || body.notifyMode === 'team' ? body.notifyMode : 'none';
+
+  const allowed = new Set<string>([
+    workspaceOwnerId,
+    ...(assignedMemberIds || []).filter((id) => typeof id === 'string' && id.length > 0),
+  ]);
+
+  const rawIds = Array.isArray(body.mentionedAuth0Ids) ? body.mentionedAuth0Ids : [];
+  const mentionedAuth0Ids = [
+    ...new Set(
+      rawIds.filter(
+        (id): id is string =>
+          typeof id === 'string' && allowed.has(id) && id !== authorAuth0Id
+      )
+    ),
+  ];
+
+  if (notifyMode === 'mentions' && mentionedAuth0Ids.length === 0) {
+    throw createError('Choose at least one person to mention', 400);
+  }
+
+  if (notifyMode !== 'mentions' || mentionedAuth0Ids.length === 0) {
+    return { notifyMode, mentionedAuth0Ids: [], mentionedNames: [] };
+  }
+
+  const users = await User.find({ auth0Id: { $in: mentionedAuth0Ids } })
+    .select('auth0Id name')
+    .lean();
+  const nameById = new Map(users.map((u) => [u.auth0Id, u.name]));
+  const mentionedNames = mentionedAuth0Ids
+    .map((id) => nameById.get(id))
+    .filter((name): name is string => Boolean(name));
+
+  return { notifyMode, mentionedAuth0Ids, mentionedNames };
+}
+
 function maybeNotifyClient(opts: {
   clientVisible: boolean;
   workspaceOwnerId: string;
@@ -175,6 +226,12 @@ router.post(
       projectId,
       req.body?.replyToMessageId
     );
+    const notify = await parseNotifyOptions(
+      req.body,
+      workspaceOwnerId,
+      project.assignedMemberIds,
+      auth0Id
+    );
 
     const message = await ProjectMessage.create({
       userId: workspaceOwnerId,
@@ -184,6 +241,9 @@ router.post(
       authorRole,
       body,
       clientVisible,
+      notifyMode: notify.notifyMode,
+      mentionedAuth0Ids: notify.mentionedAuth0Ids,
+      mentionedNames: notify.mentionedNames,
       ...(taskSnap
         ? { projectTaskId: taskSnap.projectTaskId, taskTitle: taskSnap.taskTitle }
         : {}),
@@ -198,6 +258,8 @@ router.post(
       authorAuth0Id: auth0Id,
       authorName: user.name,
       messageBody: body,
+      notifyMode: notify.notifyMode,
+      mentionedAuth0Ids: notify.mentionedAuth0Ids,
     });
 
     maybeNotifyClient({
@@ -283,6 +345,7 @@ portalProjectMessagesRouter.get(
       projectId,
       clientVisible: true,
     })
+      .select('-mentionedAuth0Ids -mentionedNames -notifyMode')
       .sort({ createdAt: 1 })
       .lean();
 
@@ -336,6 +399,7 @@ portalProjectMessagesRouter.post(
       authorRole: 'client',
       body,
       clientVisible: true,
+      notifyMode: 'none',
       ...(taskSnap
         ? { projectTaskId: taskSnap.projectTaskId, taskTitle: taskSnap.taskTitle }
         : {}),

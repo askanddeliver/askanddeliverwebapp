@@ -8,6 +8,8 @@ type PrefKey = keyof Pick<
   | 'taskCompleted'
   | 'invoiceSent'
   | 'teamMessages'
+  | 'allMessages'
+  | 'mentionMessages'
   | 'taskSuggestions'
   | 'taskSuggestionApproved'
 >;
@@ -23,9 +25,19 @@ const TOGGLE_DEFS: Record<
       description: 'Email when a client posts a message on a project',
     },
     {
+      key: 'allMessages',
+      label: 'All messages',
+      description: 'Email for every teammate post on your projects, including posts with no notify selection',
+    },
+    {
       key: 'teamMessages',
       label: 'Team messages',
-      description: 'Email when a teammate posts on a project (internal or client-visible)',
+      description: 'Email when a teammate chooses Notify team on a project message',
+    },
+    {
+      key: 'mentionMessages',
+      label: '@ mentions',
+      description: 'Email when a teammate @mentions you on a project message',
     },
     {
       key: 'taskCompleted',
@@ -45,9 +57,19 @@ const TOGGLE_DEFS: Record<
       description: 'Email when a client posts on a project you are assigned to',
     },
     {
+      key: 'allMessages',
+      label: 'All messages',
+      description: 'Email for every teammate post on projects you are assigned to, including posts with no notify selection',
+    },
+    {
       key: 'teamMessages',
       label: 'Team messages',
-      description: 'Email when a teammate posts on a project you are assigned to',
+      description: 'Email when a teammate chooses Notify team on a project you are assigned to',
+    },
+    {
+      key: 'mentionMessages',
+      label: '@ mentions',
+      description: 'Email when a teammate @mentions you',
     },
     {
       key: 'taskCompleted',
@@ -106,6 +128,12 @@ export function resolveEmailPreferences(
 ): UserEmailNotificationPreferences {
   const prefs = defaultEmailPreferences(role);
   for (const def of TOGGLE_DEFS[role]) {
+    if (def.key === 'allMessages') {
+      prefs.allMessages =
+        stored?.allMessages === true ||
+        (stored?.allMessages === undefined && stored?.teamMessages === true);
+      continue;
+    }
     if (stored?.[def.key] === true) {
       prefs[def.key] = true;
     }

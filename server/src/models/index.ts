@@ -17,6 +17,7 @@ export {
   IProjectMessage,
   ProjectMessageAuthorRole,
 } from './ProjectMessage';
+export type { ProjectMessageNotifyMode } from './ProjectMessage';
 export {
   ProjectAsset,
   IProjectAsset,

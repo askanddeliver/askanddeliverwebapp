@@ -749,6 +749,8 @@ export const projectMessagesApi = {
       clientVisible?: boolean;
       projectTaskId?: string;
       replyToMessageId?: string;
+      notifyMode?: ProjectMessage['notifyMode'];
+      mentionedAuth0Ids?: string[];
     }
   ) => api.post<ProjectMessage>(`/projects/${projectId}/messages`, data),
   updateVisibility: (projectId: string, messageId: string, clientVisible: boolean) =>

@@ -22,6 +22,8 @@ export interface UserEmailNotificationPreferences {
   taskCompleted?: boolean;
   invoiceSent?: boolean;
   teamMessages?: boolean;
+  allMessages?: boolean;
+  mentionMessages?: boolean;
   taskSuggestions?: boolean;
   taskSuggestionApproved?: boolean;
   digest?: 'none' | 'daily' | 'weekly';
@@ -133,6 +135,8 @@ export interface Project {
   assignedMemberIds?: string[];
   /** Resolved on GET /api/projects/:id — not stored on the model */
   assignedMembers?: ProjectAssignedMember[];
+  /** Admin + assigned members — hub compose @ picker */
+  mentionableMembers?: ProjectAssignedMember[];
   /** Viewer-scoped; 0 when this user has never opened the thread */
   unreadMessageCount?: number;
   createdAt: string;
@@ -214,6 +218,7 @@ export interface ProjectTaskSuggestion {
 }
 
 export type ProjectMessageAuthorRole = 'admin' | 'member' | 'client';
+export type ProjectMessageNotifyMode = 'none' | 'mentions' | 'team';
 
 export interface ProjectMessage {
   _id: string;
@@ -227,6 +232,9 @@ export interface ProjectMessage {
   projectTaskId?: string;
   taskTitle?: string;
   replyToMessageId?: string;
+  notifyMode?: ProjectMessageNotifyMode;
+  mentionedAuth0Ids?: string[];
+  mentionedNames?: string[];
   createdAt: string;
   updatedAt: string;
 }
@@ -256,6 +264,7 @@ export interface MessageComposeFromTask {
   projectTaskId: string;
   taskTitle: string;
   taskClientVisible: boolean;
+  assigneeAuth0Id?: string;
 }
 
 export interface PortalProjectSummary {

@@ -24,6 +24,8 @@ export type { NotificationEventId } from './notificationService';
 export { getProjectStakeholderEmails, getProjectStakeholderRecipients, getMemberEmail, getClientPortalEmails, getInvoiceClientEmails } from './recipients';
 export {
   isEmailPreferenceEnabled,
+  isAllProjectMessagesEnabled,
+  receivesProjectMessageEmail,
   mergeNotificationPreferences,
   parseNotificationPreferencesUpdate,
 } from './notificationPreferences';

@@ -127,7 +127,9 @@ Only when you intend to test invites to an address you own:
 | Action | Who | Opt-in toggle |
 |--------|-----|---------------|
 | Client posts portal message | Admin + assigned members | **Client messages** |
-| Teammate posts project message | Admin + assigned members except author | **Team messages** |
+| Teammate posts with Notify **None** | Recipients with **All messages** (legacy Team-on counts) | **All messages** |
+| Teammate posts with Notify **Team** | Admin + assigned except author | **Team messages** or **All messages** |
+| Teammate posts with Notify **@** | Mentioned people except author | **@ mentions** or **All messages** |
 | Admin posts client-visible message | Client portal users | **Team updates** |
 | Admin creates project with assignees | All initial assignees | **Project assignments** |
 | Admin adds new assignees on update | New assignees only | **Project assignments** |

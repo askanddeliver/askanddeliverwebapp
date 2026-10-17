@@ -323,6 +323,23 @@ router.get(
         role: m.role,
       }));
 
+    const owner = await User.findOne({ auth0Id: workspaceOwnerId })
+      .select('auth0Id name picture role')
+      .lean();
+    const mentionableMembers = [
+      ...(owner
+        ? [
+            {
+              auth0Id: owner.auth0Id,
+              name: owner.name,
+              picture: owner.picture,
+              role: owner.role,
+            },
+          ]
+        : []),
+      ...assignedMembers.filter((m) => m.auth0Id !== workspaceOwnerId),
+    ];
+
     const [withUnread] = await attachUnreadMessageCounts([project], {
       workspaceOwnerId,
       viewerAuth0Id: currentUser.auth0Id,
@@ -332,11 +349,12 @@ router.get(
       res.json({
         ...stripProjectFinancials(withUnread as Record<string, unknown>),
         assignedMembers,
+        mentionableMembers,
       });
       return;
     }
 
-    res.json({ ...withUnread, assignedMembers });
+    res.json({ ...withUnread, assignedMembers, mentionableMembers });
   })
 );
 

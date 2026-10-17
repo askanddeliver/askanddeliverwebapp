@@ -3,7 +3,11 @@ import { MessageSquare } from 'lucide-react';
 import { projectMessagesApi } from '../../services/api';
 import { useMarkProjectMessagesRead } from '../../hooks/useMarkProjectMessagesRead';
 import ProjectMessageThread from '../portal/ProjectMessageThread';
-import type { MessageComposeFromTask, ProjectMessage } from '../../types';
+import type {
+  MessageComposeFromTask,
+  ProjectAssignedMember,
+  ProjectMessage,
+} from '../../types';
 
 interface ProjectMessagesPanelProps {
   projectId: string;
@@ -13,6 +17,8 @@ interface ProjectMessagesPanelProps {
   hideToggle?: boolean;
   composeFromTask?: MessageComposeFromTask | null;
   onClearComposeFromTask?: () => void;
+  mentionableMembers?: ProjectAssignedMember[];
+  currentUserAuth0Id?: string;
 }
 
 function ProjectMessagesPanel({
@@ -22,6 +28,8 @@ function ProjectMessagesPanel({
   hideToggle = false,
   composeFromTask = null,
   onClearComposeFromTask,
+  mentionableMembers = [],
+  currentUserAuth0Id,
 }: ProjectMessagesPanelProps) {
   const [messages, setMessages] = useState<ProjectMessage[]>([]);
   const [loading, setLoading] = useState(true);
@@ -57,13 +65,20 @@ function ProjectMessagesPanel({
   const handleSend = async (
     body: string,
     clientVisible: boolean,
-    meta?: { projectTaskId?: string; replyToMessageId?: string }
+    meta?: {
+      projectTaskId?: string;
+      replyToMessageId?: string;
+      notifyMode?: ProjectMessage['notifyMode'];
+      mentionedAuth0Ids?: string[];
+    }
   ) => {
     const res = await projectMessagesApi.create(projectId, {
       body,
       clientVisible,
       projectTaskId: meta?.projectTaskId,
       replyToMessageId: meta?.replyToMessageId,
+      notifyMode: meta?.notifyMode,
+      mentionedAuth0Ids: meta?.mentionedAuth0Ids,
     });
     setMessages((prev) => [...prev, res.data]);
   };
@@ -109,6 +124,8 @@ function ProjectMessagesPanel({
             onClearComposeFromTask={onClearComposeFromTask}
             projectTitle={projectTitle}
             linkTaskChips
+            mentionableMembers={mentionableMembers}
+            currentUserAuth0Id={currentUserAuth0Id}
             emptyLabel="No messages on this project yet."
           />
         </div>

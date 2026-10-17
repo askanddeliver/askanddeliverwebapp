@@ -33,21 +33,21 @@ Allowlist is MIME **and** extension. Same Cloudinary account as portfolio and in
 - Clients only list `clientVisible: true`. Internal names never leak on portal list/GET.
 - Access follows **project assignment** (team) or CRM **`clientId`** (client). 404 on probe.
 
-Flipping a team message to visible uses the same Resend path as a new client-visible post (`notifyTeamMessageToClient`). Teammate posts also email the **workspace admin and assigned members** who opted in to **Team messages** (`notifyTeamMessageToTeam`); the author is never emailed. Completing a task emails opted-in teammates (`taskCompleted`) as well as portal users when the task is client-visible.
+Flipping a team message to visible uses the same Resend path as a new client-visible post (`notifyTeamMessageToClient`). Teammate posts email only according to the compose **Notify** control (None / @ / Team) and the recipient’s **All messages**, **Team messages**, or **@ mentions** prefs — not a blanket roster blast. Completing a task emails opted-in teammates (`taskCompleted`) as well as portal users when the task is client-visible.
 
 ---
 
 ## Messages
 
-`ProjectMessage` (Pattern B) includes optional `projectTaskId` + **`taskTitle` snapshot**, and optional **`replyToMessageId`** (immediate parent only).
+`ProjectMessage` (Pattern B) includes optional `projectTaskId` + **`taskTitle` snapshot**, optional **`replyToMessageId`** (immediate parent only), and **`notifyMode`** (`none` \| `mentions` \| `team`) with optional `mentionedAuth0Ids` / `mentionedNames`. Notify does not change who can read the thread.
 
 | Method | Path | Who | Notes |
 |--------|------|-----|--------|
-| GET/POST | `/api/projects/:projectId/messages` | admin / assigned member | POST accepts `{ body, clientVisible?, projectTaskId?, replyToMessageId? }` |
+| GET/POST | `/api/projects/:projectId/messages` | admin / assigned member | POST accepts `{ body, clientVisible?, projectTaskId?, replyToMessageId?, notifyMode?, mentionedAuth0Ids? }` |
 | PATCH | `/api/projects/:projectId/messages/:messageId` | admin / assigned member | `{ clientVisible }` only |
 | GET/POST | `/api/portal/projects/:projectId/messages` | client | GET visible only; POST always visible; may set `projectTaskId` (client-visible tasks) and `replyToMessageId` (visible parents) |
 
-**Hub:** compose toggle is shown for members (no longer forced internal). Thread badges are clickable Internal / Visible to client. **Reply** quotes only the immediate previous message — never the full chain.
+**Hub:** compose toggle is shown for members (no longer forced internal). **Notify** is None (default, thread only), **@** (picked people; task compose pre-fills assignee), or **Team** (admin + assigned). Thread badges are clickable Internal / Visible to client. **Reply** quotes only the immediate previous message — never the full chain. Portal GET omits notify/mention fields.
 
 **From a task (team and client):** task-row message action scrolls to `#messages` with a project + task chip. Team default visibility follows the task’s `clientVisible`. Publishing an internal task name to the client confirms: “The client will see this task name.” Portal tasks are already client-visible, so no confirm. Clients see the snapshot chip only — they do not gain the internal task list. Team chips link to `#tasks`; portal chips are static.
 

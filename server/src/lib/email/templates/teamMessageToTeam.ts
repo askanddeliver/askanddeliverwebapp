@@ -7,14 +7,17 @@ export interface TeamMessageToTeamTemplateParams {
   authorName: string;
   messageBody: string;
   projectUrl: string;
+  mentioned?: boolean;
 }
 
 export function buildTeamMessageToTeamEmail(
   params: TeamMessageToTeamTemplateParams
 ): { subject: string; html: string; text: string } {
-  const { brand, projectTitle, authorName, messageBody, projectUrl } = params;
+  const { brand, projectTitle, authorName, messageBody, projectUrl, mentioned } = params;
   const excerpt = truncateExcerpt(messageBody);
-  const subject = `[${brand.companyName}] New message on ${projectTitle}`;
+  const subject = mentioned
+    ? `[${brand.companyName}] You were mentioned on ${projectTitle}`
+    : `[${brand.companyName}] New message on ${projectTitle}`;
 
   const bodyHtml = `
     <p style="margin: 0 0 12px;"><strong>${escapeHtml(authorName)}</strong> posted on <strong>${escapeHtml(projectTitle)}</strong>:</p>
@@ -23,7 +26,7 @@ export function buildTeamMessageToTeamEmail(
 
   const html = buildBrandedEmailHtml(brand, {
     subject,
-    title: 'New project message',
+    title: mentioned ? 'You were mentioned' : 'New project message',
     bodyHtml,
     ctaLabel: 'View in project',
     ctaUrl: projectUrl,

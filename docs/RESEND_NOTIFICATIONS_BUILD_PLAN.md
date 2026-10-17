@@ -83,7 +83,7 @@ This is the **authoritative reference** for what sends email today. All sends ar
 | 5 | **Admin** | Invites user to client portal | `POST /api/users/invite-client` | Invitee email from request | *(none — env gate only)* | — |
 | 6 | **Admin** | Marks invoice **DRAFT → SENT** | Invoice status transition | Portal users for invoice's client | `invoiceSent` | **Invoices** (client) |
 | 7 | **Admin or member** | Marks task **COMPLETED** | `PUT /api/project-tasks/:id` or `PATCH …/status` | Portal users (client-visible tasks) **and** workspace admin + assigned members (any task) | `taskCompleted` | **Task completed** (client, admin, member) |
-| 8 | **Admin or member** | Posts a project message (any visibility) | `POST /api/projects/:projectId/messages` | Workspace admin + assigned members **except the author** | `teamMessages` | **Team messages** (admin/member) |
+| 8 | **Admin or member** | Posts a project message | `POST /api/projects/:projectId/messages` (`notifyMode`: none / mentions / team) | See #8 conditions | `allMessages` · `teamMessages` · `mentionMessages` | **All messages** · **Team messages** · **@ mentions** (admin/member) |
 | 9 | **Client** | Submits a task request | `POST /api/portal/projects/:projectId/task-suggestions` | Workspace admin + `assignedMemberIds` | `taskSuggestions` | **Task requests** (admin/member) |
 | 10 | **Admin** | Approves a task request | `POST /api/projects/:projectId/task-suggestions/:id/approve` | The **submitter** only | `taskSuggestionApproved` | **Task request approved** (client) |
 
@@ -120,11 +120,14 @@ This is the **authoritative reference** for what sends email today. All sends ar
 - **Client:** task must also be **`clientVisible: true`**, project must have a linked client, and recipients are invited portal users who opted in — same rule as #2.
 
 **#8 Team message → teammates**  
-- Fires on every team POST (internal or client-visible). PATCH visibility flips do **not** re-notify the team.  
-- Recipients are workspace admin + `assignedMemberIds` who opted in to `teamMessages`.  
-- The message **author is excluded**.  
+- The post **always** lands on the project thread. Email depends on compose **Notify**: **None** (default), **@**, or **Team**.  
+- **None:** only people with **All messages** (`allMessages`, or legacy `teamMessages: true` while `allMessages` is unset).  
+- **Team:** workspace admin + `assignedMemberIds` with **Team messages** or **All messages**.  
+- **@:** only `mentionedAuth0Ids` (admin or assigned members, not the author) with **@ mentions** or **All messages**. Requires at least one mention. Composing from a task pre-fills the assignee.  
+- PATCH visibility flips do **not** re-notify the team.  
+- The message **author is excluded**. One email per recipient even if multiple prefs match.  
 - Deep links match #1 (admin vs member hub).  
-- If the post is also client-visible, #2 still fires separately for portal users.
+- If the post is also client-visible, #2 still fires separately for portal users. Portal compose has no notify picker.
 
 **#9 Client task request → team**  
 - Fires when a portal user POSTs a `ProjectTaskSuggestion`.  
@@ -173,7 +176,9 @@ Stored on `User.notificationPreferences.email`. **Opt-in only:** value must be *
 | Preference key | Roles | Settings page |
 |----------------|-------|---------------|
 | `clientMessages` | admin, member | `/profile` · `/member/profile` |
+| `allMessages` | admin, member | `/profile` · `/member/profile` |
 | `teamMessages` | admin, member | `/profile` · `/member/profile` |
+| `mentionMessages` | admin, member | `/profile` · `/member/profile` |
 | `projectAssignments` | member | `/member/profile` |
 | `clientVisibleReplies` | client | `/portal/settings` |
 | `taskCompleted` | admin, member, client | `/profile` · `/member/profile` · `/portal/settings` |
@@ -451,3 +456,4 @@ Do not bundle RN-4 with unrelated work (reporting filters, dashboards) — keep 
 | 2026-09-27 | Contributor alerts — `teamMessages` + team `taskCompleted` for admin/members; role-aware hub deep links |
 | 2026-10-16 | In-app unread counts (slice A) — orthogonal to Resend; documented under triggers |
 | 2026-10-16 | Task requests (slice C) — `taskSuggestions` to team on submit; `taskSuggestionApproved` to submitter on approve |
+| 2026-10-16 | Project message notify picker — None / @ / Team; prefs `allMessages`, `teamMessages`, `mentionMessages` |
