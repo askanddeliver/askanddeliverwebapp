@@ -135,8 +135,10 @@ Only when you intend to test invites to an address you own:
 | Invoice DRAFT → SENT (`INVOICE` only) | Client portal users | **Invoices** |
 | Task newly COMPLETED | Admin + assigned members except actor | **Task completed** |
 | Client-visible task newly COMPLETED | Client portal users | **Task completed** |
+| Client submits a task request | Admin + assigned members | **Task requests** |
+| Admin approves a task request | Submitter only | **Task request approved** |
 
-**Not wired:** per-task assignee email · email digests (RN-4).
+**Not wired:** per-task assignee email · email digests (RN-4) · decline emails.
 
 See [RESEND_NOTIFICATIONS_BUILD_PLAN.md](./RESEND_NOTIFICATIONS_BUILD_PLAN.md#triggers-by-action) for API routes and edge conditions.
 

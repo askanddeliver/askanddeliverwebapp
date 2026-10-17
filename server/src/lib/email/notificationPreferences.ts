@@ -6,7 +6,9 @@ export type EmailNotificationPreferenceKey =
   | 'clientVisibleReplies'
   | 'taskCompleted'
   | 'invoiceSent'
-  | 'teamMessages';
+  | 'teamMessages'
+  | 'taskSuggestions'
+  | 'taskSuggestionApproved';
 
 export interface IUserEmailNotificationPreferences {
   /** Admin/member: email when a client posts a project message */
@@ -21,6 +23,10 @@ export interface IUserEmailNotificationPreferences {
   invoiceSent?: boolean;
   /** Admin/member: email when a teammate posts on a project */
   teamMessages?: boolean;
+  /** Admin/member: email when a client submits a task request */
+  taskSuggestions?: boolean;
+  /** Client: email when a task request is approved */
+  taskSuggestionApproved?: boolean;
   digest?: EmailDigestPreference;
 }
 
@@ -35,6 +41,8 @@ const EMAIL_TOGGLE_KEYS: EmailNotificationPreferenceKey[] = [
   'taskCompleted',
   'invoiceSent',
   'teamMessages',
+  'taskSuggestions',
+  'taskSuggestionApproved',
 ];
 
 /** Opt-in only — email sends when the user explicitly set this preference to true. */

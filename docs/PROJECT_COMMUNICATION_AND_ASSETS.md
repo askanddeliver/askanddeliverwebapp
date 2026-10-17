@@ -2,7 +2,7 @@
 
 Shipped 2026-09-25. Admin/member hubs and the client portal share one project thread and one project file library. Visibility is two-tier (internal vs client), not per-person ACL.
 
-See also: [PROJECT_HUB_BUILD_PLAN.md](./PROJECT_HUB_BUILD_PLAN.md), [PLATFORM_EXPANSION_CLIENT_PORTAL_SPEC.md](./PLATFORM_EXPANSION_CLIENT_PORTAL_SPEC.md), [RESEND_NOTIFICATIONS_BUILD_PLAN.md](./RESEND_NOTIFICATIONS_BUILD_PLAN.md), [ONBOARDING_UX_EXPANSIONS_BUILD_PLAN.md](./ONBOARDING_UX_EXPANSIONS_BUILD_PLAN.md) (slice A unread badges shipped; client task *requests* are not messages — they become tasks only after admin approve).
+See also: [PROJECT_HUB_BUILD_PLAN.md](./PROJECT_HUB_BUILD_PLAN.md), [PLATFORM_EXPANSION_CLIENT_PORTAL_SPEC.md](./PLATFORM_EXPANSION_CLIENT_PORTAL_SPEC.md), [RESEND_NOTIFICATIONS_BUILD_PLAN.md](./RESEND_NOTIFICATIONS_BUILD_PLAN.md), [ONBOARDING_UX_EXPANSIONS_BUILD_PLAN.md](./ONBOARDING_UX_EXPANSIONS_BUILD_PLAN.md) (slices A–C shipped).
 
 ---
 
@@ -67,9 +67,26 @@ Pattern B, `userId` = workspace owner.
 
 **UI:** hub `#files` (`ProjectAssetsPanel` team variant) and portal project detail. Table: name, type, who, date, Internal/Client badge, open/download, delete. Images/PDF open in-browser; other types download.
 
-**Jump nav:** sticky **Jump to** chips on the admin/member hub and portal project page (and portal home/list cards). Portal: Brief, Tasks, Files, Messages. Hub adds Team, Budget (admin), Time. Messages is the emphasized chip.
+**Jump nav:** sticky **Jump to** chips on the admin/member hub and portal project page (and portal home/list cards). Portal: Brief, Tasks, Requests, Files, Messages. Hub adds Team, Budget (admin), Requests (above Tasks), Time. Messages is the emphasized chip.
 
 Out of this slice: per-file member ACL, versioning, folders, unread bell, PSD in-browser preview.
+
+---
+
+## Task requests (`ProjectTaskSuggestion`)
+
+Clients do **not** write `ProjectTask` rows. They submit a request on the portal (`#requests`). Admin approves (creates a `TODO` task, default `clientVisible: true`) or declines. Members see the hub queue read-only. Cap: 10 `PENDING` per project.
+
+Requests are not messages. They become tasks only after approve (`createdTaskId`). Decline is silent (no email). `GET /api/project-tasks` is `requireMemberOrAdmin` — client JWTs get 403.
+
+| Method | Path | Who | Notes |
+|--------|------|-----|--------|
+| GET/POST | `/api/portal/projects/:projectId/task-suggestions` | client | Pattern C; POST `{ title, description? }` |
+| GET | `/api/projects/:projectId/task-suggestions` | admin / assigned member | Full queue |
+| POST | `/api/projects/:projectId/task-suggestions/:id/approve` | admin | Creates task; emails submitter if opted in |
+| POST | `/api/projects/:projectId/task-suggestions/:id/decline` | admin | `DECLINED`; no email |
+
+Email: team `taskSuggestions` on submit; submitter `taskSuggestionApproved` on approve. CRM `Client.email` is unused.
 
 ---
 
@@ -84,7 +101,9 @@ Out of this slice: per-file member ACL, versioning, folders, unread bell, PSD in
 | Hub messages | `client/src/components/projects/ProjectMessagesPanel.tsx` |
 | Files table | `client/src/components/projects/ProjectAssetsPanel.tsx` |
 | Task → message | `client/src/components/projectTasks/ProjectTaskList.tsx` |
-| Models | `server/src/models/ProjectMessage.ts`, `ProjectAsset.ts` |
-| Routes | `server/src/routes/projectMessages.ts`, `projectAssets.ts`, `portal.ts` |
-| Team emails | `server/src/lib/email/notifications/teamMessageToTeam.ts`, `teamTaskCompleted.ts` |
+| Models | `server/src/models/ProjectMessage.ts`, `ProjectAsset.ts`, `ProjectTaskSuggestion.ts` |
+| Routes | `server/src/routes/projectMessages.ts`, `projectAssets.ts`, `projectTaskSuggestions.ts`, `portal.ts` |
+| Team emails | `server/src/lib/email/notifications/teamMessageToTeam.ts`, `teamTaskCompleted.ts`, `taskSuggestionToTeam.ts` |
+| Hub requests | `client/src/components/projects/ProjectTaskSuggestionsPanel.tsx` |
+| Portal requests | `client/src/components/portal/PortalTaskRequestSection.tsx` |
 | Upload | `server/src/lib/cloudinaryUpload.ts`, `projectAssetUpload.ts` |

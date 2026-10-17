@@ -12,7 +12,9 @@ export type NotificationEventId =
   | 'team.message.posted'
   | 'team.task.completed'
   | 'client.task.completed'
-  | 'client.invoice.sent';
+  | 'client.invoice.sent'
+  | 'client.task_suggestion.posted'
+  | 'client.task_suggestion.approved';
 
 /** Run an email send without blocking or failing the caller. */
 export function enqueueEmailNotification(task: () => Promise<void>): void {

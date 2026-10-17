@@ -30,6 +30,8 @@ export interface IUserEmailNotificationPreferences {
   taskCompleted?: boolean;
   invoiceSent?: boolean;
   teamMessages?: boolean;
+  taskSuggestions?: boolean;
+  taskSuggestionApproved?: boolean;
   digest?: 'none' | 'daily' | 'weekly';
 }
 
@@ -154,6 +156,8 @@ const userSchema = new Schema<IUser>(
         taskCompleted: { type: Boolean },
         invoiceSent: { type: Boolean },
         teamMessages: { type: Boolean },
+        taskSuggestions: { type: Boolean },
+        taskSuggestionApproved: { type: Boolean },
         digest: { type: String, enum: ['none', 'daily', 'weekly'] },
       },
     },

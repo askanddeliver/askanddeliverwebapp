@@ -1,6 +1,6 @@
 # Onboarding UX expansions — Build Plan
 
-**Status:** Slices A and B shipped · C specced, not started  
+**Status:** Slices A–C shipped  
 **Date:** 2026-10-16  
 **Parent:** live Projects list, Project Hub, client portal, Resend notifications  
 **Related:** [CLIENT_PORTAL_DASHBOARD_BUILD_PLAN.md](./CLIENT_PORTAL_DASHBOARD_BUILD_PLAN.md) · [PROJECT_COMMUNICATION_AND_ASSETS.md](./PROJECT_COMMUNICATION_AND_ASSETS.md) · [RESEND_NOTIFICATIONS_BUILD_PLAN.md](./RESEND_NOTIFICATIONS_BUILD_PLAN.md) · [PROJECT_HUB_BUILD_PLAN.md](./PROJECT_HUB_BUILD_PLAN.md)
@@ -11,7 +11,7 @@ Three independent PRs, in this order. Do not mix slices.
 |-------|------|----------------|
 | **A** | Unread message counts | ✅ Shipped |
 | **B** | Admin workspace pins on client cards | ✅ Shipped |
-| **C** | Client task-request intake (admin approves → creates task) | 1.5–2 days |
+| **C** | Client task-request intake (admin approves → creates task) | ✅ Shipped |
 
 ---
 
@@ -356,3 +356,4 @@ A unread  →  B pins  →  C harden GET + suggestion model + UI + email
 | 2026-10-16 | Spec from onboarding feedback: unread → workspace pins → client request intake (admin approve) |
 | 2026-10-16 | **Slice A shipped** — per-project read cursor, list badges, mark-read when the thread is on screen |
 | 2026-10-16 | **Slice B shipped** — admin workspace pins on client cards; members see the same order |
+| 2026-10-16 | **Slice C shipped** — client task requests; admin approve creates `ProjectTask`; `GET /api/project-tasks` 403 for client JWTs |

@@ -49,6 +49,7 @@ import type {
   DashboardPipelineResponse,
   DashboardCapacityResponse,
   ProjectAsset,
+  ProjectTaskSuggestion,
 } from '../types';
 import type { DashboardPeriodParams } from '../utils/calculations';
 
@@ -756,6 +757,30 @@ export const projectMessagesApi = {
     }),
 };
 
+export const projectTaskSuggestionsApi = {
+  list: (projectId: string) =>
+    api.get<ProjectTaskSuggestion[]>(`/projects/${projectId}/task-suggestions`),
+  approve: (
+    projectId: string,
+    suggestionId: string,
+    data?: {
+      title?: string;
+      description?: string;
+      clientVisible?: boolean;
+      assigneeAuth0Id?: string;
+      estimatedHours?: number;
+    }
+  ) =>
+    api.post<{ suggestion: ProjectTaskSuggestion; task: ProjectTask }>(
+      `/projects/${projectId}/task-suggestions/${suggestionId}/approve`,
+      data || {}
+    ),
+  decline: (projectId: string, suggestionId: string) =>
+    api.post<ProjectTaskSuggestion>(
+      `/projects/${projectId}/task-suggestions/${suggestionId}/decline`
+    ),
+};
+
 export const projectAssetsApi = {
   list: (projectId: string) =>
     api.get<ProjectAsset[]>(`/projects/${projectId}/assets`),
@@ -802,6 +827,16 @@ export const portalApi = {
   },
   deleteAsset: (projectId: string, assetId: string) =>
     api.delete(`/portal/projects/${projectId}/assets/${assetId}`),
+  getTaskSuggestions: (projectId: string) =>
+    api.get<ProjectTaskSuggestion[]>(`/portal/projects/${projectId}/task-suggestions`),
+  createTaskSuggestion: (
+    projectId: string,
+    data: { title: string; description?: string }
+  ) =>
+    api.post<ProjectTaskSuggestion>(
+      `/portal/projects/${projectId}/task-suggestions`,
+      data
+    ),
 };
 
 // Member hub (member + admin dogfooding)

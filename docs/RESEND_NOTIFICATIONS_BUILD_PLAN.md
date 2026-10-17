@@ -84,6 +84,8 @@ This is the **authoritative reference** for what sends email today. All sends ar
 | 6 | **Admin** | Marks invoice **DRAFT → SENT** | Invoice status transition | Portal users for invoice's client | `invoiceSent` | **Invoices** (client) |
 | 7 | **Admin or member** | Marks task **COMPLETED** | `PUT /api/project-tasks/:id` or `PATCH …/status` | Portal users (client-visible tasks) **and** workspace admin + assigned members (any task) | `taskCompleted` | **Task completed** (client, admin, member) |
 | 8 | **Admin or member** | Posts a project message (any visibility) | `POST /api/projects/:projectId/messages` | Workspace admin + assigned members **except the author** | `teamMessages` | **Team messages** (admin/member) |
+| 9 | **Client** | Submits a task request | `POST /api/portal/projects/:projectId/task-suggestions` | Workspace admin + `assignedMemberIds` | `taskSuggestions` | **Task requests** (admin/member) |
+| 10 | **Admin** | Approves a task request | `POST /api/projects/:projectId/task-suggestions/:id/approve` | The **submitter** only | `taskSuggestionApproved` | **Task request approved** (client) |
 
 ### Per-trigger conditions
 
@@ -123,6 +125,18 @@ This is the **authoritative reference** for what sends email today. All sends ar
 - The message **author is excluded**.  
 - Deep links match #1 (admin vs member hub).  
 - If the post is also client-visible, #2 still fires separately for portal users.
+
+**#9 Client task request → team**  
+- Fires when a portal user POSTs a `ProjectTaskSuggestion`.  
+- Recipients are workspace admin + assigned members who opted in to `taskSuggestions`.  
+- Deep links: admin `/projects/:id#requests`; member `/member/projects/:id#requests`.  
+- Decline does **not** send email.
+
+**#10 Task request approved → submitter**  
+- Fires on **admin approve** only (idempotent re-approve of an existing task does not re-send).  
+- Recipient is the **submitter** (`suggestedByAuth0Id`), not every portal user on that CRM client.  
+- Deep link: `/portal/projects/:id#requests`.  
+- CRM `Client.email` is unused.
 
 **In-app unread (orthogonal):** Project list and portal cards show a per-user unread count from `User.projectMessageReads`. That is not an email trigger and does not use these preference keys. See [ONBOARDING_UX_EXPANSIONS_BUILD_PLAN.md](./ONBOARDING_UX_EXPANSIONS_BUILD_PLAN.md) slice A.
 
@@ -164,6 +178,8 @@ Stored on `User.notificationPreferences.email`. **Opt-in only:** value must be *
 | `clientVisibleReplies` | client | `/portal/settings` |
 | `taskCompleted` | admin, member, client | `/profile` · `/member/profile` · `/portal/settings` |
 | `invoiceSent` | client | `/portal/settings` |
+| `taskSuggestions` | admin, member | `/profile` · `/member/profile` |
+| `taskSuggestionApproved` | client | `/portal/settings` |
 | `digest` | reserved | Not implemented (RN-4) |
 
 Use **Save notification settings** on member/client pages (separate from main profile save on member profile).
@@ -362,7 +378,7 @@ Recipient helpers in `server/src/lib/email/recipients.ts` filter by `isEmailPref
 | **RN-3** | Invoice + task + preferences | Invoice SENT; task completed; profile toggles | ✅ Shipped |
 | **RN-4** | Digests + debounce | Cron digests; burst rollup; optional `member.task.assigned` | ⏸ Deferred |
 
-**Paused after RN-3** (digests still deferred). Contributor alerts (`teamMessages`, team `taskCompleted`) shipped 2026-09-27. Use [RESEND_LOCAL_TEST_CHECKLIST.md](./RESEND_LOCAL_TEST_CHECKLIST.md) before production enablement.
+**Paused after RN-3** (digests still deferred). Contributor alerts (`teamMessages`, team `taskCompleted`) shipped 2026-09-27. Task-request emails (`taskSuggestions`, `taskSuggestionApproved`) shipped 2026-10-16 with slice C. Use [RESEND_LOCAL_TEST_CHECKLIST.md](./RESEND_LOCAL_TEST_CHECKLIST.md) before production enablement.
 
 ---
 
@@ -397,7 +413,7 @@ Recipient helpers in `server/src/lib/email/recipients.ts` filter by `isEmailPref
 | Templates | `server/src/lib/email/templates/*.ts` |
 | Task completion helper | `server/src/lib/email/taskCompletionNotify.ts` |
 | Public exports | `server/src/lib/email/index.ts` |
-| Route hooks | `projectMessages.ts`, `projects.ts`, `users.ts`, `invoices.ts`, `projectTasks.ts` |
+| Route hooks | `projectMessages.ts`, `projects.ts`, `users.ts`, `invoices.ts`, `projectTasks.ts`, `projectTaskSuggestions.ts` |
 | Preference UI | `client/src/components/profile/EmailNotificationPreferences.tsx` |
 | Admin settings | `client/src/pages/Profile.tsx` |
 | Member settings | `client/src/pages/member/MemberProfile.tsx` |
@@ -434,3 +450,4 @@ Do not bundle RN-4 with unrelated work (reporting filters, dashboards) — keep 
 | 2026-08-14 | **Stopping point** — triggers-by-action reference, delivery gates, shipped vs deferred; `parseEnvFlag` for inline `.env` comments; pause before RN-4 |
 | 2026-09-27 | Contributor alerts — `teamMessages` + team `taskCompleted` for admin/members; role-aware hub deep links |
 | 2026-10-16 | In-app unread counts (slice A) — orthogonal to Resend; documented under triggers |
+| 2026-10-16 | Task requests (slice C) — `taskSuggestions` to team on submit; `taskSuggestionApproved` to submitter on approve |

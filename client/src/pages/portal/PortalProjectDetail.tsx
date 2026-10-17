@@ -8,6 +8,7 @@ import SanitizedBrief from '../../components/portal/SanitizedBrief';
 import ProjectMessageThread from '../../components/portal/ProjectMessageThread';
 import ProjectAssetsPanel from '../../components/projects/ProjectAssetsPanel';
 import PortalProjectJumpLinks from '../../components/portal/PortalProjectJumpLinks';
+import PortalTaskRequestSection from '../../components/portal/PortalTaskRequestSection';
 import type {
   MessageComposeFromTask,
   PortalProjectDetailResponse,
@@ -198,6 +199,10 @@ function PortalProjectDetail() {
             ))}
           </ul>
         )}
+      </section>
+
+      <section id="requests" className="mb-8 scroll-mt-16 rounded-xl border border-neutral-200 bg-white p-6">
+        <PortalTaskRequestSection projectId={project._id} />
       </section>
 
       <section id="files" className="mb-8 scroll-mt-16 rounded-xl border border-neutral-200 bg-white p-6">

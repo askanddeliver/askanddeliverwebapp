@@ -3,6 +3,7 @@ import {
   Clock,
   FileText,
   FolderOpen,
+  Inbox,
   ListTodo,
   MessageSquare,
   Users,
@@ -19,6 +20,7 @@ export interface ProjectJumpSection {
 export const PORTAL_JUMP_SECTIONS: ProjectJumpSection[] = [
   { id: 'brief', label: 'Brief', icon: FileText },
   { id: 'tasks', label: 'Tasks', icon: ListTodo },
+  { id: 'requests', label: 'Requests', icon: Inbox },
   { id: 'files', label: 'Files', icon: FolderOpen },
   { id: 'messages', label: 'Messages', icon: MessageSquare },
 ];
@@ -32,6 +34,7 @@ export function hubJumpSections(includeBudget: boolean): ProjectJumpSection[] {
     sections.push({ id: 'budget', label: 'Budget', icon: Wallet });
   }
   sections.push(
+    { id: 'requests', label: 'Requests', icon: Inbox },
     { id: 'tasks', label: 'Tasks', icon: ListTodo },
     { id: 'entries', label: 'Time', icon: Clock },
     { id: 'files', label: 'Files', icon: FolderOpen },

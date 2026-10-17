@@ -62,8 +62,8 @@ client/                        # React frontend (Vite)
       index.css                # Tailwind base + theme CSS variables
 server/                        # Express backend
   src/
-    routes/                    # 24 route modules + Stripe webhook (see below)
-    models/                    # 17 active Mongoose models (+ Item.ts stub, unexported; see Models)
+    routes/                    # 25 route modules + Stripe webhook (see below)
+    models/                    # 18 active Mongoose models (+ Item.ts stub, unexported; see Models)
     middleware/
       auth.ts                  # checkJwt, extractUserId, requireAdmin, getWorkspaceOwnerId, optionalAuth, loadUser
       errorHandler.ts          # asyncHandler, createError, notFoundHandler, errorHandler
@@ -304,7 +304,7 @@ NewModelSchema.index({ userId: 1, createdAt: -1 });
 export const NewModel = mongoose.model<INewModel>('NewModel', NewModelSchema);
 ```
 
-## Models (17 active; Item.ts is an unexported starter stub)
+## Models (18 active; Item.ts is an unexported starter stub)
 
 | Model | Key Fields | Scoping |
 |-------|-----------|---------|
@@ -314,6 +314,7 @@ export const NewModel = mongoose.model<INewModel>('NewModel', NewModelSchema);
 | TaskType | name, rate, color | userId (Pattern B) |
 | TimeEntry | projectId, taskTypeId, projectTaskId, startTime, endTime, duration, isRunning, invoiceId | userId (Pattern B, dual) |
 | ProjectTask | projectId, title, status, order, estimatedHours, clientVisible, assigneeAuth0Id | userId (Pattern B) |
+| ProjectTaskSuggestion | projectId, clientId, suggestedByAuth0Id, title, status PENDING\|APPROVED\|DECLINED, createdTaskId | userId (Pattern B; portal writes Pattern C) |
 | ProjectMessage | projectId, authorAuth0Id, body, clientVisible, projectTaskId, taskTitle, replyToMessageId | userId (Pattern B) |
 | ProjectAsset | projectId, uploadedByAuth0Id, originalName, mimeType, size, cloudinaryPublicId, resourceType, url, clientVisible | userId (Pattern B) |
 | TimeBlock | startTime, endTime, kind, projectId, recurrenceRule | userId (Pattern A) |
@@ -327,7 +328,7 @@ export const NewModel = mongoose.model<INewModel>('NewModel', NewModelSchema);
 | SiteConfig | colors, palettes, disciplines, companyName, companyAddress | userId (Pattern A) |
 | *(Item.ts)* | — | Not in `models/index` exports — remove or ignore; MERN-starter stub |
 
-## Routes (24 modules + webhook)
+## Routes (25 modules + webhook)
 
 | Mount Path | Module | Auth | Key Features |
 |-----------|--------|------|-------------|
@@ -337,7 +338,7 @@ export const NewModel = mongoose.model<INewModel>('NewModel', NewModelSchema);
 | `/api/projects` | projects.ts | checkJwt; requireAdmin on writes | CRUD, archive, status counts, assignedMemberIds |
 | `/api/task-types` | taskTypes.ts | checkJwt; requireAdmin on writes | CRUD + seed defaults |
 | `/api/time-entries` | timeEntries.ts | checkJwt | Timer start/stop/continue, manual entry, workspace-scoped reads |
-| `/api/project-tasks` | projectTasks.ts | checkJwt; requireAdmin on writes | CRUD + reorder + assigneeAuth0Id |
+| `/api/project-tasks` | projectTasks.ts | checkJwt + requireMemberOrAdmin | CRUD + reorder + assigneeAuth0Id; client JWTs 403 |
 | `/api/time-blocks` | timeBlocks.ts | checkJwt | Calendar blocks, recurrence, launch-to-timer |
 | `/api/reports` | reports.ts | checkJwt + requireAdmin | Invoice preview data (discount + margin), unfiled retainer hours, summary stats |
 | `/api/invoices` | invoices.ts | checkJwt + requireAdmin | Payable invoice CRUD by default; `?documentKind=library` for saved reports; `?documentKind=payroll` for pay stubs; `PATCH /:id/payout` marks stubs paid manually; Stripe Payment Links on INVOICE only |
@@ -351,10 +352,11 @@ export const NewModel = mongoose.model<INewModel>('NewModel', NewModelSchema);
 | `/api/intake-forms` | intakeForms.ts | Mixed (1 public, rest admin) | Admin builder + published schema for public renderer |
 | `/api/site-config` | siteConfig.ts | Mixed (1 public, rest admin) | Theme colors, palettes, disciplines, company info |
 | `/api/member` | member.ts | requireMemberOrAdmin | Member dashboard, projects, disciplines |
-| `/api/portal` | portal.ts | requireClient | Client portal projects, tasks, messages, assets |
+| `/api/portal` | portal.ts | requireClient | Client portal projects, tasks, messages, assets, task requests |
 | `/api/dashboard` | dashboard.ts | checkJwt + admin | admin-summary, pipeline, capacity |
 | `/api/projects/:projectId/messages` | projectMessages.ts | checkJwt | Admin/member project messaging (PATCH visibility; optional task snapshot) |
 | `/api/projects/:projectId/assets` | projectAssets.ts | checkJwt | Admin/member project files (Cloudinary; visibility toggle) |
+| `/api/projects/:projectId/task-suggestions` | projectTaskSuggestions.ts | checkJwt + requireMemberOrAdmin; requireAdmin on approve/decline | Client request queue; portal twin under `/api/portal/...` |
 | `/api/webhooks/stripe` | webhooks.ts | Stripe signature (raw body) | `checkout.session.completed` → mark invoice PAID |
 
 ## Common Tasks

@@ -22,6 +22,8 @@ export interface UserEmailNotificationPreferences {
   taskCompleted?: boolean;
   invoiceSent?: boolean;
   teamMessages?: boolean;
+  taskSuggestions?: boolean;
+  taskSuggestionApproved?: boolean;
   digest?: 'none' | 'daily' | 'weekly';
 }
 
@@ -188,6 +190,25 @@ export interface ProjectTask {
   estimatedHours?: number;
   clientVisible?: boolean;
   assigneeAuth0Id?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type ProjectTaskSuggestionStatus = 'PENDING' | 'APPROVED' | 'DECLINED';
+
+export interface ProjectTaskSuggestion {
+  _id: string;
+  userId: string;
+  projectId: string;
+  clientId: string;
+  suggestedByAuth0Id: string;
+  suggestedByName: string;
+  title: string;
+  description?: string;
+  status: ProjectTaskSuggestionStatus;
+  createdTaskId?: string;
+  reviewedByAuth0Id?: string;
+  reviewedAt?: string;
   createdAt: string;
   updatedAt: string;
 }

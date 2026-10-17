@@ -8,6 +8,11 @@ export { TimeEntry, ITimeEntry } from './TimeEntry';
 export { TimeBlock, ITimeBlock, TimeBlockKind } from './TimeBlock';
 export { ProjectTask, IProjectTask } from './ProjectTask';
 export {
+  ProjectTaskSuggestion,
+  IProjectTaskSuggestion,
+} from './ProjectTaskSuggestion';
+export type { ProjectTaskSuggestionStatus } from './ProjectTaskSuggestion';
+export {
   ProjectMessage,
   IProjectMessage,
   ProjectMessageAuthorRole,

@@ -1,5 +1,5 @@
 import { Router, Response } from 'express';
-import { checkJwt, AuthRequest, extractUserId, getWorkspaceOwnerId, requireAdmin } from '../middleware/auth';
+import { checkJwt, AuthRequest, extractUserId, getWorkspaceOwnerId, requireAdmin, requireMemberOrAdmin } from '../middleware/auth';
 import { asyncHandler, createError } from '../middleware/errorHandler';
 import mongoose from 'mongoose';
 import { ProjectTask, Client, Project, User } from '../models';
@@ -10,6 +10,7 @@ import { maybeNotifyTaskCompleted } from '../lib/email/taskCompletionNotify';
 const router = Router();
 
 router.use(checkJwt);
+router.use(requireMemberOrAdmin);
 
 async function loadActiveUser(auth0Id: string) {
   return User.findOne({ auth0Id, status: 'active' }).lean();

@@ -39,6 +39,8 @@ export { notifyTeamMessageToTeam } from './notifications/teamMessageToTeam';
 export { notifyInvoiceSentToClient } from './notifications/invoiceSentToClient';
 export { notifyClientTaskCompleted } from './notifications/clientTaskCompleted';
 export { notifyTeamTaskCompleted } from './notifications/teamTaskCompleted';
+export { notifyTaskSuggestionToTeam } from './notifications/taskSuggestionToTeam';
+export { notifyTaskSuggestionApproved } from './notifications/taskSuggestionApproved';
 export { maybeNotifyTaskCompleted, maybeNotifyClientTaskCompleted } from './taskCompletionNotify';
 export {
   notifyMemberAssignedToProject,

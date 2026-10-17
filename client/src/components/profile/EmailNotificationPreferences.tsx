@@ -8,6 +8,8 @@ type PrefKey = keyof Pick<
   | 'taskCompleted'
   | 'invoiceSent'
   | 'teamMessages'
+  | 'taskSuggestions'
+  | 'taskSuggestionApproved'
 >;
 
 const TOGGLE_DEFS: Record<
@@ -29,6 +31,11 @@ const TOGGLE_DEFS: Record<
       key: 'taskCompleted',
       label: 'Task completed',
       description: 'Email when a project task is marked complete',
+    },
+    {
+      key: 'taskSuggestions',
+      label: 'Task requests',
+      description: 'Email when a client suggests a new task',
     },
   ],
   member: [
@@ -52,6 +59,11 @@ const TOGGLE_DEFS: Record<
       label: 'Project assignments',
       description: 'Email when you are assigned to a new project',
     },
+    {
+      key: 'taskSuggestions',
+      label: 'Task requests',
+      description: 'Email when a client suggests a new task',
+    },
   ],
   client: [
     {
@@ -68,6 +80,11 @@ const TOGGLE_DEFS: Record<
       key: 'invoiceSent',
       label: 'Invoices',
       description: 'Email when a new invoice is sent to you',
+    },
+    {
+      key: 'taskSuggestionApproved',
+      label: 'Task request approved',
+      description: 'Email when your team adds a task you requested',
     },
   ],
   pending: [],
