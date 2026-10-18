@@ -29,6 +29,8 @@ import type {
   ProposalInvestment,
   ThemeColors,
   PortfolioProject,
+  PortfolioPitch,
+  PublicPortfolioPitch,
   Lead,
   LeadStats,
   LeadStatus,
@@ -593,6 +595,33 @@ export const portfolioApi = {
 };
 
 // Portfolio (public - unauthenticated)
+export const portfolioPitchApi = {
+  getAll: () => api.get<PortfolioPitch[]>('/portfolio-pitches'),
+  create: (data: {
+    title: string;
+    slug: string;
+    summary: string;
+    projectIds: string[];
+    published: boolean;
+  }) => api.post<PortfolioPitch>('/portfolio-pitches', data),
+  update: (
+    id: string,
+    data: {
+      title: string;
+      slug: string;
+      summary: string;
+      projectIds: string[];
+      published: boolean;
+    }
+  ) => api.put<PortfolioPitch>(`/portfolio-pitches/${id}`, data),
+  delete: (id: string) => api.delete(`/portfolio-pitches/${id}`),
+};
+
+export const portfolioPitchPublicApi = {
+  getBySlug: (slug: string) =>
+    publicApi.get<PublicPortfolioPitch>(`/portfolio-pitches/public/${slug}`),
+};
+
 export const portfolioPublicApi = {
   getAll: () => api.get<PortfolioProject[]>('/portfolio/public'),
   getFeatured: () => api.get<PortfolioProject[]>('/portfolio/public/featured'),

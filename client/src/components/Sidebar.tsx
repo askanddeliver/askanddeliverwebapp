@@ -10,6 +10,7 @@ import {
   Inbox,
   ClipboardList,
   Image,
+  Presentation,
   Tag,
   UserCircle,
   Palette,
@@ -77,6 +78,7 @@ const navSections: NavSection[] = [
       { to: '/leads', label: 'Leads', icon: Inbox },
       { to: '/intake-config', label: 'Intake Form', icon: ClipboardList },
       { to: '/portfolio-admin', label: 'Portfolio', icon: Image },
+      { to: '/portfolio-pitches', label: 'Pitch Pages', icon: Presentation },
     ],
   },
 ];

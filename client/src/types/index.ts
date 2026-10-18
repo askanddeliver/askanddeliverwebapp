@@ -710,6 +710,24 @@ export interface PortfolioTestimonial {
   role: string;
 }
 
+export interface PortfolioPitch {
+  _id: string;
+  slug: string;
+  title: string;
+  summary: string;
+  projectIds: string[];
+  published: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PublicPortfolioPitch {
+  title: string;
+  slug: string;
+  summary: string;
+  projects: PortfolioProject[];
+}
+
 export interface PortfolioProject {
   _id: string;
   slug: string;

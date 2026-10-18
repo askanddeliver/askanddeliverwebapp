@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Plus, Upload, ExternalLink } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Plus, Upload, ExternalLink, Presentation } from 'lucide-react';
 import { PortfolioProjectList } from '../components/portfolio/PortfolioProjectList';
 import { PortfolioProjectModal } from '../components/portfolio/PortfolioProjectModal';
 import { portfolioApi } from '../services/api';
@@ -164,6 +165,13 @@ function PortfolioAdmin() {
               {seeding ? 'Seeding...' : 'Seed Default Data'}
             </button>
           )}
+          <Link
+            to="/portfolio-pitches"
+            className="btn-secondary flex items-center gap-2"
+          >
+            <Presentation className="w-4 h-4" />
+            Pitch Pages
+          </Link>
           <button
             onClick={handleNewProject}
             className="btn-primary flex items-center gap-2"

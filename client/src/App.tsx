@@ -35,6 +35,8 @@ import Backups from './pages/Backups';
 import Invoices from './pages/Invoices';
 import Proposals from './pages/Proposals';
 import PortfolioAdmin from './pages/PortfolioAdmin';
+import PortfolioPitches from './pages/PortfolioPitches';
+import PitchPortfolio from './pages/PitchPortfolio';
 import SiteConfig from './pages/SiteConfig';
 import IntakeConfig from './pages/IntakeConfig';
 import PortalHome from './pages/portal/PortalHome';
@@ -103,6 +105,14 @@ function App() {
         element={
           <PublicLayout>
             <WorkDetail />
+          </PublicLayout>
+        }
+      />
+      <Route
+        path="/for/:slug"
+        element={
+          <PublicLayout>
+            <PitchPortfolio />
           </PublicLayout>
         }
       />
@@ -355,6 +365,18 @@ function App() {
             <ProtectedRoute>
               <AdminRoute>
                 <Proposals />
+              </AdminRoute>
+            </ProtectedRoute>
+          </Layout>
+        }
+      />
+      <Route
+        path="/portfolio-pitches"
+        element={
+          <Layout>
+            <ProtectedRoute>
+              <AdminRoute>
+                <PortfolioPitches />
               </AdminRoute>
             </ProtectedRoute>
           </Layout>

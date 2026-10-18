@@ -24,6 +24,7 @@ export {
   ProjectAssetAuthorRole,
 } from './ProjectAsset';
 export { PortfolioProject, IPortfolioProject } from './PortfolioProject';
+export { PortfolioPitch, IPortfolioPitch } from './PortfolioPitch';
 export { LineItem, ILineItem } from './LineItem';
 export { FilterPreset, IFilterPreset } from './FilterPreset';
 export type { FilterPresetKind, FilterPresetDatePreset } from './FilterPreset';
