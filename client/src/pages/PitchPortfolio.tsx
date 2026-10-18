@@ -52,13 +52,13 @@ function PitchPortfolio() {
 
   if (missing || !pitch) {
     return (
-      <section className="pt-32 pb-24">
+      <section className="pt-24 pb-16 md:pt-32 md:pb-24">
         <div className="container-public max-w-2xl">
           <p className="meta-label mb-3">Portfolio</p>
-          <h1 className="font-display text-display-lg text-brand-charcoal mb-4">
+          <h1 className="font-display text-[2.125rem] leading-[1.08] sm:text-display-md lg:text-display-lg text-brand-charcoal mb-4 break-words">
             This page is not available
           </h1>
-          <p className="text-lg text-neutral-600 mb-8">
+          <p className="text-base sm:text-lg text-neutral-600 mb-8">
             The link may be unpublished or no longer active.
           </p>
           <Link to="/work" className="btn-brand-primary">
@@ -70,8 +70,8 @@ function PitchPortfolio() {
   }
 
   return (
-    <div>
-      <section className="pt-32 pb-12">
+    <div className="overflow-x-hidden">
+      <section className="pt-24 pb-8 md:pt-32 md:pb-12">
         <div className="container-public">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -79,11 +79,11 @@ function PitchPortfolio() {
             transition={{ duration: 0.6 }}
           >
             <p className="meta-label mb-3">Selected work</p>
-            <h1 className="font-display text-display-lg text-brand-charcoal mb-6">
+            <h1 className="font-display text-[2.125rem] leading-[1.08] sm:text-display-md lg:text-display-lg text-brand-charcoal mb-4 md:mb-6 break-words">
               {pitch.title}
             </h1>
             {pitch.summary && (
-              <p className="text-xl text-neutral-600 max-w-2xl leading-relaxed whitespace-pre-line">
+              <p className="text-base sm:text-lg md:text-xl text-neutral-600 max-w-2xl leading-relaxed whitespace-pre-line">
                 {pitch.summary}
               </p>
             )}
@@ -91,19 +91,19 @@ function PitchPortfolio() {
         </div>
       </section>
 
-      <section className="pb-24">
-        <div className="container-public">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+      <section className="pb-16 md:pb-24">
+        <div className="md:container-public">
+          <div className="flex flex-col gap-12 md:grid md:grid-cols-2 md:gap-8">
             {pitch.projects.map((project, index) => (
               <motion.div
                 key={project.slug}
                 initial={{ opacity: 0, y: 30 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: index * 0.05 }}
+                transition={{ duration: 0.5, delay: Math.min(index, 6) * 0.05 }}
               >
-                <Link to={`/work/${project.slug}`} className="group block">
+                <Link to={`/work/${project.slug}`} className="group block min-w-0">
                   <div
-                    className="relative aspect-[4/3] overflow-hidden rounded-lg mb-5"
+                    className="relative aspect-[4/3] overflow-hidden md:rounded-lg md:mb-5"
                     style={{ backgroundColor: project.color + '10' }}
                   >
                     <PortfolioImage
@@ -111,29 +111,32 @@ function PitchPortfolio() {
                       alt={project.title}
                       fallbackColor={project.color}
                       fallbackLabel={project.client}
-                      className="group-hover:scale-105 transition-transform duration-700"
+                      className="md:group-hover:scale-105 transition-transform duration-700"
                     />
-                    <div className="absolute inset-0 bg-gradient-to-t from-neutral-900/70 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                      <div className="absolute bottom-5 left-5 text-white">
-                        <span className="text-sm font-mono uppercase tracking-wider">
-                          View Project &rarr;
-                        </span>
-                      </div>
+                    <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-neutral-900/75 to-transparent px-6 py-5 md:px-5 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-300">
+                      <span className="text-sm font-mono uppercase tracking-wider text-white">
+                        View project &rarr;
+                      </span>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2 mb-2">
-                    {project.categories[0] && (
-                      <span className="meta-label">{project.categories[0]}</span>
-                    )}
-                    <span className="meta-label text-neutral-300">&middot;</span>
-                    <span className="meta-label">{project.year}</span>
+                  <div className="px-6 pt-4 md:px-0 md:pt-0">
+                    <p className="meta-label text-brand-charcoal mb-1">{project.client}</p>
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mb-2">
+                      {project.categories[0] && (
+                        <>
+                          <span className="meta-label">{project.categories[0]}</span>
+                          <span className="meta-label text-neutral-300">&middot;</span>
+                        </>
+                      )}
+                      <span className="meta-label">{project.year}</span>
+                    </div>
+                    <h2 className="font-display text-2xl md:text-xl font-bold text-brand-charcoal mb-2 break-words group-hover:text-brand-sage transition-colors">
+                      {project.title}
+                    </h2>
+                    <p className="text-neutral-600 text-base md:text-sm leading-relaxed">
+                      {project.excerpt}
+                    </p>
                   </div>
-                  <h2 className="font-display text-xl font-bold text-brand-charcoal mb-2 group-hover:text-brand-sage transition-colors">
-                    {project.title}
-                  </h2>
-                  <p className="text-neutral-600 text-sm leading-relaxed">
-                    {project.excerpt}
-                  </p>
                 </Link>
               </motion.div>
             ))}
