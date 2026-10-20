@@ -309,7 +309,7 @@ export const NewModel = mongoose.model<INewModel>('NewModel', NewModelSchema);
 | Model | Key Fields | Scoping |
 |-------|-----------|---------|
 | User | auth0Id, email, name, role, workspaceOwnerId, clientId, disciplines, availability, earnedRates, payoutPreference, notificationPreferences, projectMessageReads, status | By auth0Id |
-| Client | name, company, email, isInternal, pinned, businessEntity, address, paymentPreference, taskDiscounts | userId (Pattern A) |
+| Client | name, company, email, isInternal, pinned, businessEntity, address, paymentPreference, taskDiscounts, googleFolderId | userId (Pattern A) |
 | Project | clientId, title, status, budget, billingMode, assignedMemberIds, googleFolderId | userId (Pattern B) |
 | TaskType | name, rate, color | userId (Pattern B) |
 | TimeEntry | projectId, taskTypeId, projectTaskId, startTime, endTime, duration, isRunning, invoiceId | userId (Pattern B, dual) |

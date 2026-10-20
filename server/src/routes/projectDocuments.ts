@@ -10,7 +10,7 @@ import {
   requireMemberOrAdmin,
 } from '../middleware/auth';
 import { asyncHandler, createError } from '../middleware/errorHandler';
-import { Project, ProjectDocument, User } from '../models';
+import { Client, Project, ProjectDocument, User } from '../models';
 import { PROJECT_DOCUMENT_MIME } from '../models/ProjectDocument';
 import { findClientProject, requirePortalContext } from '../lib/portalScope';
 import { memberHasProjectAccess } from '../lib/memberProjects';
@@ -100,6 +100,30 @@ async function listDocuments(workspaceOwnerId: string, projectId: string) {
   );
 }
 
+async function placeProjectFolder(project: InstanceType<typeof Project>): Promise<string> {
+  const client = await Client.findOne({
+    _id: project.clientId,
+    userId: project.userId,
+  });
+  if (!client) throw createError('Client not found', 404);
+
+  const folders = await ensureProjectFolder({
+    existingFolderId: project.googleFolderId,
+    existingClientFolderId: client.googleFolderId,
+    projectTitle: project.title,
+    clientName: client.company?.trim() || client.name,
+  });
+  if (client.googleFolderId !== folders.clientFolderId) {
+    client.googleFolderId = folders.clientFolderId;
+    await client.save();
+  }
+  if (project.googleFolderId !== folders.projectFolderId) {
+    project.googleFolderId = folders.projectFolderId;
+    await project.save();
+  }
+  return folders.projectFolderId;
+}
+
 async function createDocument(opts: {
   project: InstanceType<typeof Project>;
   auth0Id: string;
@@ -120,19 +144,18 @@ async function createDocument(opts: {
     throw createError('Documents can only be created on active or paused projects', 403);
   }
 
+  const client = await Client.findOne({
+    _id: opts.project.clientId,
+    userId: opts.project.userId,
+  });
+  if (!client) throw createError('Client not found', 404);
+
   let folderId: string;
   try {
-    folderId = await ensureProjectFolder({
-      existingFolderId: opts.project.googleFolderId,
-      title: opts.project.title,
-    });
+    folderId = await placeProjectFolder(opts.project);
   } catch (err) {
+    if ((err as { statusCode?: number }).statusCode) throw err;
     throw createError(googleErrorMessage(err), 502);
-  }
-
-  if (opts.project.googleFolderId !== folderId) {
-    opts.project.googleFolderId = folderId;
-    await opts.project.save();
   }
 
   let file: { id: string };
@@ -160,7 +183,14 @@ router.get(
   '/',
   asyncHandler(async (req: AuthRequest, res: Response) => {
     const projectId = req.params.projectId;
-    const { workspaceOwnerId, user } = await loadWorkspaceProject(req, projectId);
+    const { workspaceOwnerId, user, project } = await loadWorkspaceProject(req, projectId);
+    if (project.googleFolderId && isGoogleDriveConfigured()) {
+      try {
+        await placeProjectFolder(project);
+      } catch (err) {
+        console.error('Google Drive folder organize failed:', googleErrorMessage(err));
+      }
+    }
     const documents = await listDocuments(workspaceOwnerId, projectId);
     const body: {
       configured: boolean;
@@ -224,7 +254,17 @@ portalProjectDocumentsRouter.get(
   asyncHandler(async (req: AuthRequest, res: Response) => {
     const ctx = await requirePortalContext(req);
     const projectId = req.params.projectId;
-    await findClientProject(projectId, ctx.workspaceOwnerId, ctx.clientId);
+    const project = await findClientProject(projectId, ctx.workspaceOwnerId, ctx.clientId);
+    if (project.googleFolderId && isGoogleDriveConfigured()) {
+      const stored = await Project.findById(project._id);
+      if (stored) {
+        try {
+          await placeProjectFolder(stored);
+        } catch (err) {
+          console.error('Google Drive folder organize failed:', googleErrorMessage(err));
+        }
+      }
+    }
     const documents = await listDocuments(ctx.workspaceOwnerId, projectId);
     res.json({
       configured: isGoogleDriveConfigured(),

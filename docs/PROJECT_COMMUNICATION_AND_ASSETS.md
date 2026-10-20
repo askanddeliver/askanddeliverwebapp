@@ -89,7 +89,7 @@ Shipped 2026-10-19. Separate from Cloudinary files. The bytes stay in a Workspac
 - `GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY`
 - `GOOGLE_SHARED_DRIVE_ID`
 
-The service account uses the Drive scope and must be a **Content manager** on that Shared Drive. Google returns "File not found" when it is not a member. All Drive calls run on the server. The folder is created the first time someone creates a doc, not when the project is created.
+The service account uses the Drive scope and must be a **Content manager** on that Shared Drive. Google returns "File not found" when it is not a member. All Drive calls run on the server. The first doc for a client creates a client folder (company name, or the client name when company is blank) in the Shared Drive, then a project folder inside it. Opening the Documents tray moves a project folder that was created at the drive root into that client folder. Empty folders are not created when a project is saved.
 
 **Who can edit:** workspace admins, assigned creators, the CRM client email, and portal users linked to that client. Role is `writer`. Share the **folder** once (`ProjectFolderGrant`); new docs inherit it. `sendNotificationEmail` is false. A rejected email is stored as `failed` with Google's message. Admins see granted / pending / failed and can **Retry failed** (re-runs the sync). Clients and members do not see that list.
 

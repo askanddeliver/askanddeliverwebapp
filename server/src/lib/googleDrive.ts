@@ -49,32 +49,22 @@ function sharedDriveId(): string {
   return id;
 }
 
-export async function ensureProjectFolder(opts: {
-  existingFolderId?: string | null;
-  title: string;
-}): Promise<string> {
-  const drive = driveClient();
-  if (opts.existingFolderId) {
-    try {
-      const existing = await drive.files.get({
-        fileId: opts.existingFolderId,
-        supportsAllDrives: true,
-        fields: 'id,trashed',
-      });
-      if (existing.data.id && !existing.data.trashed) {
-        return existing.data.id;
-      }
-    } catch {
-      // Folder was deleted in Drive; create a new one.
-    }
-  }
+function folderLabel(name: string, fallback: string): string {
+  const trimmed = name.trim().slice(0, 200);
+  return trimmed || fallback;
+}
 
+async function createFolder(
+  drive: drive_v3.Drive,
+  name: string,
+  parentId: string
+): Promise<string> {
   const created = await drive.files.create({
     supportsAllDrives: true,
     requestBody: {
-      name: opts.title.trim() || 'Project',
+      name,
       mimeType: FOLDER_MIME,
-      parents: [sharedDriveId()],
+      parents: [parentId],
     },
     fields: 'id',
   });
@@ -82,6 +72,69 @@ export async function ensureProjectFolder(opts: {
     throw new Error('Google Drive did not return a folder id');
   }
   return created.data.id;
+}
+
+async function liveFolder(
+  drive: drive_v3.Drive,
+  folderId: string
+): Promise<{ id: string; parents: string[] } | null> {
+  try {
+    const existing = await drive.files.get({
+      fileId: folderId,
+      supportsAllDrives: true,
+      fields: 'id,trashed,parents',
+    });
+    if (existing.data.id && !existing.data.trashed) {
+      return { id: existing.data.id, parents: existing.data.parents || [] };
+    }
+  } catch {
+    // Folder was deleted in Drive.
+  }
+  return null;
+}
+
+export async function ensureProjectFolder(opts: {
+  existingFolderId?: string | null;
+  existingClientFolderId?: string | null;
+  projectTitle: string;
+  clientName: string;
+}): Promise<{ projectFolderId: string; clientFolderId: string }> {
+  const drive = driveClient();
+  const driveId = sharedDriveId();
+  const clientLabel = folderLabel(opts.clientName, 'Client');
+  const projectLabel = folderLabel(opts.projectTitle, 'Project');
+
+  let clientFolderId: string | null = null;
+  if (opts.existingClientFolderId) {
+    const clientFolder = await liveFolder(drive, opts.existingClientFolderId);
+    clientFolderId = clientFolder?.id || null;
+  }
+  if (!clientFolderId) {
+    clientFolderId = await createFolder(drive, clientLabel, driveId);
+  }
+
+  let projectFolder: { id: string; parents: string[] } | null = null;
+  if (opts.existingFolderId) {
+    projectFolder = await liveFolder(drive, opts.existingFolderId);
+  }
+
+  let projectFolderId: string;
+  if (!projectFolder) {
+    projectFolderId = await createFolder(drive, projectLabel, clientFolderId);
+  } else if (projectFolder.parents.includes(clientFolderId)) {
+    projectFolderId = projectFolder.id;
+  } else {
+    await drive.files.update({
+      fileId: projectFolder.id,
+      supportsAllDrives: true,
+      addParents: clientFolderId,
+      removeParents: projectFolder.parents.join(',') || undefined,
+      fields: 'id',
+    });
+    projectFolderId = projectFolder.id;
+  }
+
+  return { projectFolderId, clientFolderId };
 }
 
 export async function createGoogleDoc(opts: {

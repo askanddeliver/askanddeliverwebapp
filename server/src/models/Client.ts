@@ -20,6 +20,8 @@ export interface IClient extends Document {
   /** When true, this client’s card floats above A–Z on the Projects list. */
   pinned?: boolean;
   taskDiscounts: Map<string, number>;
+  /** Shared Drive folder that holds this client's project folders. */
+  googleFolderId?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -55,6 +57,10 @@ const ClientSchema = new Schema<IClient>(
       type: Map,
       of: Number,
       default: new Map(),
+    },
+    googleFolderId: {
+      type: String,
+      trim: true,
     },
   },
   {
