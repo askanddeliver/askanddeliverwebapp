@@ -225,6 +225,7 @@ User (auth0Id)
  │     ├── businessEntity, address, paymentPreference
  │     │
  │     ├── pinned?: boolean (admin workspace pin on Projects list)
+ │     ├── googleFolderId? (Shared Drive folder for this client's projects)
  │     ├──> Project (clientId, userId)
  │     │     ├── status: ACTIVE | PAUSED | COMPLETED | ARCHIVED
  │     │     ├── billingMode: HOURLY | FIXED_PRICE | HOUR_RETAINER (+ agreedAmount, retainerHoursTotal, retainerAdjustmentHours, fixedPriceInvoiceLabel as applicable)
@@ -248,8 +249,9 @@ User (auth0Id)
  │     │     │
  │     │     ├──> ProjectAsset (projectId, userId) — Cloudinary library
  │     │     │
- │     │     ├──> ProjectDocument (projectId, userId) — Google Doc id + title
- │     │     ├──> ProjectFolderGrant (projectId, email) — Shared Drive folder ACL
+ │     │     ├──> ProjectDocument (projectId, userId) — Google Doc inside the client folder
+ │     │     ├── googleFolderId? (project folder under Client.googleFolderId)
+ │     │     ├──> ProjectFolderGrant (projectId, email) — permission on the project folder
  │     │     │
  │     │     ├──> TimeEntry (projectId, taskTypeId, userId)
  │     │     │     ├── startTime, endTime, duration, isRunning

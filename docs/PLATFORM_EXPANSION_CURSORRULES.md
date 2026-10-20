@@ -179,7 +179,7 @@ Server: `resolvePublicWorkspace(req)` — subdomain (future) or `DEFAULT_PUBLIC_
 - Optional `projectTaskId` + `taskTitle` snapshot (compose from hub task row).
 - Hub compose **Notify** None / @ / Team (`notifyMode`); not an access ACL. Portal compose has no picker.
 - Project files: `ProjectAsset` on Cloudinary — [PROJECT_COMMUNICATION_AND_ASSETS.md](./PROJECT_COMMUNICATION_AND_ASSETS.md).
-- Project Google Docs: Shared Drive folder per project; clients and assigned members are editors until the project is completed or archived.
+- Project Google Docs: Shared Drive folder per client, then a project folder inside it. Clients and assigned members are editors until the project is completed or archived.
 - No DMs or extra chat rooms. Email: Resend (see notifications plan).
 - Clients submit `ProjectTaskSuggestion`; they do not write `ProjectTask`.
 

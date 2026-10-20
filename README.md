@@ -647,10 +647,10 @@ Auth0-linked user profile with `auth0Id`, `email`, `name`, `picture`, and `nickn
 Workspace-scoped pipeline record with `userId` (workspace owner). Top-level intake columns plus `responses` (dynamic answers), `suggestedMemberAuth0Id`, status/priority, notes, and conversion links (`convertedClientId`, `convertedProjectId`).
 
 ### Client
-Client record with `name`, `company`, `email`, `businessEntity` (official entity name for invoices), `address` (for invoices), `paymentPreference` (ACH | MAILED, defaults to MAILED), optional `pinned` (workspace-level Projects card order), and a `taskDiscounts` map — a `Map<string, number>` where each key is a TaskType ID and the value is a discount percentage (0–100).
+Client record with `name`, `company`, `email`, `businessEntity` (official entity name for invoices), `address` (for invoices), `paymentPreference` (ACH | MAILED, defaults to MAILED), optional `pinned` (workspace-level Projects card order), a `taskDiscounts` map — a `Map<string, number>` where each key is a TaskType ID and the value is a discount percentage (0–100) — and optional `googleFolderId` (Shared Drive folder for that client's projects, named from `company` or else `name`).
 
 ### Project
-Linked to a Client. Tracks `title`, `description`, `brief`, `status`, optional `budget`, billing modes, portfolio-aligned fields, `assignedMemberIds` (member Auth0 subs), and optional `googleFolderId` (Shared Drive folder, set when the first Google Doc is created).
+Linked to a Client. Tracks `title`, `description`, `brief`, `status`, optional `budget`, billing modes, portfolio-aligned fields, `assignedMemberIds` (member Auth0 subs), and optional `googleFolderId` (that project's folder inside the client Shared Drive folder, set when the first Google Doc is created).
 
 ### TaskType
 Billable categories (e.g., "Design", "Development") with `name`, `rate` (hourly), and `color`.
@@ -671,7 +671,7 @@ Per-project thread. Two-tier `clientVisible`; optional task snapshot and reply p
 Per-project Cloudinary file. Two-tier `clientVisible`; clients upload as always-visible. Team can toggle visibility after upload.
 
 ### ProjectDocument
-Per-project Google Doc. Stores `googleFileId`, `title`, `mimeType`, and who created it. The file itself stays in the Shared Drive. See [docs/PROJECT_COMMUNICATION_AND_ASSETS.md](docs/PROJECT_COMMUNICATION_AND_ASSETS.md).
+Per-project Google Doc. Stores `googleFileId`, `title`, `mimeType`, and who created it. The file stays in the Shared Drive under `Client` folder → project folder. See [docs/PROJECT_COMMUNICATION_AND_ASSETS.md](docs/PROJECT_COMMUNICATION_AND_ASSETS.md).
 
 ### ProjectFolderGrant
 One Drive permission per person on the project folder (`admin` / `member` / `client`), with `googlePermissionId` and `status` (`granted` / `pending` / `failed`). Admins keep access when a project is completed or archived; clients and assigned members do not.

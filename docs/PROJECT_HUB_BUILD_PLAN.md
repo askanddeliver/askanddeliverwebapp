@@ -356,7 +356,7 @@ Use URL hash for scroll-to-section. Sticky **Jump to** chips on the hub (`Projec
 
 | Date | Change |
 |------|--------|
-| 2026-10-19 | Google Docs tray on hub and portal — [PROJECT_COMMUNICATION_AND_ASSETS.md](./PROJECT_COMMUNICATION_AND_ASSETS.md) |
+| 2026-10-19 | Google Docs tray on hub and portal. Drive layout is client folder, then project folder — [PROJECT_COMMUNICATION_AND_ASSETS.md](./PROJECT_COMMUNICATION_AND_ASSETS.md) |
 | 2026-10-16 | Unread badges, workspace pins, client requests, collapsed list tasks, Notify None/@/Team |
 | 2026-09-25 | Sticky Jump to chips on hub (and stronger portal chips) |
 | 2026-09-25 | Files library + member/anytime message visibility + compose-from-task — [PROJECT_COMMUNICATION_AND_ASSETS.md](./PROJECT_COMMUNICATION_AND_ASSETS.md) |
