@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
-import { Plus, Filter } from 'lucide-react';
+import { Plus, Filter, Play, Square } from 'lucide-react';
 import { EntryList } from '../../components/entries/EntryList';
 import { EntryModal } from '../../components/entries/EntryModal';
+import { StartTaskPickerModal } from '../../components/timer/StartTaskPickerModal';
+import { TimerDisplay } from '../../components/timer/TimerDisplay';
 import { AdminPageHeader } from '../../components/admin/AdminPageHeader';
 import {
   memberApi,
@@ -28,6 +30,8 @@ function MemberEntries() {
   const [error, setError] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingEntry, setEditingEntry] = useState<TimeEntry | null>(null);
+  const [startTaskOpen, setStartTaskOpen] = useState(false);
+  const [activeTimer, setActiveTimer] = useState<TimeEntry | null>(null);
 
   const [showFilters, setShowFilters] = useState(false);
   const [startDate, setStartDate] = useState(getDaysAgoString(30));
@@ -55,7 +59,7 @@ function MemberEntries() {
   const loadData = async () => {
     try {
       setLoading(true);
-      const [entriesRes, projectsRes, taskTypesRes, projectTasksRes] = await Promise.all([
+      const [entriesRes, projectsRes, taskTypesRes, projectTasksRes, timerRes] = await Promise.all([
         timeEntriesApi.getAll({
           startDate: toUTCStartOfDay(startDate),
           endDate: toUTCEndOfDay(endDate),
@@ -64,12 +68,14 @@ function MemberEntries() {
         memberApi.getProjects(),
         taskTypesApi.getAll(),
         projectTasksApi.getAll(),
+        timeEntriesApi.getActive(),
       ]);
 
       setEntries((entriesRes.data || []).filter(matchesMemberEntryFilter));
       setProjects(projectsRes.data || []);
       setTaskTypes(taskTypesRes.data || []);
       setProjectTasks(projectTasksRes.data || []);
+      setActiveTimer(timerRes.data);
       setError(null);
     } catch (err) {
       console.error('Failed to load entries:', err);
@@ -137,6 +143,53 @@ function MemberEntries() {
     }
   };
 
+  const handleStartTask = async (
+    projectId: string,
+    taskTypeId: string,
+    projectTaskId: string,
+    description?: string
+  ) => {
+    try {
+      const res = await timeEntriesApi.start({
+        projectId,
+        taskTypeId,
+        projectTaskId,
+        description,
+      });
+      setActiveTimer(res.data);
+      const task = projectTasks.find((item) => item._id === projectTaskId);
+      if (task?.status === 'TODO') {
+        try {
+          const statusRes = await projectTasksApi.updateStatus(projectTaskId, 'IN_PROGRESS');
+          setProjectTasks((prev) =>
+            prev.map((item) => (item._id === projectTaskId ? statusRes.data : item))
+          );
+        } catch (err) {
+          console.error('Could not mark task in progress:', err);
+        }
+      }
+      setStartTaskOpen(false);
+      setError(null);
+    } catch (err) {
+      console.error('Failed to start task:', err);
+      setError('Failed to start task');
+    }
+  };
+
+  const handleStopTimer = async () => {
+    try {
+      const res = await timeEntriesApi.stop();
+      setActiveTimer(null);
+      if (matchesMemberEntryFilter({ ...res.data, isRunning: false })) {
+        setEntries((prev) => [res.data, ...prev.filter((entry) => entry._id !== res.data._id)]);
+      }
+      setError(null);
+    } catch (err) {
+      console.error('Failed to stop timer:', err);
+      setError('Failed to stop timer');
+    }
+  };
+
   const totalSeconds = entries.reduce((sum, e) => sum + e.duration, 0);
 
   return (
@@ -155,6 +208,15 @@ function MemberEntries() {
           >
             <Filter className="h-4 w-4" />
             Filters
+          </button>
+          <button
+            onClick={() => setStartTaskOpen(true)}
+            disabled={Boolean(activeTimer?.isRunning)}
+            className="btn-secondary flex items-center gap-2 disabled:cursor-not-allowed disabled:opacity-50"
+            title={activeTimer?.isRunning ? 'Stop the current timer first' : 'Start a task'}
+          >
+            <Play className="h-4 w-4" />
+            Start task
           </button>
           <button
             onClick={() => {
@@ -246,6 +308,25 @@ function MemberEntries() {
         </div>
       )}
 
+      {activeTimer?.isRunning && (
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-primary-100 bg-primary-50/60 px-4 py-3">
+          <div>
+            <p className="text-xs font-medium uppercase tracking-wide text-primary-700">
+              Timer running
+            </p>
+            <TimerDisplay
+              startTime={activeTimer.startTime}
+              isRunning
+              initialDuration={activeTimer.duration}
+            />
+          </div>
+          <button type="button" onClick={() => void handleStopTimer()} className="btn-outline flex items-center gap-2">
+            <Square className="h-4 w-4" />
+            Stop
+          </button>
+        </div>
+      )}
+
       <div className="card">
         <EntryList
           entries={entries}
@@ -268,6 +349,17 @@ function MemberEntries() {
           setEditingEntry(null);
         }}
         onSave={handleSave}
+      />
+
+      <StartTaskPickerModal
+        isOpen={startTaskOpen}
+        projects={projects}
+        projectTasks={projectTasks}
+        taskTypes={taskTypes}
+        showRate={false}
+        isTimerRunning={Boolean(activeTimer?.isRunning)}
+        onClose={() => setStartTaskOpen(false)}
+        onStart={handleStartTask}
       />
     </div>
   );

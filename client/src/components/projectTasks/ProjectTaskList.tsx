@@ -28,6 +28,7 @@ import {
   ChevronUp,
   GripVertical,
   MessageSquare,
+  Play,
 } from 'lucide-react';
 import type { ProjectTask, User } from '../../types';
 import { ProjectTaskModal } from './ProjectTaskModal';
@@ -60,6 +61,10 @@ interface ProjectTaskListProps {
   onToggleStatus: (id: string, status: string) => void;
   onDeleteTask: (id: string) => void;
   onMessageFromTask?: (task: ProjectTask) => void;
+  /** Start the timer for this project task. */
+  onPlayTask?: (task: ProjectTask) => void;
+  isTimerRunning?: boolean;
+  hasTaskTypes?: boolean;
 }
 
 const statusIcons: Record<string, React.ReactNode> = {
@@ -73,6 +78,31 @@ const statusLabels: Record<string, string> = {
   IN_PROGRESS: 'In Progress',
   COMPLETED: 'Completed',
 };
+
+function StartTaskButton({
+  task,
+  disabled,
+  title,
+  onPlay,
+}: {
+  task: ProjectTask;
+  disabled: boolean;
+  title: string;
+  onPlay: (task: ProjectTask) => void;
+}) {
+  if (task.status === 'COMPLETED') return null;
+  return (
+    <button
+      type="button"
+      title={title}
+      disabled={disabled}
+      onClick={() => onPlay(task)}
+      className="flex-shrink-0 p-1.5 rounded-lg text-primary-600 hover:bg-primary-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+    >
+      <Play className="w-4 h-4" />
+    </button>
+  );
+}
 
 function TaskRowActions({
   task,
@@ -141,6 +171,9 @@ function SortableTaskRow({
   onEdit,
   onDelete,
   onMessage,
+  onPlay,
+  playDisabled,
+  playTitle,
 }: {
   task: ProjectTask;
   canToggleStatus: boolean;
@@ -151,6 +184,9 @@ function SortableTaskRow({
   onEdit: (task: ProjectTask) => void;
   onDelete: (task: ProjectTask) => void;
   onMessage?: (task: ProjectTask) => void;
+  onPlay?: (task: ProjectTask) => void;
+  playDisabled?: boolean;
+  playTitle?: string;
 }) {
   const {
     attributes,
@@ -219,6 +255,15 @@ function SortableTaskRow({
         )}
       </div>
 
+      {onPlay && (
+        <StartTaskButton
+          task={task}
+          disabled={Boolean(playDisabled)}
+          title={playTitle || 'Start timer for this task'}
+          onPlay={onPlay}
+        />
+      )}
+
       <TaskRowActions
         task={task}
         canEditTask={canEditTask}
@@ -240,6 +285,9 @@ function StaticTaskRow({
   onEdit,
   onDelete,
   onMessage,
+  onPlay,
+  playDisabled,
+  playTitle,
 }: {
   task: ProjectTask;
   canToggleStatus: boolean;
@@ -249,6 +297,9 @@ function StaticTaskRow({
   onEdit: (task: ProjectTask) => void;
   onDelete: (task: ProjectTask) => void;
   onMessage?: (task: ProjectTask) => void;
+  onPlay?: (task: ProjectTask) => void;
+  playDisabled?: boolean;
+  playTitle?: string;
 }) {
   return (
     <div
@@ -289,6 +340,15 @@ function StaticTaskRow({
         )}
       </div>
 
+      {onPlay && (
+        <StartTaskButton
+          task={task}
+          disabled={Boolean(playDisabled)}
+          title={playTitle || 'Start timer for this task'}
+          onPlay={onPlay}
+        />
+      )}
+
       <TaskRowActions
         task={task}
         canEditTask={canEditTask}
@@ -316,6 +376,9 @@ export function ProjectTaskList({
   onToggleStatus,
   onDeleteTask,
   onMessageFromTask,
+  onPlayTask,
+  isTimerRunning = false,
+  hasTaskTypes = true,
 }: ProjectTaskListProps) {
   const { user } = useUserRole();
   const memberAuth0Id = user?.auth0Id;
@@ -362,6 +425,12 @@ export function ProjectTaskList({
   const totalCount = tasks.length;
 
   const reorderEnabled = Boolean(canReorder && onReorderTasks && canEdit);
+  const playDisabled = isTimerRunning || !hasTaskTypes;
+  const playTitle = !hasTaskTypes
+    ? 'Configure task types first'
+    : isTimerRunning
+      ? 'Stop the current timer first'
+      : 'Start timer for this task';
 
   const handleDragEnd = (event: DragEndEvent) => {
     if (!onReorderTasks) return;
@@ -432,6 +501,9 @@ export function ProjectTaskList({
               onEdit={handleEdit}
               onDelete={(t) => onDeleteTask(t._id)}
               onMessage={onMessageFromTask}
+              onPlay={onPlayTask}
+              playDisabled={playDisabled}
+              playTitle={playTitle}
             />
           ))}
         </div>
@@ -450,6 +522,9 @@ export function ProjectTaskList({
           onEdit={handleEdit}
           onDelete={(t) => onDeleteTask(t._id)}
           onMessage={onMessageFromTask}
+          onPlay={onPlayTask}
+          playDisabled={playDisabled}
+          playTitle={playTitle}
         />
       ))}
     </div>

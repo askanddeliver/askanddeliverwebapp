@@ -6,7 +6,7 @@ This document provides a comprehensive technical reference for the Ask And Deliv
 
 **Baseline:** Production MERN app with Auth0 multi-tenant workspaces (admin / member / client / pending), MongoDB persistence, and Vercel + Railway split deployment.
 
-- **Time & projects** — Live/resume timer, manual entries, project tasks, dashboard to-dos; workspace-scoped data with role-based visibility (members hide financials).
+- **Time & projects** — Live/resume timer, manual entries, project tasks, dashboard to-dos (admin reorder). Start a task from the dashboard, a project hub, or the Time entries pages. Workspace-scoped data with role-based visibility (members hide financials).
 - **Billing** — Reports-driven preview; persistent `Invoice` records (`documentKind`: **INVOICE**, **RETAINER_REPORT**, **DATA_REPORT**, **BUDGET_REPORT**, **PAY_STUB**). `/invoices` is payable **INVOICE** only; `/reports/saved` is the library for utilization/data/budget; `/payroll` is pay stubs (manual payout record; Stripe Connect later). DRAFT → SENT → PAID applies to invoices; **project billing modes** (HOURLY, FIXED_PRICE, HOUR_RETAINER); optional **Stripe Payment Links** (INVOICE only); optional **HOURLY budget burn** via `GET /api/projects/budget-burn`; CSV export and JSON backups (`/backups`: full + filter-preset graph).
 - **Commercial** — Client proposals (`Proposal` model); **workspace-scoped lead pipeline** with configurable intake forms, dynamic public renderer, and conversion to client + project.
 - **Platform expansion (Phases 1–9)** — **Member hub** (`/member/*`) with profile, disciplines, availability; **client portal** (`/portal/*`) with project briefs, client-visible tasks, per-project messaging; **admin command center** (pipeline, WIP, capacity widgets); **member assignment** on projects/tasks/leads; team capacity dashboard.
@@ -770,7 +770,7 @@ askanddeliver.com (Vercel)  ──HTTPS──>  Railway (server)
 | PortalProjects | `/portal/projects` | Client | Client project list |
 | PortalProjectDetail | `/portal/projects/:id` | Client | Brief, tasks, messages |
 | InvoicePaid | `/invoices/paid` | Public | Post–Stripe-checkout confirmation |
-| Dashboard | `/dashboard` | Admin | Command center: timer, pipeline, capacity, todos |
+| Dashboard | `/dashboard` | Admin | Command center: timer, pipeline, capacity, todos (admin can reorder open tasks) |
 | TimeEntries | `/entries` | Auth | Entry list with filters, CRUD |
 | Projects | `/projects` | Auth | Project list with status tabs, tasks, rich-text briefs |
 | Profile | `/profile` | Auth | User profile management |

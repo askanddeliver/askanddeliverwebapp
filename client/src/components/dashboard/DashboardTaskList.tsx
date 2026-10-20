@@ -1,5 +1,22 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import {
   CheckCircle2,
   Circle,
@@ -9,6 +26,7 @@ import {
   ChevronDown,
   ChevronUp,
   Briefcase,
+  GripVertical,
 } from 'lucide-react';
 import type { Project, ProjectTask } from '../../types';
 import { sortProjectTasksByOrder } from '../../utils/projectTasks';
@@ -21,6 +39,9 @@ interface DashboardTaskListProps {
   onPlay: (project: Project, task: ProjectTask) => void;
   /** Cycle task status (TODO → IN_PROGRESS → COMPLETED). Completed tasks leave this list. */
   onToggleStatus?: (id: string, status: string) => void | Promise<void>;
+  /** Admin dashboard: drag open tasks to set priority within each project. */
+  canReorder?: boolean;
+  onReorderTasks?: (projectId: string, openTaskIds: string[]) => void | Promise<void>;
   /** When true, render list only (no outer card). Used inside Internal workspace card. */
   hideOuterCard?: boolean;
   /** Override default "To-do" heading */
@@ -127,6 +148,212 @@ function buildGroups(projects: Project[], tasks: ProjectTask[]): ClientGroup[] {
   return groups;
 }
 
+function TaskRowBody({
+  task,
+  project,
+  isTimerRunning,
+  hasTaskTypes,
+  statusBusy,
+  dragHandle,
+  onPlay,
+  onCycleStatus,
+}: {
+  task: ProjectTask;
+  project: Project;
+  isTimerRunning: boolean;
+  hasTaskTypes: boolean;
+  statusBusy: boolean;
+  dragHandle?: React.ReactNode;
+  onPlay: (project: Project, task: ProjectTask) => void;
+  onCycleStatus?: (task: ProjectTask) => void;
+}) {
+  const playDisabled = isTimerRunning || !hasTaskTypes;
+  return (
+    <>
+      {dragHandle}
+      {onCycleStatus ? (
+        <button
+          type="button"
+          onClick={() => onCycleStatus(task)}
+          disabled={statusBusy}
+          className="mt-0.5 flex-shrink-0 hover:scale-110 transition-transform disabled:opacity-40 disabled:cursor-wait"
+          title={`Status: ${statusLabels[task.status]} — ${statusActionHint[task.status]}`}
+          aria-label={`${statusLabels[task.status]}. ${statusActionHint[task.status]}`}
+        >
+          {statusIcons[task.status]}
+        </button>
+      ) : (
+        <span className="mt-0.5">{statusIcons[task.status]}</span>
+      )}
+      <div className="flex-1 min-w-0">
+        <div className="text-sm font-medium text-gray-900 truncate">{task.title}</div>
+        <div className="flex items-center gap-2 mt-0.5">
+          <span className="text-[10px] uppercase tracking-wide text-gray-400">
+            {statusLabels[task.status]}
+          </span>
+        </div>
+      </div>
+      <button
+        type="button"
+        title={
+          !hasTaskTypes
+            ? 'Configure task types first'
+            : isTimerRunning
+              ? 'Stop the current timer first'
+              : 'Start timer for this task'
+        }
+        disabled={playDisabled}
+        onClick={() => onPlay(project, task)}
+        className="flex-shrink-0 p-1.5 rounded-lg text-primary-600 hover:bg-primary-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+      >
+        <Play className="w-5 h-5" />
+      </button>
+    </>
+  );
+}
+
+function SortableDashboardTaskRow(
+  props: {
+    task: ProjectTask;
+    project: Project;
+    isTimerRunning: boolean;
+    hasTaskTypes: boolean;
+    statusBusy: boolean;
+    onPlay: (project: Project, task: ProjectTask) => void;
+    onCycleStatus?: (task: ProjectTask) => void;
+  }
+) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: props.task._id,
+  });
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
+  return (
+    <li
+      ref={setNodeRef}
+      style={style}
+      className={`flex items-start gap-2 rounded-md py-1.5 -mx-1 px-1 hover:bg-gray-50/80 ${
+        isDragging ? 'shadow-md ring-2 ring-primary-100 z-10 bg-white relative' : ''
+      }`}
+    >
+      <TaskRowBody
+        {...props}
+        dragHandle={
+          <button
+            type="button"
+            className="mt-1 flex-shrink-0 text-gray-300 hover:text-gray-500 cursor-grab active:cursor-grabbing touch-none"
+            {...attributes}
+            {...listeners}
+            aria-label="Drag to set priority"
+          >
+            <GripVertical className="w-4 h-4" />
+          </button>
+        }
+      />
+    </li>
+  );
+}
+
+function OpenTaskRows({
+  project,
+  tasks,
+  canReorder,
+  isTimerRunning,
+  hasTaskTypes,
+  busyTaskId,
+  onPlay,
+  onCycleStatus,
+  onReorderTasks,
+}: {
+  project: Project;
+  tasks: ProjectTask[];
+  canReorder: boolean;
+  isTimerRunning: boolean;
+  hasTaskTypes: boolean;
+  busyTaskId: string | null;
+  onPlay: (project: Project, task: ProjectTask) => void;
+  onCycleStatus?: (task: ProjectTask) => void;
+  onReorderTasks?: (projectId: string, openTaskIds: string[]) => void | Promise<void>;
+}) {
+  const [items, setItems] = useState(tasks);
+
+  useEffect(() => {
+    setItems(tasks);
+  }, [tasks]);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
+
+  const handleDragEnd = async (event: DragEndEvent) => {
+    if (!onReorderTasks) return;
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const oldIndex = items.findIndex((task) => task._id === active.id);
+    const newIndex = items.findIndex((task) => task._id === over.id);
+    if (oldIndex < 0 || newIndex < 0) return;
+    const previous = items;
+    const next = arrayMove(items, oldIndex, newIndex);
+    setItems(next);
+    try {
+      await onReorderTasks(
+        project._id,
+        next.map((task) => task._id)
+      );
+    } catch {
+      setItems(previous);
+    }
+  };
+
+  if (!canReorder || !onReorderTasks) {
+    return (
+      <ul className="mt-2 space-y-1">
+        {tasks.map((task) => (
+          <li
+            key={task._id}
+            className="flex items-start gap-2 rounded-md py-1.5 -mx-1 px-1 hover:bg-gray-50/80"
+          >
+            <TaskRowBody
+              task={task}
+              project={project}
+              isTimerRunning={isTimerRunning}
+              hasTaskTypes={hasTaskTypes}
+              statusBusy={busyTaskId === task._id}
+              onPlay={onPlay}
+              onCycleStatus={onCycleStatus}
+            />
+          </li>
+        ))}
+      </ul>
+    );
+  }
+
+  return (
+    <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={(event) => void handleDragEnd(event)}>
+      <SortableContext items={items.map((task) => task._id)} strategy={verticalListSortingStrategy}>
+        <ul className="mt-2 space-y-1">
+          {items.map((task) => (
+            <SortableDashboardTaskRow
+              key={task._id}
+              task={task}
+              project={project}
+              isTimerRunning={isTimerRunning}
+              hasTaskTypes={hasTaskTypes}
+              statusBusy={busyTaskId === task._id}
+              onPlay={onPlay}
+              onCycleStatus={onCycleStatus}
+            />
+          ))}
+        </ul>
+      </SortableContext>
+    </DndContext>
+  );
+}
+
 export function DashboardTaskList({
   projects,
   projectTasks,
@@ -134,6 +361,8 @@ export function DashboardTaskList({
   hasTaskTypes,
   onPlay,
   onToggleStatus,
+  canReorder = false,
+  onReorderTasks,
   hideOuterCard = false,
   title = 'To-do',
   projectsLink = '/projects',
@@ -271,58 +500,24 @@ export function DashboardTaskList({
                     )}
 
                     {tasksExpanded && tasks.length > 0 && (
-                      <ul className="mt-2 space-y-1">
-                        {tasks.map((task) => {
-                          const playDisabled = isTimerRunning || !hasTaskTypes;
-                          const statusBusy = busyTaskId === task._id;
-                          return (
-                            <li
-                              key={task._id}
-                              className="flex items-start gap-2 rounded-md py-1.5 -mx-1 px-1 hover:bg-gray-50/80"
-                            >
-                              {onToggleStatus ? (
-                                <button
-                                  type="button"
-                                  onClick={() => handleCycleStatus(task)}
-                                  disabled={statusBusy}
-                                  className="mt-0.5 flex-shrink-0 hover:scale-110 transition-transform disabled:opacity-40 disabled:cursor-wait"
-                                  title={`Status: ${statusLabels[task.status]} — ${statusActionHint[task.status]}`}
-                                  aria-label={`${statusLabels[task.status]}. ${statusActionHint[task.status]}`}
-                                >
-                                  {statusIcons[task.status]}
-                                </button>
-                              ) : (
-                                <span className="mt-0.5">{statusIcons[task.status]}</span>
-                              )}
-                              <div className="flex-1 min-w-0">
-                                <div className="text-sm font-medium text-gray-900 truncate">
-                                  {task.title}
-                                </div>
-                                <div className="flex items-center gap-2 mt-0.5">
-                                  <span className="text-[10px] uppercase tracking-wide text-gray-400">
-                                    {statusLabels[task.status]}
-                                  </span>
-                                </div>
-                              </div>
-                              <button
-                                type="button"
-                                title={
-                                  !hasTaskTypes
-                                    ? 'Configure task types first'
-                                    : isTimerRunning
-                                      ? 'Stop the current timer first'
-                                      : 'Start timer for this task'
-                                }
-                                disabled={playDisabled}
-                                onClick={() => onPlay(project, task)}
-                                className="flex-shrink-0 p-1.5 rounded-lg text-primary-600 hover:bg-primary-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                              >
-                                <Play className="w-5 h-5" />
-                              </button>
-                            </li>
-                          );
-                        })}
-                      </ul>
+                      <>
+                        {canReorder && (
+                          <p className="mt-2 text-[11px] text-gray-400">
+                            Drag tasks by the handle to set priority.
+                          </p>
+                        )}
+                        <OpenTaskRows
+                          project={project}
+                          tasks={tasks}
+                          canReorder={canReorder}
+                          isTimerRunning={isTimerRunning}
+                          hasTaskTypes={hasTaskTypes}
+                          busyTaskId={busyTaskId}
+                          onPlay={onPlay}
+                          onCycleStatus={onToggleStatus ? handleCycleStatus : undefined}
+                          onReorderTasks={onReorderTasks}
+                        />
+                      </>
                     )}
                   </li>
                 );

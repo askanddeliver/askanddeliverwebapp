@@ -10,7 +10,7 @@ A full-featured time tracking, client management, and invoicing application buil
 - **Manual time entry** — Log time after the fact with custom start/end times
 - **Quick entry** — Streamlined form for fast time logging
 - **Per-project & per-task tracking** — Associate entries with projects, task types, and project tasks
-- **Dashboard To-Do** — Lists open project tasks (TODO / in progress) for active projects, grouped by client; **Play** opens a modal to pick task type and optional description, then starts the timer (same rules as the main timer)
+- **Dashboard To-Do** — Lists open project tasks (TODO / in progress) for active projects, grouped by client; **Play** opens a modal to pick task type and optional description, then starts the timer. Admins can drag open tasks on the dashboard to set priority (completed tasks stay in place).
 - **Workspace-scoped entries** — Admins see all workspace entries; members see only their own
 
 ### Client Management & Discount Pricing
@@ -28,9 +28,9 @@ A full-featured time tracking, client management, and invoicing application buil
 - **Rich-text briefs** — WYSIWYG project brief editor powered by Tiptap (bold, italic, lists, undo/redo)
 - **Portfolio-aligned fields** — Projects include excerpt, year, categories, disciplines, challenge, solution, and results fields for seamless conversion to portfolio case studies
 - **Archive vs. delete** — Soft-archive projects to hide them, or permanently delete
-- **Project hub** — Admin `/projects/:id` and member `/member/projects/:id`: team, brief, budget (admin), client requests, tasks, time, files, messages
+- **Project hub** — Admin `/projects/:id` and member `/member/projects/:id`: team, brief, budget (admin), client requests, tasks, time, files, messages. Each open task has **Play**, which starts the timer for that task.
 - **Client cards** — `/projects` groups by client; admins pin hot clients; unread message badges; open-task lists start collapsed
-- **Project tasks** — Break projects into individual tasks with status (TODO, IN_PROGRESS, COMPLETED), drag-and-drop ordering, estimated hours, client visibility, and optional assignee
+- **Project tasks** — Break projects into individual tasks with status (TODO, IN_PROGRESS, COMPLETED), drag-and-drop ordering (admin, on the project hub and the admin dashboard), estimated hours, client visibility, and optional assignee. Start a task from the admin or member **Time entries** page (`/entries`, `/member/entries`) via **Start task**.
 - **Client task requests** — Portal users suggest tasks; admin approves (creates a board task) or declines; members see the queue read-only
 
 ### Task Type Configuration

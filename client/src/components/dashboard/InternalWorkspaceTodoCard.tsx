@@ -11,6 +11,8 @@ interface InternalWorkspaceTodoCardProps {
   hasTaskTypes: boolean;
   onPlay: (project: Project, task: ProjectTask) => void;
   onToggleStatus?: (id: string, status: string) => void | Promise<void>;
+  canReorder?: boolean;
+  onReorderTasks?: (projectId: string, openTaskIds: string[]) => void | Promise<void>;
 }
 
 export function InternalWorkspaceTodoCard({
@@ -20,6 +22,8 @@ export function InternalWorkspaceTodoCard({
   hasTaskTypes,
   onPlay,
   onToggleStatus,
+  canReorder = false,
+  onReorderTasks,
 }: InternalWorkspaceTodoCardProps) {
   const [expanded, setExpanded] = useState(false);
 
@@ -75,6 +79,8 @@ export function InternalWorkspaceTodoCard({
             hasTaskTypes={hasTaskTypes}
             onPlay={onPlay}
             onToggleStatus={onToggleStatus}
+            canReorder={canReorder}
+            onReorderTasks={onReorderTasks}
             hideOuterCard
             title="Internal to-do"
           />

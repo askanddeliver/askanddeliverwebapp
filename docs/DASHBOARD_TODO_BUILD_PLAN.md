@@ -1,6 +1,14 @@
 # Dashboard To-Do List & Task Priority — Build Plan
 
-This document describes a planned improvement: a **dashboard To-Do panel** that surfaces open work across **active projects**, grouped by **client**, respects **task priority order** from the Projects screen, and lets users **start the timer** from a task row via **Play**, which opens a **modal or drawer** to confirm billing fields before the timer runs. It is intended as implementation context before development begins.
+**Shipped.** The dashboard To-Do panel, project-hub drag reorder, and Play → start-timer modal are in the app. Later additions:
+
+- **Admin dashboard** — expand a project’s open tasks and drag the handle to set priority. The reorder request includes completed tasks in their existing slots so they do not jump. Members do not get dashboard drag handles.
+- **Project hub** (`/projects/:id` and `/member/projects/:id`) — each open task has **Play**, which opens `StartTaskTimerModal`. Starting a `TODO` task sets it to `IN_PROGRESS`.
+- **Time entries** (`/entries` and `/member/entries`) — **Start task** opens `StartTaskPickerModal` (client, project, open task, task type). A running timer is shown on the page with Stop.
+
+The sections below are the original plan. Where they disagree with the list above, the shipped behavior wins.
+
+This document describes a planned improvement: a **dashboard To-Do panel** that surfaces open work across **active projects**, grouped by **client**, respects **task priority order**, and lets users **start the timer** from a task row via **Play**, which opens a **modal** to confirm billing fields before the timer runs.
 
 ---
 
@@ -42,7 +50,7 @@ Users manage **project tasks** on the Projects screen and pick tasks when **star
 |------|----------|
 | **Models** | `ProjectTask` includes `status` (`TODO` \| `IN_PROGRESS` \| `COMPLETED`) and `order` (number). `TimeEntry` optionally links `projectTaskId`. |
 | **API** | `GET /api/project-tasks` returns tasks (optionally filtered by `projectId`), sorted by `order`, `createdAt`. `PUT /api/project-tasks/reorder` updates order for a project (admin-only). |
-| **Projects UI** | `ProjectTaskList` shows tasks with status icons and cycle control; **no drag-and-drop** reorder UI wired to `projectTasksApi.reorder`. |
+| **Projects UI** | `ProjectTaskList` on the project hub supports admin drag-and-drop via `projectTasksApi.reorder`, plus **Play** on open tasks. |
 | **Dashboard** | Loads projects, task types, all project tasks, and active timer; `TimerControls` requires user to pick **project**, **task type**, and optionally **project task**. `EntryList` supports **Continue** on **recent entries** when no timer is running. |
 | **Timer start** | `POST /api/time-entries/start` requires **`projectId` and `taskTypeId`**; `projectTaskId` is optional. |
 
@@ -224,7 +232,11 @@ Optional later enhancements (not required for v1):
 | Time entry start | `server/src/routes/timeEntries.ts` |
 | Dashboard page | `client/src/pages/Dashboard.tsx` |
 | Timer controls | `client/src/components/timer/TimerControls.tsx` |
-| Play → start modal (new) | e.g. `client/src/components/timer/StartTaskTimerModal.tsx` (or alongside Dashboard To-Do component) |
+| Play → start modal | `client/src/components/timer/StartTaskTimerModal.tsx` |
+| Entries start-task picker | `client/src/components/timer/StartTaskPickerModal.tsx` |
+| Dashboard task list | `client/src/components/dashboard/DashboardTaskList.tsx` |
+| Time entries pages | `client/src/pages/TimeEntries.tsx`, `client/src/pages/member/MemberEntries.tsx` |
+| Project hub | `client/src/pages/ProjectHub.tsx` |
 | Project task list | `client/src/components/projectTasks/ProjectTaskList.tsx` |
 | Projects page / grouping | `client/src/pages/Projects.tsx` |
 | API client | `client/src/services/api.ts` |

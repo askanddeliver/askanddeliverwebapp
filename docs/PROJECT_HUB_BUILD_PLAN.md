@@ -114,7 +114,7 @@ Layout order (desktop — single column, max-width ~960px):
 │  ProjectTaskSuggestionsPanel — admin approve/decline         │
 ├──────────────────────────────────────────────────────────────┤
 │  TASKS                                                       │
-│  ProjectTaskList — full CRUD, reorder (admin), clientVisible │
+│  ProjectTaskList — CRUD, reorder (admin), Play on open tasks │
 ├──────────────────────────────────────────────────────────────┤
 │  TIME ENTRIES                                                │
 │  EntryList filtered to projectId · admin: amounts/rates      │
@@ -179,6 +179,7 @@ Reuse `ProjectTaskList` with existing props:
 
 - Admin: reorder, delete, `clientVisible` checkbox
 - Member: create/update/status toggle, no delete/reorder unless extended
+- Admin and member: **Play** on each open task opens `StartTaskTimerModal` (project and task fixed). Starting a `TODO` task sets status to `IN_PROGRESS`. Play is disabled while a timer is already running.
 
 #### Time entries
 

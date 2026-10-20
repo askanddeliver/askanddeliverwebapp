@@ -24,6 +24,7 @@ import {
   dashboardApi,
 } from '../services/api';
 import { formatDurationHuman, formatCurrency, getDashboardPeriodParams } from '../utils/calculations';
+import { taskIdsAfterOpenReorder } from '../utils/projectTasks';
 import type {
   TimeEntry,
   Project,
@@ -246,6 +247,29 @@ function Dashboard() {
     } catch (err) {
       console.error('Failed to update task status:', err);
       setError('Failed to update task status');
+    }
+  };
+
+  const handleReorderTasks = async (projectId: string, openTaskIds: string[]) => {
+    const taskIds = taskIdsAfterOpenReorder(projectTasks, projectId, openTaskIds);
+    try {
+      const res = await projectTasksApi.reorder(projectId, taskIds);
+      const orderById = new Map(
+        (res.data || []).map((task) => [task._id, task.order ?? 0])
+      );
+      const mergeOrders = (prev: ProjectTask[]): ProjectTask[] =>
+        prev.map((task) =>
+          orderById.has(task._id)
+            ? { ...task, order: orderById.get(task._id) ?? task.order }
+            : task
+        );
+      setProjectTasks(mergeOrders);
+      setProjectTasksClient(mergeOrders);
+      setProjectTasksInternal(mergeOrders);
+    } catch (err) {
+      console.error('Failed to reorder tasks:', err);
+      setError('Failed to reorder tasks');
+      throw err;
     }
   };
 
@@ -520,6 +544,8 @@ function Dashboard() {
             hasTaskTypes={taskTypes.length > 0}
             onPlay={(project, task) => setStartTaskContext({ project, task })}
             onToggleStatus={handleToggleTaskStatus}
+            canReorder={isAdmin}
+            onReorderTasks={isAdmin ? handleReorderTasks : undefined}
           />
           {isAdmin && (
             <InternalWorkspaceTodoCard
@@ -529,6 +555,8 @@ function Dashboard() {
               hasTaskTypes={taskTypes.length > 0}
               onPlay={(project, task) => setStartTaskContext({ project, task })}
               onToggleStatus={handleToggleTaskStatus}
+              canReorder
+              onReorderTasks={handleReorderTasks}
             />
           )}
         </>

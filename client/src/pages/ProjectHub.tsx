@@ -14,6 +14,7 @@ import ProjectTaskSuggestionsPanel from '../components/projects/ProjectTaskSugge
 import ProjectJumpNav, { hubJumpSections } from '../components/projects/ProjectJumpNav';
 import { ProjectModal, type ProjectModalSaveData } from '../components/projects/ProjectModal';
 import { EntryModal } from '../components/entries/EntryModal';
+import { StartTaskTimerModal } from '../components/timer/StartTaskTimerModal';
 import SanitizedBrief from '../components/portal/SanitizedBrief';
 import {
   clientsApi,
@@ -65,6 +66,7 @@ function ProjectHub() {
   const [composeFromTask, setComposeFromTask] = useState<MessageComposeFromTask | null>(
     null
   );
+  const [startTask, setStartTask] = useState<ProjectTask | null>(null);
 
   const loadProject = useCallback(async () => {
     if (!id) return;
@@ -295,7 +297,7 @@ function ProjectHub() {
     taskTypeId: string,
     projectTaskId?: string,
     description?: string
-  ) => {
+  ): Promise<boolean> => {
     try {
       const res = await timeEntriesApi.start({
         projectId,
@@ -305,10 +307,32 @@ function ProjectHub() {
       });
       setActiveTimer(res.data);
       setError(null);
+      return true;
     } catch (err) {
       console.error('Failed to start timer:', err);
       setError('Failed to start timer');
+      return false;
     }
+  };
+
+  const handleStartFromTask = async (
+    projectId: string,
+    taskTypeId: string,
+    projectTaskId: string,
+    description?: string
+  ) => {
+    const task = startTask;
+    const ok = await handleStart(projectId, taskTypeId, projectTaskId, description);
+    if (!ok || !task) return;
+    if (task.status === 'TODO') {
+      try {
+        const res = await projectTasksApi.updateStatus(task._id, 'IN_PROGRESS');
+        setTasks((prev) => prev.map((item) => (item._id === task._id ? res.data : item)));
+      } catch (err) {
+        console.error('Could not mark task in progress:', err);
+      }
+    }
+    setStartTask(null);
   };
 
   const handleStop = async () => {
@@ -511,6 +535,9 @@ function ProjectHub() {
               onReorderTasks={handleReorderTasks}
               memberMode={!isAdmin}
               embedded
+              onPlayTask={(task) => setStartTask(task)}
+              isTimerRunning={Boolean(activeTimer?.isRunning)}
+              hasTaskTypes={taskTypes.length > 0}
             />
           </AdminPanel>
         </section>
@@ -526,7 +553,9 @@ function ProjectHub() {
               showAmount={isAdmin}
               showRate={isAdmin}
               loading={entriesLoading}
-              onStart={handleStart}
+              onStart={(projectId, taskTypeId, projectTaskId, description) => {
+                void handleStart(projectId, taskTypeId, projectTaskId, description);
+              }}
               onStop={handleStop}
               onAddEntry={() => {
                 setEditingEntry(null);
@@ -597,6 +626,17 @@ function ProjectHub() {
           setEditingEntry(null);
         }}
         onSave={handleSaveEntry}
+      />
+
+      <StartTaskTimerModal
+        isOpen={startTask !== null}
+        project={project}
+        projectTask={startTask}
+        taskTypes={taskTypes}
+        showRate={isAdmin}
+        isTimerRunning={Boolean(activeTimer?.isRunning)}
+        onClose={() => setStartTask(null)}
+        onStart={handleStartFromTask}
       />
     </div>
   );
