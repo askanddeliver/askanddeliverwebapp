@@ -202,6 +202,10 @@ Per-project thread using `ProjectMessage` model. See [Messaging](#messaging-proj
 
 Shared `ProjectAsset` library. Client sees **client-visible** files only, may **upload** (always visible), and may **delete own** uploads. Team may toggle visibility. See [PROJECT_COMMUNICATION_AND_ASSETS.md](./PROJECT_COMMUNICATION_AND_ASSETS.md).
 
+#### Documents section (shipped)
+
+Google Docs for the project. Client can list and create docs and open them in Google. They do not see who else has access. Editing still requires a Google sign-in for the granted email. See [PROJECT_COMMUNICATION_AND_ASSETS.md](./PROJECT_COMMUNICATION_AND_ASSETS.md).
+
 **UX:** Chronological list (oldest first or newest-first with sticky compose — pick newest-first + compose at bottom). Each item: author display name, timestamp, body (plain text or markdown subset).
 
 **Polling:** Refresh on interval (60s) or manual refresh button — no WebSocket in v1.

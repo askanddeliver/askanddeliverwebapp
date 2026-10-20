@@ -213,6 +213,7 @@ publicSlug?: string;           // optional creative portfolio page (future)
 | **Project detail** | **Brief** (sanitized HTML), **client-visible tasks**, **files**, **per-project message thread** |
 | **Messaging** | Client reads `clientVisible` messages; client can **reply** (always client-visible). Admin/member compose and PATCH visibility on hub |
 | **Files** | Client-visible Cloudinary library; client may upload (always visible) — [PROJECT_COMMUNICATION_AND_ASSETS.md](./PROJECT_COMMUNICATION_AND_ASSETS.md) |
+| **Documents** | Google Docs in the workspace Shared Drive; client may create and edit; no access list |
 | **Home** | Active project summary + recent project-scoped activity |
 
 **Task visibility:** `ProjectTask.clientVisible` (default `false`) — admin opts tasks into the portal.

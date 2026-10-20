@@ -362,6 +362,11 @@ CLOUDINARY_CLOUD_NAME=your-cloud-name
 CLOUDINARY_API_KEY=your-api-key
 CLOUDINARY_API_SECRET=your-api-secret
 
+# Optional: per-project Google Docs (Shared Drive). Omit to leave the Documents tray disabled.
+# GOOGLE_SERVICE_ACCOUNT_EMAIL=project-docs@project.iam.gserviceaccount.com
+# GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"
+# GOOGLE_SHARED_DRIVE_ID=
+
 # Optional: Primary admin (always gets admin role, fixes signup-order edge cases)
 # PRIMARY_ADMIN_EMAIL=your-email@example.com
 
@@ -645,7 +650,7 @@ Workspace-scoped pipeline record with `userId` (workspace owner). Top-level inta
 Client record with `name`, `company`, `email`, `businessEntity` (official entity name for invoices), `address` (for invoices), `paymentPreference` (ACH | MAILED, defaults to MAILED), optional `pinned` (workspace-level Projects card order), and a `taskDiscounts` map — a `Map<string, number>` where each key is a TaskType ID and the value is a discount percentage (0–100).
 
 ### Project
-Linked to a Client. Tracks `title`, `description`, `brief`, `status`, optional `budget`, billing modes, portfolio-aligned fields, and `assignedMemberIds` (member Auth0 subs).
+Linked to a Client. Tracks `title`, `description`, `brief`, `status`, optional `budget`, billing modes, portfolio-aligned fields, `assignedMemberIds` (member Auth0 subs), and optional `googleFolderId` (Shared Drive folder, set when the first Google Doc is created).
 
 ### TaskType
 Billable categories (e.g., "Design", "Development") with `name`, `rate` (hourly), and `color`.
@@ -664,6 +669,12 @@ Per-project thread. Two-tier `clientVisible`; optional task snapshot and reply p
 
 ### ProjectAsset
 Per-project Cloudinary file. Two-tier `clientVisible`; clients upload as always-visible. Team can toggle visibility after upload.
+
+### ProjectDocument
+Per-project Google Doc. Stores `googleFileId`, `title`, `mimeType`, and who created it. The file itself stays in the Shared Drive. See [docs/PROJECT_COMMUNICATION_AND_ASSETS.md](docs/PROJECT_COMMUNICATION_AND_ASSETS.md).
+
+### ProjectFolderGrant
+One Drive permission per person on the project folder (`admin` / `member` / `client`), with `googlePermissionId` and `status` (`granted` / `pending` / `failed`). Admins keep access when a project is completed or archived; clients and assigned members do not.
 
 ### LineItem
 Fixed-cost billing entries for non-hourly charges. Linked to a Client and optionally a Project. Tracks `description`, `amount`, `category` (e.g., Software/Plugin, Hosting, Subcontractor), and `date`. Included alongside time entries in invoices and CSV exports. Optional `invoiceId` when included on a SENT invoice.
@@ -743,6 +754,9 @@ AUTH0_AUDIENCE=<auth0-api-identifier>
 CLOUDINARY_CLOUD_NAME=your-cloud-name
 CLOUDINARY_API_KEY=your-api-key
 CLOUDINARY_API_SECRET=your-api-secret
+GOOGLE_SERVICE_ACCOUNT_EMAIL=project-docs@project.iam.gserviceaccount.com
+GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"
+GOOGLE_SHARED_DRIVE_ID=<shared-drive-id>
 PRIMARY_ADMIN_EMAIL=your-email@example.com
 STRIPE_SECRET_KEY=sk_live_...
 STRIPE_WEBHOOK_SECRET=whsec_...

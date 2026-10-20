@@ -205,7 +205,7 @@ The application uses a workspace-based multi-tenancy model where all data is sco
 
 **Pattern A — Direct userId scoping**: `userId = extractUserId(req)`. Admin-only data where members have no access. Entity's `userId` matches the authenticated user's Auth0 sub.
 
-**Pattern B — Workspace scoping**: `userId = await getWorkspaceOwnerId(req)`. Shared data that both admin and members can read. Used for Projects, TaskTypes, ProjectTasks, ProjectTaskSuggestions, TimeEntries, Reports, Export, **Leads**, Dashboard aggregates, ProjectMessages, ProjectAssets.
+**Pattern B — Workspace scoping**: `userId = await getWorkspaceOwnerId(req)`. Shared data that both admin and members can read. Used for Projects, TaskTypes, ProjectTasks, ProjectTaskSuggestions, TimeEntries, Reports, Export, **Leads**, Dashboard aggregates, ProjectMessages, ProjectAssets, ProjectDocuments, ProjectFolderGrants.
 
 **Pattern C — Client portal scoping**: Every portal API uses `requireClient` and queries `{ userId: workspaceOwnerId, clientId: user.clientId }`. Never accept clientId from request body.
 
@@ -247,6 +247,9 @@ User (auth0Id)
  │     │     │     └── optional projectTaskId + replyToMessageId
  │     │     │
  │     │     ├──> ProjectAsset (projectId, userId) — Cloudinary library
+ │     │     │
+ │     │     ├──> ProjectDocument (projectId, userId) — Google Doc id + title
+ │     │     ├──> ProjectFolderGrant (projectId, email) — Shared Drive folder ACL
  │     │     │
  │     │     ├──> TimeEntry (projectId, taskTypeId, userId)
  │     │     │     ├── startTime, endTime, duration, isRunning
@@ -709,10 +712,11 @@ askanddeliver.com (Vercel)  ──HTTPS──>  Railway (server)
 | `routes/dashboard.ts` | `/api/dashboard` | checkJwt + admin |
 | `routes/projectMessages.ts` | `/api/projects/:projectId/messages` | checkJwt (notifyMode; mark-read) |
 | `routes/projectAssets.ts` | `/api/projects/:projectId/assets` | checkJwt |
+| `routes/projectDocuments.ts` | `/api/projects/:projectId/documents` | checkJwt + requireMemberOrAdmin; portal twin under `/api/portal` |
 | `routes/projectTaskSuggestions.ts` | `/api/projects/:projectId/task-suggestions` | checkJwt + requireMemberOrAdmin; requireAdmin on approve/decline |
 | `routes/webhooks.ts` | `/api/webhooks/stripe` | Stripe signature (no JWT; raw body) |
 
-### Server Models (18 active)
+### Server Models (20 active)
 
 | File | Collection | Key Indexes |
 |------|-----------|-------------|
@@ -727,6 +731,8 @@ askanddeliver.com (Vercel)  ──HTTPS──>  Railway (server)
 | `models/ProjectTaskSuggestion.ts` | projecttasksuggestions | `{ projectId, status }`, `userId` |
 | `models/ProjectMessage.ts` | projectmessages | `{ projectId, createdAt }` |
 | `models/ProjectAsset.ts` | projectassets | `{ projectId, createdAt }`, `userId` |
+| `models/ProjectDocument.ts` | projectdocuments | `{ userId, projectId, createdAt }`, `{ userId, googleFileId }` unique |
+| `models/ProjectFolderGrant.ts` | projectfoldergrants | `{ projectId, email }` unique |
 | `models/TimeBlock.ts` | timeblocks | `{ userId, startTime }` |
 | `models/LineItem.ts` | lineitems | `{ userId, clientId }`, `{ userId, date }` |
 | `models/FilterPreset.ts` | filterpresets | `{ userId, kind, name }` (unique), `{ userId, kind, updatedAt }` |

@@ -123,6 +123,9 @@ Layout order (desktop — single column, max-width ~960px):
 │  FILES (#files)                                              │
 │  ProjectAssetsPanel — Cloudinary library, Internal/Client    │
 ├──────────────────────────────────────────────────────────────┤
+│  DOCUMENTS (#documents)                                      │
+│  ProjectDocumentsPanel — Google Docs in the Shared Drive     │
+├──────────────────────────────────────────────────────────────┤
 │  MESSAGES                                                    │
 │  ProjectMessagesPanel — clientVisible + Notify None/@/Team   │
 │  Compose-from-task chip; PATCH existing visibility           │
@@ -270,6 +273,7 @@ Use admin redesign panels (`AdminPanel`, `AdminPageHeader`) where the hub lives 
 | Tasks | Full CRUD + reorder + clientVisible | Create/update/status |
 | Time entries | All workspace entries on project | Own entries only |
 | Files | All + upload + visibility toggle; admin may delete any | All on assigned projects + upload + toggle; delete own |
+| Documents | List, create, open; admin sees folder access | List, create, open; no access list |
 | Messages | All + compose + clientVisible + Notify None/@/Team | Same (no financial leakage) |
 | Client requests | Approve / decline | Read-only queue |
 | Team | View + edit assignments | View names only |
@@ -289,7 +293,7 @@ Existing middleware on routes enforces this — hub is primarily a **composition
 | Reports invoice line | `/projects/:id#entries` |
 | Client portal (admin view) | Admin opens same project at `/projects/:id` — not portal route |
 
-Use URL hash for scroll-to-section. Sticky **Jump to** chips on the hub (`ProjectJumpNav`) cover Team, Brief, Budget (admin), Requests, Tasks, Time, Files, Messages.
+Use URL hash for scroll-to-section. Sticky **Jump to** chips on the hub (`ProjectJumpNav`) cover Team, Brief, Budget (admin), Requests, Tasks, Time, Files, Documents, Messages.
 
 ---
 
@@ -338,6 +342,7 @@ Use URL hash for scroll-to-section. Sticky **Jump to** chips on the hub (`Projec
 | Task list | `client/src/components/projectTasks/ProjectTaskList.tsx` |
 | Messages | `client/src/components/projects/ProjectMessagesPanel.tsx` |
 | Files | `client/src/components/projects/ProjectAssetsPanel.tsx` |
+| Documents | `client/src/components/projects/ProjectDocumentsPanel.tsx` |
 | Jump nav | `client/src/components/projects/ProjectJumpNav.tsx` |
 | Brief render | `client/src/components/portal/SanitizedBrief.tsx` |
 | Budget burn API | `server/src/routes/projects.ts` (`/budget-burn`, `GET /:id`) |
@@ -351,6 +356,7 @@ Use URL hash for scroll-to-section. Sticky **Jump to** chips on the hub (`Projec
 
 | Date | Change |
 |------|--------|
+| 2026-10-19 | Google Docs tray on hub and portal — [PROJECT_COMMUNICATION_AND_ASSETS.md](./PROJECT_COMMUNICATION_AND_ASSETS.md) |
 | 2026-10-16 | Unread badges, workspace pins, client requests, collapsed list tasks, Notify None/@/Team |
 | 2026-09-25 | Sticky Jump to chips on hub (and stronger portal chips) |
 | 2026-09-25 | Files library + member/anytime message visibility + compose-from-task — [PROJECT_COMMUNICATION_AND_ASSETS.md](./PROJECT_COMMUNICATION_AND_ASSETS.md) |

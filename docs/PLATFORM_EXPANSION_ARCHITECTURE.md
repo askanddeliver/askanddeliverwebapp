@@ -541,7 +541,7 @@ interface IProjectMessage {
 - `POST /api/projects/:id/messages/read` — mark unread cursor
 - `PATCH /api/projects/:id/messages/:messageId` — admin/member flip `clientVisible`
 
-Project files: Cloudinary `ProjectAsset` — [PROJECT_COMMUNICATION_AND_ASSETS.md](./PROJECT_COMMUNICATION_AND_ASSETS.md). Unread, pins, task requests, and Notify None/@/Team: [ONBOARDING_UX_EXPANSIONS_BUILD_PLAN.md](./ONBOARDING_UX_EXPANSIONS_BUILD_PLAN.md).
+Project files: Cloudinary `ProjectAsset` — [PROJECT_COMMUNICATION_AND_ASSETS.md](./PROJECT_COMMUNICATION_AND_ASSETS.md). Google Docs live in the workspace Shared Drive (`ProjectDocument`, `ProjectFolderGrant`). Unread, pins, task requests, and Notify None/@/Team: [ONBOARDING_UX_EXPANSIONS_BUILD_PLAN.md](./ONBOARDING_UX_EXPANSIONS_BUILD_PLAN.md).
 
 v1 scope originally: project-scoped threads only. Email notifications shipped separately (Resend). Files library shipped 2026-09-25.
 

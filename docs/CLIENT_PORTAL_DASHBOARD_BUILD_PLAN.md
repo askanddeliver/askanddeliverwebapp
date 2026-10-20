@@ -71,6 +71,7 @@ Full v1 scope is locked in [PLATFORM_EXPANSION_CLIENT_PORTAL_SPEC.md](./PLATFORM
 | Tasks | `clientVisible: true` only — title, description, status badge |
 | Requests | `#requests` — submit a task suggestion; status Waiting / Added / Not added |
 | Files | Client-visible `ProjectAsset` list + upload (always visible); delete own |
+| Documents | Google Docs list + create; no access list |
 | Messages | `ProjectMessageThread` — client can read + reply; task-name chips are static; no Notify picker |
 
 ---
