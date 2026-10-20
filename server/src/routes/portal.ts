@@ -15,6 +15,7 @@ import {
 import { attachUnreadMessageCounts } from '../lib/unreadProjectMessages';
 import { portalProjectMessagesRouter } from './projectMessages';
 import { portalProjectAssetsRouter } from './projectAssets';
+import { portalProjectDocumentsRouter } from './projectDocuments';
 import { portalProjectTaskSuggestionsRouter } from './projectTaskSuggestions';
 
 const router = Router();
@@ -195,6 +196,7 @@ router.get(
 
 router.use('/projects/:projectId/messages', portalProjectMessagesRouter);
 router.use('/projects/:projectId/assets', portalProjectAssetsRouter);
+router.use('/projects/:projectId/documents', portalProjectDocumentsRouter);
 router.use('/projects/:projectId/task-suggestions', portalProjectTaskSuggestionsRouter);
 
 export default router;

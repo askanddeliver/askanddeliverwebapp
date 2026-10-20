@@ -31,6 +31,8 @@ export interface IProject extends Document {
   fixedPriceInvoiceLabel?: string;
   /** Assigned creative team members (Auth0 subs) */
   assignedMemberIds?: string[];
+  /** Shared Drive folder for this project's Google Docs. Set on first doc. */
+  googleFolderId?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -121,6 +123,10 @@ const ProjectSchema = new Schema<IProject>(
     assignedMemberIds: {
       type: [String],
       default: [],
+    },
+    googleFolderId: {
+      type: String,
+      trim: true,
     },
   },
   {

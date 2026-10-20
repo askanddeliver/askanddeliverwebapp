@@ -133,6 +133,8 @@ export interface Project {
   retainerHoursAdjustment?: number;
   fixedPriceInvoiceLabel?: string;
   assignedMemberIds?: string[];
+  /** Shared Drive folder id once a Google Doc has been created. */
+  googleFolderId?: string;
   /** Resolved on GET /api/projects/:id — not stored on the model */
   assignedMembers?: ProjectAssignedMember[];
   /** Admin + assigned members — hub compose @ picker */
@@ -258,6 +260,39 @@ export interface ProjectAsset {
   clientVisible: boolean;
   createdAt: string;
   updatedAt: string;
+}
+
+export type ProjectFolderGrantSubject = 'admin' | 'member' | 'client';
+export type ProjectFolderGrantStatus = 'granted' | 'pending' | 'failed';
+
+export interface ProjectDocument {
+  _id: string;
+  projectId: string;
+  googleFileId: string;
+  title: string;
+  mimeType: string;
+  createdByAuth0Id: string;
+  createdByName: string;
+  createdAt: string;
+  updatedAt: string;
+  webViewLink: string;
+}
+
+export interface ProjectFolderGrant {
+  _id: string;
+  email: string;
+  subject: ProjectFolderGrantSubject;
+  role: 'writer';
+  status: ProjectFolderGrantStatus;
+  error?: string;
+  auth0Id?: string;
+  clientId?: string;
+}
+
+export interface ProjectDocumentsResponse {
+  configured: boolean;
+  documents: ProjectDocument[];
+  grants?: ProjectFolderGrant[];
 }
 
 export interface MessageComposeFromTask {

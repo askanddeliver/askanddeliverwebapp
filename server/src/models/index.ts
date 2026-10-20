@@ -23,6 +23,20 @@ export {
   IProjectAsset,
   ProjectAssetAuthorRole,
 } from './ProjectAsset';
+export {
+  ProjectDocument,
+  IProjectDocument,
+  PROJECT_DOCUMENT_MIME,
+} from './ProjectDocument';
+export type { ProjectDocumentMimeType } from './ProjectDocument';
+export {
+  ProjectFolderGrant,
+  IProjectFolderGrant,
+} from './ProjectFolderGrant';
+export type {
+  ProjectFolderGrantSubject,
+  ProjectFolderGrantStatus,
+} from './ProjectFolderGrant';
 export { PortfolioProject, IPortfolioProject } from './PortfolioProject';
 export { PortfolioPitch, IPortfolioPitch } from './PortfolioPitch';
 export { LineItem, ILineItem } from './LineItem';

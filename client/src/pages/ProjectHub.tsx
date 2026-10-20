@@ -9,6 +9,7 @@ import { ProjectEntriesSection } from '../components/projects/ProjectEntriesSect
 import { ProjectTaskList } from '../components/projectTasks/ProjectTaskList';
 import ProjectMessagesPanel from '../components/projects/ProjectMessagesPanel';
 import ProjectAssetsPanel from '../components/projects/ProjectAssetsPanel';
+import ProjectDocumentsPanel from '../components/projects/ProjectDocumentsPanel';
 import ProjectTaskSuggestionsPanel from '../components/projects/ProjectTaskSuggestionsPanel';
 import ProjectJumpNav, { hubJumpSections } from '../components/projects/ProjectJumpNav';
 import { ProjectModal, type ProjectModalSaveData } from '../components/projects/ProjectModal';
@@ -544,6 +545,12 @@ function ProjectHub() {
         <section id="files" className="scroll-mt-24">
           <AdminPanel title="Files">
             <ProjectAssetsPanel projectId={project._id} variant="team" />
+          </AdminPanel>
+        </section>
+
+        <section id="documents" className="scroll-mt-24">
+          <AdminPanel title="Documents">
+            <ProjectDocumentsPanel projectId={project._id} variant="team" />
           </AdminPanel>
         </section>
 

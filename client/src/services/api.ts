@@ -51,6 +51,8 @@ import type {
   DashboardPipelineResponse,
   DashboardCapacityResponse,
   ProjectAsset,
+  ProjectDocument,
+  ProjectDocumentsResponse,
   ProjectTaskSuggestion,
 } from '../types';
 import type { DashboardPeriodParams } from '../utils/calculations';
@@ -812,6 +814,17 @@ export const projectTaskSuggestionsApi = {
     ),
 };
 
+export const projectDocumentsApi = {
+  list: (projectId: string) =>
+    api.get<ProjectDocumentsResponse>(`/projects/${projectId}/documents`),
+  create: (projectId: string, title: string) =>
+    api.post<ProjectDocument>(`/projects/${projectId}/documents`, { title }),
+  retryAccess: (projectId: string) =>
+    api.post<{ grants: NonNullable<ProjectDocumentsResponse['grants']> }>(
+      `/projects/${projectId}/documents/access/retry`
+    ),
+};
+
 export const projectAssetsApi = {
   list: (projectId: string) =>
     api.get<ProjectAsset[]>(`/projects/${projectId}/assets`),
@@ -858,6 +871,10 @@ export const portalApi = {
   },
   deleteAsset: (projectId: string, assetId: string) =>
     api.delete(`/portal/projects/${projectId}/assets/${assetId}`),
+  getDocuments: (projectId: string) =>
+    api.get<ProjectDocumentsResponse>(`/portal/projects/${projectId}/documents`),
+  createDocument: (projectId: string, title: string) =>
+    api.post<ProjectDocument>(`/portal/projects/${projectId}/documents`, { title }),
   getTaskSuggestions: (projectId: string) =>
     api.get<ProjectTaskSuggestion[]>(`/portal/projects/${projectId}/task-suggestions`),
   createTaskSuggestion: (

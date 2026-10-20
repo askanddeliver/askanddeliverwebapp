@@ -6,6 +6,7 @@ import {
   Inbox,
   ListTodo,
   MessageSquare,
+  ScrollText,
   Users,
   Wallet,
 } from 'lucide-react';
@@ -22,6 +23,7 @@ export const PORTAL_JUMP_SECTIONS: ProjectJumpSection[] = [
   { id: 'tasks', label: 'Tasks', icon: ListTodo },
   { id: 'requests', label: 'Requests', icon: Inbox },
   { id: 'files', label: 'Files', icon: FolderOpen },
+  { id: 'documents', label: 'Documents', icon: ScrollText },
   { id: 'messages', label: 'Messages', icon: MessageSquare },
 ];
 
@@ -38,6 +40,7 @@ export function hubJumpSections(includeBudget: boolean): ProjectJumpSection[] {
     { id: 'tasks', label: 'Tasks', icon: ListTodo },
     { id: 'entries', label: 'Time', icon: Clock },
     { id: 'files', label: 'Files', icon: FolderOpen },
+    { id: 'documents', label: 'Documents', icon: ScrollText },
     { id: 'messages', label: 'Messages', icon: MessageSquare }
   );
   return sections;

@@ -2,7 +2,7 @@ import { Router, Response } from 'express';
 import mongoose from 'mongoose';
 import { checkJwt, AuthRequest, extractUserId, getWorkspaceOwnerId, requireAdmin, loadUser } from '../middleware/auth';
 import { asyncHandler, createError } from '../middleware/errorHandler';
-import { Project, TimeEntry, TimeBlock, User, Client } from '../models';
+import { Project, TimeEntry, TimeBlock, User, Client, ProjectDocument, ProjectFolderGrant } from '../models';
 import type { ITaskType } from '../models/TaskType';
 import type { ProjectBillingMode } from '../models';
 import { getEffectiveRate, parseDateStart, parseDateEnd } from '../utils/calculations';
@@ -10,6 +10,7 @@ import { validateWorkspaceMemberAuth0Ids } from '../lib/memberValidation';
 import { notifyMembersAssignedToProject } from '../lib/email';
 import { memberHasProjectAccess, stripProjectFinancials } from '../lib/memberProjects';
 import { attachUnreadMessageCounts } from '../lib/unreadProjectMessages';
+import { clientIdOf, syncProjectFolderAccess } from '../lib/projectDocumentAccess';
 
 const BILLING_MODES: ProjectBillingMode[] = ['HOURLY', 'FIXED_PRICE', 'HOUR_RETAINER'];
 
@@ -529,6 +530,8 @@ router.put(
     }
 
     const previousAssignedMemberIds = existing.assignedMemberIds || [];
+    const previousStatus = existing.status;
+    const previousClientId = String(existing.clientId);
 
     const mergedMode: ProjectBillingMode =
       (update.billingMode as ProjectBillingMode | undefined) ??
@@ -604,6 +607,14 @@ router.put(
       );
     }
 
+    const membersChanged = rawAssignedMemberIds !== undefined;
+    const statusChanged = status !== undefined && status !== previousStatus;
+    const clientChanged =
+      clientId !== undefined && clientIdOf(project.clientId) !== previousClientId;
+    if (project.googleFolderId && (membersChanged || statusChanged || clientChanged)) {
+      await syncProjectFolderAccess(project);
+    }
+
     res.json(project);
   })
 );
@@ -625,6 +636,8 @@ router.put(
     if (!project) {
       throw createError('Project not found', 404);
     }
+
+    await syncProjectFolderAccess(project);
 
     res.json(project);
   })
@@ -654,6 +667,23 @@ router.delete(
         $set: { kind: 'PERSONAL' },
       }
     );
+
+    if (project.googleFolderId) {
+      await syncProjectFolderAccess({
+        _id: project._id,
+        userId: project.userId,
+        clientId: project.clientId,
+        status: 'ARCHIVED',
+        assignedMemberIds: project.assignedMemberIds,
+        googleFolderId: project.googleFolderId,
+      });
+    }
+    await ProjectDocument.deleteMany({ userId: project.userId, projectId: project._id });
+    await ProjectFolderGrant.deleteMany({
+      userId: project.userId,
+      projectId: project._id,
+      status: { $ne: 'failed' },
+    });
 
     res.json({ message: 'Project deleted successfully' });
   })

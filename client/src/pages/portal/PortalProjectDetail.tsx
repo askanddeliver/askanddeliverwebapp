@@ -7,6 +7,7 @@ import PortalStatusBadge from '../../components/portal/PortalStatusBadge';
 import SanitizedBrief from '../../components/portal/SanitizedBrief';
 import ProjectMessageThread from '../../components/portal/ProjectMessageThread';
 import ProjectAssetsPanel from '../../components/projects/ProjectAssetsPanel';
+import ProjectDocumentsPanel from '../../components/projects/ProjectDocumentsPanel';
 import PortalProjectJumpLinks from '../../components/portal/PortalProjectJumpLinks';
 import PortalTaskRequestSection from '../../components/portal/PortalTaskRequestSection';
 import type {
@@ -210,6 +211,13 @@ function PortalProjectDetail() {
           Files
         </h2>
         <ProjectAssetsPanel projectId={project._id} variant="portal" />
+      </section>
+
+      <section id="documents" className="mb-8 scroll-mt-16 rounded-xl border border-neutral-200 bg-white p-6">
+        <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-neutral-500">
+          Documents
+        </h2>
+        <ProjectDocumentsPanel projectId={project._id} variant="portal" />
       </section>
 
       <section
