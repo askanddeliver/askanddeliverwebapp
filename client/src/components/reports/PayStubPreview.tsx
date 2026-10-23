@@ -48,16 +48,12 @@ export function PayStubPreview({ invoice }: PayStubPreviewProps) {
         </div>
       </div>
 
-      <p className="text-xs text-gray-500 mb-3 print:mb-2">
-        Earned rates × hours for this period. Client billed rates are not shown.
-      </p>
-
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b-2 border-gray-200">
             <th className="text-left py-2 font-bold text-gray-600">Task type</th>
             <th className="text-right py-2 font-bold text-gray-600">Hours</th>
-            <th className="text-right py-2 font-bold text-gray-600">Earned rate</th>
+            <th className="text-right py-2 font-bold text-gray-600">Rate</th>
             <th className="text-right py-2 font-bold text-gray-600">Amount</th>
           </tr>
         </thead>

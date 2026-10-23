@@ -1,4 +1,4 @@
-import type { CostBreakdownEntry, InvoiceLineItem } from '../types';
+import type { CostBreakdownEntry, InvoiceLineItem, TimeEntry, TaskType } from '../types';
 
 /** Roll cost-breakdown rows into earned-only pay-stub lines (no client rates). */
 export function payStubItemsFromCostBreakdown(
@@ -36,4 +36,27 @@ export function payStubTotal(items: InvoiceLineItem[]): number {
 
 export function payStubHours(items: InvoiceLineItem[]): number {
   return Math.round(items.reduce((sum, item) => sum + item.hours, 0) * 100) / 100;
+}
+
+/** Snapshot rate by task type name from filed stub lines (not live client rates). */
+export function payStubRateByTaskType(items: InvoiceLineItem[]): Map<string, number> {
+  const rates = new Map<string, number>();
+  for (const item of items) {
+    const rate =
+      item.hours > 0
+        ? Math.round((item.amount / item.hours) * 100) / 100
+        : item.effectiveRate;
+    rates.set(item.taskTypeName, rate);
+  }
+  return rates;
+}
+
+export function payStubRateForEntry(
+  entry: TimeEntry,
+  rates: Map<string, number>
+): number {
+  const taskType =
+    typeof entry.taskTypeId === 'object' ? (entry.taskTypeId as TaskType) : null;
+  if (!taskType?.name) return 0;
+  return rates.get(taskType.name) ?? 0;
 }

@@ -16,6 +16,7 @@ import {
 import { InvoiceStatusBadge } from './InvoiceStatusBadge';
 import { InvoicePreview } from '../reports/InvoicePreview';
 import { PayStubPreview } from '../reports/PayStubPreview';
+import { PayStubEntriesTable } from '../reports/PayStubEntriesTable';
 import { EntryRow } from '../entries/EntryRow';
 import { invoicesApi, timeEntriesApi } from '../../services/api';
 import { formatCurrency, formatDate, getTodayString } from '../../utils/calculations';
@@ -666,7 +667,7 @@ export function InvoiceDetail({ invoice, onClose, onUpdated, onDeleted, libraryM
             </div>
 
             {/* PDF options */}
-            {entries.length > 0 && !isPayStub && (
+            {entries.length > 0 && (
               <div className="flex flex-wrap items-center gap-4 mb-4 p-3 bg-gray-50 rounded-lg">
                 <span className="text-sm font-medium text-gray-700">PDF options:</span>
                 <label className="flex items-center gap-2 cursor-pointer">
@@ -737,23 +738,31 @@ export function InvoiceDetail({ invoice, onClose, onUpdated, onDeleted, libraryM
       <div className="hidden print:block print:overflow-visible print:bg-white">
         <DocumentPreview invoice={previewInvoice} />
 
-        {includeTimeEntries && !isPayStub && entries.length > 0 && (
+        {includeTimeEntries && entries.length > 0 && (
           <div className="mt-6 print:break-before-page">
             <h3 className="text-lg font-bold text-gray-900 mb-4">
               Time Entries ({entries.length})
             </h3>
-            <div className="divide-y divide-gray-100">
-              {entries.map((entry) => (
-                <EntryRow
-                  key={entry._id}
-                  entry={entry}
-                  onEdit={() => {}}
-                  onDelete={() => {}}
-                  showAmount={true}
-                  showDescription={includeDescriptions}
-                />
-              ))}
-            </div>
+            {isPayStub ? (
+              <PayStubEntriesTable
+                entries={entries}
+                items={invoice.items}
+                showDescription={includeDescriptions}
+              />
+            ) : (
+              <div className="divide-y divide-gray-100">
+                {entries.map((entry) => (
+                  <EntryRow
+                    key={entry._id}
+                    entry={entry}
+                    onEdit={() => {}}
+                    onDelete={() => {}}
+                    showAmount={true}
+                    showDescription={includeDescriptions}
+                  />
+                ))}
+              </div>
+            )}
           </div>
         )}
       </div>
