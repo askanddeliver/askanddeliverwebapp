@@ -4,17 +4,33 @@ import type { CostBreakdownEntry, InvoiceLineItem, TimeEntry, TaskType } from '.
 export function payStubItemsFromCostBreakdown(
   breakdown: CostBreakdownEntry[] | undefined
 ): InvoiceLineItem[] {
-  const grouped = new Map<string, { hours: number; earned: number }>();
+  const grouped = new Map<
+    string,
+    { hours: number; earned: number; rate?: number; mixedRate: boolean }
+  >();
   for (const row of breakdown || []) {
-    const cur = grouped.get(row.taskTypeName) || { hours: 0, earned: 0 };
+    const cur = grouped.get(row.taskTypeName) || {
+      hours: 0,
+      earned: 0,
+      mixedRate: false,
+    };
     cur.hours += row.hours;
     cur.earned += row.earned;
+    if (typeof row.earnedRate === 'number') {
+      if (cur.rate === undefined) cur.rate = row.earnedRate;
+      else if (cur.rate !== row.earnedRate) cur.mixedRate = true;
+    }
     grouped.set(row.taskTypeName, cur);
   }
   return Array.from(grouped.entries()).map(([taskTypeName, vals]) => {
     const hours = Math.round(vals.hours * 100) / 100;
-    const amount = Math.round(vals.earned * 100) / 100;
-    const rate = hours > 0 ? Math.round((amount / hours) * 100) / 100 : 0;
+    const rate =
+      !vals.mixedRate && vals.rate !== undefined
+        ? Math.round(vals.rate * 100) / 100
+        : hours > 0
+          ? Math.round((vals.earned / vals.hours) * 100) / 100
+          : 0;
+    const amount = Math.round(hours * rate * 100) / 100;
     return {
       taskTypeName,
       taskTypeColor: '#6B7280',
@@ -42,11 +58,7 @@ export function payStubHours(items: InvoiceLineItem[]): number {
 export function payStubRateByTaskType(items: InvoiceLineItem[]): Map<string, number> {
   const rates = new Map<string, number>();
   for (const item of items) {
-    const rate =
-      item.hours > 0
-        ? Math.round((item.amount / item.hours) * 100) / 100
-        : item.effectiveRate;
-    rates.set(item.taskTypeName, rate);
+    rates.set(item.taskTypeName, item.effectiveRate || item.baseRate || 0);
   }
   return rates;
 }

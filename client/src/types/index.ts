@@ -541,6 +541,8 @@ export interface CostBreakdownEntry {
   hours: number;
   billed: number;
   earned: number;
+  /** Member earned hourly rate for this row (pay stubs use this, not amount/hours). */
+  earnedRate?: number;
   margin: number;
 }
 

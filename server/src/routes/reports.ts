@@ -301,6 +301,7 @@ router.post(
       hours: number;
       billed: number;
       earned: number;
+      earnedRate: number;
       margin: number;
     }> = [];
 
@@ -331,6 +332,7 @@ router.post(
         hours,
         billed: amount,
         earned: earnedAmount,
+        earnedRate: typeof earnedRate === 'number' ? earnedRate : 0,
         margin,
       });
 
