@@ -2,11 +2,11 @@
 
 This document provides a comprehensive technical reference for the Ask And Deliver application. It is intended for future development context, onboarding, and AI-assisted coding sessions.
 
-## Current capabilities snapshot *(September 2026)*
+## Current capabilities snapshot *(October 2026)*
 
 **Baseline:** Production MERN app with Auth0 multi-tenant workspaces (admin / member / client / pending), MongoDB persistence, and Vercel + Railway split deployment.
 
-- **Time & projects** — Live/resume timer, manual entries, project tasks, dashboard to-dos (admin reorder). Start a task from the dashboard, a project hub, or the Time entries pages. Workspace-scoped data with role-based visibility (members hide financials).
+- **Time & projects** — Live/resume timer, manual entries, project tasks, dashboard to-dos (admin reorder). Start a task from the dashboard, a project hub, or the Time entries pages. From Time entries (row **Play** or the entry modal **Start timer**): continue your own entry, or start a new timer for yourself from someone else's work. Admins can **Assigned**-reassign who owns an entry (`TimeEntry.userId`); the live timer always belongs to the logged-in user. Workspace-scoped data with role-based visibility (members hide financials).
 - **Billing** — Reports-driven preview; persistent `Invoice` records (`documentKind`: **INVOICE**, **RETAINER_REPORT**, **DATA_REPORT**, **BUDGET_REPORT**, **PAY_STUB**). `/invoices` is payable **INVOICE** only; `/reports/saved` is the library for utilization/data/budget; `/payroll` is pay stubs (manual payout record; Stripe Connect later). DRAFT → SENT → PAID applies to invoices; **project billing modes** (HOURLY, FIXED_PRICE, HOUR_RETAINER); optional **Stripe Payment Links** (INVOICE only); optional **HOURLY budget burn** via `GET /api/projects/budget-burn`; CSV export and JSON backups (`/backups`: full + filter-preset graph).
 - **Commercial** — Client proposals (`Proposal` model); **workspace-scoped lead pipeline** with configurable intake forms, dynamic public renderer, and conversion to client + project.
 - **Platform expansion (Phases 1–9)** — **Member hub** (`/member/*`) with profile, disciplines, availability; **client portal** (`/portal/*`) with project briefs, client-visible tasks, per-project messaging; **admin command center** (pipeline, WIP, capacity widgets); **member assignment** on projects/tasks/leads; team capacity dashboard.
@@ -211,7 +211,7 @@ The application uses a workspace-based multi-tenancy model where all data is sco
 
 **Pattern D — Public workspace resolution**: `resolvePublicWorkspace(req)` for public intake, portfolio, and site-config. Frontend sends `X-Public-Workspace` header; legacy fallback via `DEFAULT_PUBLIC_WORKSPACE_OWNER_ID`.
 
-**Time entry dual scoping**: Admin sees all workspace entries (queried via workspace owner). Member sees only entries where `userId` matches their own auth0Id.
+**Time entry dual scoping**: Admin sees all workspace entries (queried via workspace owner). Member sees only entries where `userId` matches their own auth0Id. Admins may set `userId` on create/update to an active workspace admin or member (`validateAssignableTimeEntryUserId`). Members cannot reassign. `POST /start` and `POST /:id/continue` always use the caller's Auth0 sub — continue 404s if the entry is not theirs.
 
 **Member project visibility**: Explicit `Project.assignedMemberIds` preferred; fallback to projects with member time entries. If no project in the workspace uses assignments yet, all active/paused projects remain visible (legacy onboarding).
 
@@ -348,7 +348,7 @@ taskDiscounts: Map<string, number> (taskTypeId → discount 0-100%)
 
 #### TimeEntry
 ```
-userId: string (indexed — the person who tracked the time)
+userId: string (indexed — who owns the hours; admin-assignable, not the client)
 projectId: ObjectId → Project
 taskTypeId: ObjectId → TaskType
 projectTaskId?: ObjectId → ProjectTask
@@ -585,10 +585,13 @@ DRAFT ──→ SENT ──→ PAID
 
 ### Timer Behavior
 
-- **Start**: Creates a new TimeEntry with `isRunning: true`, `startTime: now`, `duration: 0`. Auto-stops any existing running timer (accumulating its elapsed duration).
+- **Start**: Creates a new TimeEntry with `isRunning: true`, `startTime: now`, `duration: 0`, `userId` = caller. Auto-stops any existing running timer for that caller (accumulating its elapsed duration). Never starts a timer as another assignee.
 - **Stop**: Sets `isRunning: false`, `endTime: now`, adds elapsed session time to `duration`.
-- **Continue**: Resumes a previously stopped entry — sets `isRunning: true`, `startTime: now`, preserves accumulated `duration`. Auto-stops any other running timer first.
+- **Continue**: Resumes a previously stopped entry **owned by the caller** — sets `isRunning: true`, `startTime: now`, preserves accumulated `duration`. Auto-stops any other running timer first. 404 if `userId` does not match.
+- **Play on another person's entry** (admin UI): does not call continue. Starts a **new** timer for the current user with that entry's project, task type, optional project task, and description.
+- **Entry modal Start timer**: if editing your own entry and project/task type/task are unchanged, continues that entry; otherwise starts a new timer for you. Hours are not required. Disabled while a timer is already running.
 - **Duration accumulation**: On stop, `duration += (now - startTime)` in seconds. This means the `duration` field always reflects total tracked time, even across multiple start/stop cycles.
+- **Assigned (admin)**: create/update may set `userId` to an active workspace admin or member. Distinct from `ProjectTask.assigneeAuth0Id`. New-entry modal prefills Assigned from the selected task's assignee when that person is on the team.
 
 ### Lead Conversion Flow
 
@@ -695,7 +698,7 @@ askanddeliver.com (Vercel)  ──HTTPS──>  Railway (server)
 | `routes/clients.ts` | `/api/clients` | checkJwt + requireAdmin; `PATCH /:id/pin` |
 | `routes/projects.ts` | `/api/projects` | checkJwt; requireAdmin on writes |
 | `routes/taskTypes.ts` | `/api/task-types` | checkJwt; requireAdmin on writes |
-| `routes/timeEntries.ts` | `/api/time-entries` | checkJwt (internal admin check for scoping) |
+| `routes/timeEntries.ts` | `/api/time-entries` | checkJwt (admin may set `userId`; start/continue = caller) |
 | `routes/projectTasks.ts` | `/api/project-tasks` | checkJwt + requireMemberOrAdmin (client JWTs 403) |
 | `routes/timeBlocks.ts` | `/api/time-blocks` | checkJwt |
 | `routes/reports.ts` | `/api/reports` | checkJwt + requireAdmin |
@@ -764,14 +767,14 @@ askanddeliver.com (Vercel)  ──HTTPS──>  Railway (server)
 | IntakeConfig | `/intake-config` | Admin | Intake form builder |
 | MemberDashboard | `/member` | Member/Admin | Member hub with timer |
 | MemberProjects | `/member/projects` | Member/Admin | Assigned projects |
-| MemberEntries | `/member/entries` | Member/Admin | Own time entries |
+| MemberEntries | `/member/entries` | Member/Admin | Own time entries; start/continue timer |
 | MemberProfile | `/member/profile` | Member/Admin | Disciplines, availability, bio |
 | PortalHome | `/portal` | Client | Client portal home |
 | PortalProjects | `/portal/projects` | Client | Client project list |
 | PortalProjectDetail | `/portal/projects/:id` | Client | Brief, tasks, messages |
 | InvoicePaid | `/invoices/paid` | Public | Post–Stripe-checkout confirmation |
-| Dashboard | `/dashboard` | Admin | Command center: timer, pipeline, capacity, todos (admin can reorder open tasks) |
-| TimeEntries | `/entries` | Auth | Entry list with filters, CRUD |
+| Dashboard | `/dashboard` | Admin | Command center: timer, pipeline, capacity, todos (admin can reorder open tasks); recent entries start/continue |
+| TimeEntries | `/entries` | Auth | Entry list with filters, CRUD, Assigned (admin), start/continue timer |
 | Projects | `/projects` | Auth | Project list with status tabs, tasks, rich-text briefs |
 | Profile | `/profile` | Auth | User profile management |
 | Clients | `/clients` | Admin | Client CRUD with discounts |
@@ -826,6 +829,10 @@ Column catalog ids, defaults, and visibility (strip earned/margin/running on cli
 ### Client (`client/src/utils/payStub.ts`)
 
 Roll `costBreakdown` into earned-only pay-stub line items (no client rates).
+
+### Client (`client/src/utils/timeEntries.ts`)
+
+Helpers for entry owner (`isOwnTimeEntry`), populated ref ids, start payload from an existing row, and the admin Assigned teammate list.
 
 ### Client (`client/src/utils/payout.ts`)
 

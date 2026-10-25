@@ -4,7 +4,7 @@
 
 - **Admin dashboard** — expand a project’s open tasks and drag the handle to set priority. The reorder request includes completed tasks in their existing slots so they do not jump. Members do not get dashboard drag handles.
 - **Project hub** (`/projects/:id` and `/member/projects/:id`) — each open task has **Play**, which opens `StartTaskTimerModal`. Starting a `TODO` task sets it to `IN_PROGRESS`.
-- **Time entries** (`/entries` and `/member/entries`) — **Start task** opens `StartTaskPickerModal` (client, project, open task, task type). A running timer is shown on the page with Stop.
+- **Time entries** (`/entries` and `/member/entries`) — **Start task** opens `StartTaskPickerModal` (client, project, open task, task type). **Play** on a row continues your own entry, or starts a new timer for you from someone else's work. The entry modal has **Start timer** (project + task type; hours not required) and, for admins, **Assigned** (`TimeEntry.userId`). A running timer is shown on the page with Stop. The live timer always belongs to the logged-in user.
 
 The sections below are the original plan. Where they disagree with the list above, the shipped behavior wins.
 
@@ -211,6 +211,8 @@ Optional later enhancements (not required for v1):
 - [ ] Workspace with multiple clients: grouping by client is correct.
 - [ ] Member: can use Play; cannot reorder (if admin-only retained).
 - [ ] Admin: reorder persists and survives reload.
+- [ ] Time entries: Play on own row continues; Play on another person's row starts a timer for you; modal Start timer does not require hours.
+- [ ] Admin entry modal Assigned reassigns `TimeEntry.userId`; Start timer still runs as the logged-in user.
 
 ---
 
@@ -234,6 +236,8 @@ Optional later enhancements (not required for v1):
 | Timer controls | `client/src/components/timer/TimerControls.tsx` |
 | Play → start modal | `client/src/components/timer/StartTaskTimerModal.tsx` |
 | Entries start-task picker | `client/src/components/timer/StartTaskPickerModal.tsx` |
+| Entry modal (Assigned + Start timer) | `client/src/components/entries/EntryModal.tsx` |
+| Entry owner / start-from-row helpers | `client/src/utils/timeEntries.ts` |
 | Dashboard task list | `client/src/components/dashboard/DashboardTaskList.tsx` |
 | Time entries pages | `client/src/pages/TimeEntries.tsx`, `client/src/pages/member/MemberEntries.tsx` |
 | Project hub | `client/src/pages/ProjectHub.tsx` |

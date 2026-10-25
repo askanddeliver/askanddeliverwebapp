@@ -6,8 +6,11 @@ A full-featured time tracking, client management, and invoicing application buil
 
 ### Core Time Tracking
 - **Live timer** — Start/stop tracking with one click from the Dashboard
-- **Resume timer** — Continue tracking from any previous time entry (preserves accumulated duration)
-- **Manual time entry** — Log time after the fact with custom start/end times
+- **Resume timer** — Continue tracking from any previous time entry you own (preserves accumulated duration)
+- **Start from Time entries** — `/entries` and `/member/entries` (also Dashboard, project hub, and the entry modal): **Play** on a row, or **Start timer** in the edit/new modal (project + task type; hours not required). Play on your own entry continues it; play on someone else's entry starts a **new** timer for **you** with the same project, task, and description. A running timer on the page can be Stopped. The live timer always belongs to the logged-in user.
+- **Start task** — Pick an open project task (client → project → task → task type) from Time entries without opening a specific row
+- **Manual time entry** — Log time after the fact with date, hours/minutes, and optional description
+- **Assigned** — Admins can set who owns an entry (`TimeEntry.userId`) on create or edit. Distinct from the project-task assignee and from the client name on the row. Members only log time as themselves.
 - **Quick entry** — Streamlined form for fast time logging
 - **Per-project & per-task tracking** — Associate entries with projects, task types, and project tasks
 - **Dashboard To-Do** — Lists open project tasks (TODO / in progress) for active projects, grouped by client; **Play** opens a modal to pick task type and optional description, then starts the timer. Admins can drag open tasks on the dashboard to set priority (completed tasks stay in place).
@@ -30,7 +33,7 @@ A full-featured time tracking, client management, and invoicing application buil
 - **Archive vs. delete** — Soft-archive projects to hide them, or permanently delete
 - **Project hub** — Admin `/projects/:id` and member `/member/projects/:id`: team, brief, budget (admin), client requests, tasks, time, files, messages. Each open task has **Play**, which starts the timer for that task.
 - **Client cards** — `/projects` groups by client; admins pin hot clients; unread message badges; open-task lists start collapsed
-- **Project tasks** — Break projects into individual tasks with status (TODO, IN_PROGRESS, COMPLETED), drag-and-drop ordering (admin, on the project hub and the admin dashboard), estimated hours, client visibility, and optional assignee. Start a task from the admin or member **Time entries** page (`/entries`, `/member/entries`) via **Start task**.
+- **Project tasks** — Break projects into individual tasks with status (TODO, IN_PROGRESS, COMPLETED), drag-and-drop ordering (admin, on the project hub and the admin dashboard), estimated hours, client visibility, and optional assignee. Start a task from the admin or member **Time entries** page (`/entries`, `/member/entries`) via **Start task**, or start/continue a timer from a row or the entry modal.
 - **Client task requests** — Portal users suggest tasks; admin approves (creates a board task) or declines; members see the queue read-only
 
 ### Task Type Configuration
@@ -72,6 +75,7 @@ A full-featured time tracking, client management, and invoicing application buil
 
 ### Member Hub (`/member`)
 - **Member-first dashboard** — Timer, assigned projects, open tasks; no financial data
+- **Time entries** — Own entries at `/member/entries`: **Play** on a row or **Start timer** in the modal (no Assigned field)
 - **My projects** — Explicit assignment + time-entry fallback
 - **Profile** — Disciplines, nested task skills, availability (hours/week, preferred days), bio
 - **Admin dogfood** — Admins can navigate to `/member` to preview the member experience
@@ -92,7 +96,8 @@ A full-featured time tracking, client management, and invoicing application buil
 
 ### Team Assignment & Capacity
 - **Project assignment** — Multi-select members on project modal (`assignedMemberIds`)
-- **Task assignee** — Assign creative on project tasks
+- **Task assignee** — Assign creative on project tasks (`assigneeAuth0Id`)
+- **Time entry assigned** — Admins reassign who owns logged hours (`TimeEntry.userId`). Does not start a timer as that person.
 - **Team page** — Disciplines and availability columns for members
 
 ### Public Portfolio Website
@@ -201,7 +206,7 @@ askanddeliverwebapp/
 │   │   │   ├── Clients.tsx       # Client management
 │   │   │   ├── Projects.tsx      # Project management
 │   │   │   ├── TaskTypes.tsx     # Task type configuration
-│   │   │   ├── TimeEntries.tsx   # Time entry list and management
+│   │   │   ├── TimeEntries.tsx   # Time entry list, assign, start timer
 │   │   │   ├── Reports.tsx       # Filter-rail workbench, preview, save invoice/report/stub
 │   │   │   ├── SavedReports.tsx  # Utilization / data / budget library
 │   │   │   ├── Payroll.tsx       # Pay stub library
@@ -228,6 +233,7 @@ askanddeliverwebapp/
 │   │   │   ├── calculations.ts   # Duration formatting, discount math, date helpers
 │   │   │   ├── reportColumns.ts  # Workbench column catalog
 │   │   │   ├── payStub.ts        # Earned-only pay-stub lines
+│   │   │   ├── timeEntries.ts    # Entry owner helpers, start-from-entry payload
 │   │   │   └── videoEmbed.ts     # Vimeo/YouTube URL parsing, embed URLs, thumbnails
 │   │   ├── data/
 │   │   │   └── portfolioProjects.ts
@@ -473,14 +479,14 @@ See [SETUP.md](SETUP.md) for detailed MongoDB Atlas, Auth0, Cloudinary, and Stri
 #### Time Entries
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| `GET` | `/api/time-entries` | List entries (filters: startDate, endDate, projectId, projectIds, billingStatus) |
+| `GET` | `/api/time-entries` | List entries (filters: startDate, endDate, projectId, projectIds, billingStatus, userIds) |
 | `POST` | `/api/time-entries/by-ids` | Get entries by ID array (for invoice detail) |
-| `GET` | `/api/time-entries/active` | Get active timer |
-| `POST` | `/api/time-entries/start` | Start timer (auto-stops any running timer) |
+| `GET` | `/api/time-entries/active` | Get active timer (caller's running entry only) |
+| `POST` | `/api/time-entries/start` | Start timer for the caller (auto-stops any running timer) |
 | `POST` | `/api/time-entries/stop` | Stop timer |
-| `POST` | `/api/time-entries/:id/continue` | Resume a previous entry as new timer |
-| `POST` | `/api/time-entries` | Create manual entry |
-| `PUT` | `/api/time-entries/:id` | Update entry |
+| `POST` | `/api/time-entries/:id/continue` | Resume the caller's previous entry (404 if not theirs) |
+| `POST` | `/api/time-entries` | Create manual entry (admin may set `userId` to an active workspace admin or member) |
+| `PUT` | `/api/time-entries/:id` | Update entry (admin may set `userId`; members cannot reassign) |
 | `DELETE` | `/api/time-entries/:id` | Delete entry |
 
 #### Project Tasks
@@ -656,7 +662,7 @@ Linked to a Client. Tracks `title`, `description`, `brief`, `status`, optional `
 Billable categories (e.g., "Design", "Development") with `name`, `rate` (hourly), and `color`.
 
 ### TimeEntry
-Time records with `startTime`, `endTime`, `duration` (seconds), and `isRunning` flag for live timer support. Linked to Project, TaskType, and optionally a ProjectTask. Duration accumulates across pause/resume cycles.
+Time records with `startTime`, `endTime`, `duration` (seconds), and `isRunning` flag for live timer support. `userId` is the Auth0 sub of the person who owns those hours (not the client). Admins can reassign it on create/update; start/continue always run as the logged-in user. Linked to Project, TaskType, and optionally a ProjectTask. Duration accumulates across pause/resume cycles.
 
 ### ProjectTask
 Sub-tasks within a Project. Tracks `title`, `description`, `status`, `order`, `estimatedHours`, `clientVisible` (portal), and optional `assigneeAuth0Id`. Clients do not write this model; they submit `ProjectTaskSuggestion` rows.

@@ -56,6 +56,7 @@ client/                        # React frontend (Vite)
       reportColumns.ts         # Workbench column catalog (client PDF strips internal $)
       payStub.ts               # Earned-only pay-stub line rollup
       payout.ts                # PayPal/Zelle/Venmo preference labels
+      timeEntries.ts           # Entry owner helpers, start-from-entry payload
       videoEmbed.ts            # Vimeo/YouTube embed URLs and thumbnails
     data/                      # Static data helpers
     styles/
@@ -73,6 +74,7 @@ server/                        # Express backend
     lib/
       auth0Management.ts       # Auth0 Management API client (M2M for add-by-email)
       stripeClient.ts          # Stripe Payment Links (optional)
+      memberValidation.ts      # Workspace member/assignee auth0Id checks (incl. time-entry owner)
     utils/
       calculations.ts          # getEffectiveRate, calculateAmount, formatDuration, formatCurrency, secondsToHours
       invoiceKinds.ts          # Payable vs library vs payroll documentKind matchers
@@ -120,7 +122,7 @@ Two data scoping patterns coexist:
 
 **Pattern D — Public with workspace resolution**: `resolvePublicWorkspace(req)` for intake-forms/public, leads/public, portfolio/public, site-config/public. Public axios sends `X-Public-Workspace` header.
 
-**Time entries have dual scoping**: Admin sees all workspace entries; Member sees only their own (filtered by `userId` on the entry).
+**Time entries have dual scoping**: Admin sees all workspace entries; Member sees only their own (filtered by `userId` on the entry). `TimeEntry.userId` is who owns the hours (not the client). Admins may set `userId` on create/update to an active workspace admin or member (`validateAssignableTimeEntryUserId`). Members cannot reassign. `POST /start` and `POST /:id/continue` always use `extractUserId`; continue 404s if the entry is not the caller's. UI play on someone else's row starts a **new** timer for the current user.
 
 ### Role System
 - **admin**: Full access to all features. Owns the workspace. Default route: `/dashboard`.
@@ -312,7 +314,7 @@ export const NewModel = mongoose.model<INewModel>('NewModel', NewModelSchema);
 | Client | name, company, email, isInternal, pinned, businessEntity, address, paymentPreference, taskDiscounts, googleFolderId | userId (Pattern A) |
 | Project | clientId, title, status, budget, billingMode, assignedMemberIds, googleFolderId | userId (Pattern B) |
 | TaskType | name, rate, color | userId (Pattern B) |
-| TimeEntry | projectId, taskTypeId, projectTaskId, startTime, endTime, duration, isRunning, invoiceId | userId (Pattern B, dual) |
+| TimeEntry | userId (who owns the hours; admin-assignable), projectId, taskTypeId, projectTaskId, startTime, endTime, duration, isRunning, invoiceId | userId (Pattern B, dual) |
 | ProjectTask | projectId, title, status, order, estimatedHours, clientVisible, assigneeAuth0Id | userId (Pattern B) |
 | ProjectTaskSuggestion | projectId, clientId, suggestedByAuth0Id, title, status PENDING\|APPROVED\|DECLINED, createdTaskId | userId (Pattern B; portal writes Pattern C) |
 | ProjectMessage | projectId, authorAuth0Id, body, clientVisible, projectTaskId, taskTitle, replyToMessageId, notifyMode none\|mentions\|team, mentionedAuth0Ids | userId (Pattern B) |
@@ -339,7 +341,7 @@ export const NewModel = mongoose.model<INewModel>('NewModel', NewModelSchema);
 | `/api/clients` | clients.ts | checkJwt + requireAdmin | CRUD with business entity, address, payment pref, task discounts; `PATCH /:id/pin` |
 | `/api/projects` | projects.ts | checkJwt; requireAdmin on writes | CRUD, archive, status counts, assignedMemberIds |
 | `/api/task-types` | taskTypes.ts | checkJwt; requireAdmin on writes | CRUD + seed defaults |
-| `/api/time-entries` | timeEntries.ts | checkJwt | Timer start/stop/continue, manual entry, workspace-scoped reads |
+| `/api/time-entries` | timeEntries.ts | checkJwt | Timer start/stop/continue (caller only), manual entry, admin may set `userId`, workspace-scoped reads |
 | `/api/project-tasks` | projectTasks.ts | checkJwt + requireMemberOrAdmin | CRUD + reorder + assigneeAuth0Id; client JWTs 403 |
 | `/api/time-blocks` | timeBlocks.ts | checkJwt | Calendar blocks, recurrence, launch-to-timer |
 | `/api/reports` | reports.ts | checkJwt + requireAdmin | Invoice preview data (discount + margin), unfiled retainer hours, summary stats |
@@ -414,10 +416,12 @@ export const NewModel = mongoose.model<INewModel>('NewModel', NewModelSchema);
 5. **Discount formula**: `effectiveRate = baseRate * (1 - clamp(discount, 0, 100) / 100)`
 6. **Timer auto-stops** — Starting a new timer automatically stops any running one (accumulating its duration).
 7. **Timer duration accumulates** — The `duration` field on TimeEntry stores accumulated seconds across pause/resume cycles.
-8. **Leads are workspace-scoped** — `Lead.userId` is the workspace owner Auth0 sub. `POST /api/leads/public` sets userId from `resolvePublicWorkspace(req)` — never from client body. Admin lead routes filter by workspace owner.
-9. **Portfolio has dual access** — Public routes serve published projects (no auth); admin routes require `checkJwt` + `requireAdmin`.
-10. **CSS theme variables** — AdminThemeContext generates `--primary-50` through `--primary-900` from `brandSage`. Use `bg-primary-600`, `text-primary-50`, etc. in Tailwind classes.
-11. **Timezone-aware date filtering** — The server runs in UTC (Railway). Date range filters must reflect the user's local timezone, not server UTC. The frontend converts YYYY-MM-DD picker values to UTC ISO strings using `toUTCStartOfDay()`/`toUTCEndOfDay()` (from `client/src/utils/calculations.ts`) before sending to the API. The server parses these with `parseDateStart()`/`parseDateEnd()` (from `server/src/utils/calculations.ts`), which accept both full ISO strings and bare YYYY-MM-DD (falling back to UTC for bare dates). Date-only fields (e.g. LineItem `date`) should also be stored via `parseDateStart()` so they align with query boundaries. Never use `new Date(dateStr + 'T00:00:00')` directly in route handlers.
+8. **Timer always belongs to the caller** — `POST /start` and `POST /:id/continue` use `extractUserId`. Continue only works on the caller's entries. Do not start a timer as another Assigned person. Admin UI play on someone else's entry starts a new timer for the current user with the same project/task/description.
+9. **Time entry Assigned** — Admin create/update may send `userId` (active workspace admin or member). Distinct from `ProjectTask.assigneeAuth0Id` and from the client name on the entry row. Members cannot reassign. Entry modal **Start timer** does not require hours.
+10. **Leads are workspace-scoped** — `Lead.userId` is the workspace owner Auth0 sub. `POST /api/leads/public` sets userId from `resolvePublicWorkspace(req)` — never from client body. Admin lead routes filter by workspace owner.
+11. **Portfolio has dual access** — Public routes serve published projects (no auth); admin routes require `checkJwt` + `requireAdmin`.
+12. **CSS theme variables** — AdminThemeContext generates `--primary-50` through `--primary-900` from `brandSage`. Use `bg-primary-600`, `text-primary-50`, etc. in Tailwind classes.
+13. **Timezone-aware date filtering** — The server runs in UTC (Railway). Date range filters must reflect the user's local timezone, not server UTC. The frontend converts YYYY-MM-DD picker values to UTC ISO strings using `toUTCStartOfDay()`/`toUTCEndOfDay()` (from `client/src/utils/calculations.ts`) before sending to the API. The server parses these with `parseDateStart()`/`parseDateEnd()` (from `server/src/utils/calculations.ts`), which accept both full ISO strings and bare YYYY-MM-DD (falling back to UTC for bare dates). Date-only fields (e.g. LineItem `date`) should also be stored via `parseDateStart()` so they align with query boundaries. Never use `new Date(dateStr + 'T00:00:00')` directly in route handlers.
 
 ---
 

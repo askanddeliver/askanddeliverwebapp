@@ -118,7 +118,7 @@ Layout order (desktop — single column, max-width ~960px):
 ├──────────────────────────────────────────────────────────────┤
 │  TIME ENTRIES                                                │
 │  EntryList filtered to projectId · admin: amounts/rates      │
-│  Quick actions: Start timer (prefill project) · Add manual    │
+│  Play on row · Start timer in modal · Add entry (Assigned)    │
 ├──────────────────────────────────────────────────────────────┤
 │  FILES (#files)                                              │
 │  ProjectAssetsPanel — Cloudinary library, Internal/Client    │
@@ -185,7 +185,9 @@ Reuse `ProjectTaskList` with existing props:
 
 - Fetch: `GET /api/time-entries?projectIds[]=:id` (existing array param pattern; members filtered to own `userId` **and** the project)
 - Reuse `EntryList` with `showRate={isAdmin}` / `showAmount={isAdmin}`
-- Header actions: **Start timer** (project prefilled), **Add entry** (EntryModal)
+- Header actions: **Start timer** (project prefilled), **Add entry** (`EntryModal`)
+- Row **Play**: continue your own entry, or start a new timer for you from someone else's work on this project
+- Entry modal: **Start timer** (project + task type; hours not required). Admins see **Assigned** (`TimeEntry.userId`). The live timer always belongs to the logged-in user.
 - Sort: newest first; "load more" if >50 entries
 
 #### Messages
@@ -319,6 +321,8 @@ Use URL hash for scroll-to-section. Sticky **Jump to** chips on the hub (`Projec
 - [ ] Member hub hides budget section; entries scoped to own `userId`
 - [ ] Invalid / other-workspace project ID → 404
 - [ ] Start timer from hub prefills project (and optional task)
+- [ ] Play on an entry continues your own hours, or starts a new timer for you from someone else's row
+- [ ] Admin entry modal shows Assigned; Start timer does not impersonate the assigned person
 - [ ] Messages clientVisible toggle still controls portal visibility
 - [ ] Budget burn matches Projects list card for same period filters
 - [ ] Deep link `#messages` scrolls to messages section
@@ -335,6 +339,7 @@ Use URL hash for scroll-to-section. Sticky **Jump to** chips on the hub (`Projec
 |-------|----------|
 | Projects list | `client/src/pages/Projects.tsx` |
 | Project hub | `client/src/pages/ProjectHub.tsx` |
+| Entry modal | `client/src/components/entries/EntryModal.tsx` |
 | Client cards | `client/src/components/projects/ClientProjectsCard.tsx` |
 | Unread badge | `client/src/components/projects/UnreadCountBadge.tsx` |
 | Notify picker | `client/src/components/projects/MessageNotifyPicker.tsx` |
@@ -357,6 +362,7 @@ Use URL hash for scroll-to-section. Sticky **Jump to** chips on the hub (`Projec
 
 | Date | Change |
 |------|--------|
+| 2026-10-25 | Entry modal Assigned (admin) and Start timer; row Play continues own entries or starts a timer for you |
 | 2026-10-19 | Google Docs tray on hub and portal. Drive layout is client folder, then project folder — [PROJECT_COMMUNICATION_AND_ASSETS.md](./PROJECT_COMMUNICATION_AND_ASSETS.md) |
 | 2026-10-16 | Unread badges, workspace pins, client requests, collapsed list tasks, Notify None/@/Team |
 | 2026-09-25 | Sticky Jump to chips on hub (and stronger portal chips) |
