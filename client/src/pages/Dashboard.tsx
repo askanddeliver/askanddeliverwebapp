@@ -14,7 +14,7 @@ import { AdminPageHeader } from '../components/admin/AdminPageHeader';
 import { AdminStatStrip } from '../components/admin/AdminStatStrip';
 import { AdminPanel } from '../components/admin/AdminPanel';
 import { EntryList } from '../components/entries/EntryList';
-import { EntryModal } from '../components/entries/EntryModal';
+import { EntryModal, type EntryModalSaveData, type EntryModalStartData } from '../components/entries/EntryModal';
 import {
   timeEntriesApi,
   projectsApi,
@@ -22,9 +22,16 @@ import {
   projectTasksApi,
   leadsApi,
   dashboardApi,
+  usersApi,
 } from '../services/api';
 import { formatDurationHuman, formatCurrency, getDashboardPeriodParams } from '../utils/calculations';
 import { taskIdsAfterOpenReorder } from '../utils/projectTasks';
+import {
+  assignableWorkspaceUsers,
+  isOwnTimeEntry,
+  populatedRefId,
+  startPayloadFromEntry,
+} from '../utils/timeEntries';
 import type {
   TimeEntry,
   Project,
@@ -34,11 +41,12 @@ import type {
   AdminDashboardSummary,
   DashboardPipelineLead,
   DashboardCapacityResponse,
+  User,
 } from '../types';
 
 function Dashboard() {
   const { user } = useAuth0();
-  const { isAdmin } = useUserRole();
+  const { isAdmin, user: appUser } = useUserRole();
   const [activeTimer, setActiveTimer] = useState<TimeEntry | null>(null);
   const [allEntries, setAllEntries] = useState<TimeEntry[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
@@ -58,6 +66,7 @@ function Dashboard() {
     project: Project;
     task: ProjectTask;
   } | null>(null);
+  const [members, setMembers] = useState<User[]>([]);
 
   useEffect(() => {
     loadData();
@@ -67,7 +76,7 @@ function Dashboard() {
     try {
       setLoading(true);
       const period = getDashboardPeriodParams();
-      const [timerRes, entriesRes, projectsRes, taskTypesRes, leadStatsRes, summaryRes, pipelineRes, capacityRes] =
+      const [timerRes, entriesRes, projectsRes, taskTypesRes, leadStatsRes, summaryRes, pipelineRes, capacityRes, usersRes] =
         await Promise.all([
         timeEntriesApi.getActive(),
         timeEntriesApi.getAll(),
@@ -83,6 +92,9 @@ function Dashboard() {
         isAdmin
           ? dashboardApi.getCapacity({ weekStart: period.weekStart, weekEnd: period.weekEnd }).catch(() => ({ data: null }))
           : Promise.resolve({ data: null }),
+        isAdmin
+          ? usersApi.getAll().catch(() => ({ data: [] as User[] }))
+          : Promise.resolve({ data: [] as User[] }),
       ]);
 
       let clientTodo: ProjectTask[] = [];
@@ -119,6 +131,7 @@ function Dashboard() {
       setAdminSummary(summaryRes.data);
       setPipelineRecent(pipelineRes.data?.recent || []);
       setCapacity(capacityRes.data);
+      setMembers(assignableWorkspaceUsers(usersRes.data || []));
       if (pipelineRes.data?.stats) {
         setLeadStats(pipelineRes.data.stats);
       }
@@ -196,9 +209,19 @@ function Dashboard() {
 
   const handleContinueEntry = async (entry: TimeEntry) => {
     try {
-      const res = await timeEntriesApi.continue(entry._id);
-      setActiveTimer(res.data);
-      setAllEntries(allEntries.filter((e) => e._id !== entry._id));
+      if (isOwnTimeEntry(entry, appUser?.auth0Id)) {
+        const res = await timeEntriesApi.continue(entry._id);
+        setActiveTimer(res.data);
+        setAllEntries((prev) => prev.filter((e) => e._id !== entry._id));
+      } else {
+        const payload = startPayloadFromEntry(entry);
+        if (!payload) {
+          setError('Could not start timer from this entry');
+          return;
+        }
+        const res = await timeEntriesApi.start(payload);
+        setActiveTimer(res.data);
+      }
       setError(null);
     } catch (err) {
       console.error('Failed to continue entry:', err);
@@ -273,15 +296,7 @@ function Dashboard() {
     }
   };
 
-  const handleSaveEdit = async (data: {
-    projectId: string;
-    taskTypeId: string;
-    projectTaskId?: string;
-    description?: string;
-    startTime: string;
-    endTime: string;
-    duration: number;
-  }) => {
+  const handleSaveEdit = async (data: EntryModalSaveData) => {
     if (!editingEntry) return;
     try {
       const res = await timeEntriesApi.update(editingEntry._id, data);
@@ -292,6 +307,31 @@ function Dashboard() {
     } catch (err) {
       console.error('Failed to update entry:', err);
       setError('Failed to update entry');
+    }
+  };
+
+  const handleStartTimerFromModal = async (data: EntryModalStartData) => {
+    try {
+      const own = editingEntry && isOwnTimeEntry(editingEntry, appUser?.auth0Id);
+      const sameWork =
+        Boolean(own) &&
+        populatedRefId(editingEntry?.projectId) === data.projectId &&
+        populatedRefId(editingEntry?.taskTypeId) === data.taskTypeId &&
+        (populatedRefId(editingEntry?.projectTaskId) || undefined) === data.projectTaskId;
+      const res =
+        sameWork && editingEntry
+          ? await timeEntriesApi.continue(editingEntry._id)
+          : await timeEntriesApi.start(data);
+      setActiveTimer(res.data);
+      if (sameWork && editingEntry) {
+        setAllEntries((prev) => prev.filter((e) => e._id !== editingEntry._id));
+      }
+      setEditModalOpen(false);
+      setEditingEntry(null);
+      setError(null);
+    } catch (err) {
+      console.error('Failed to start timer:', err);
+      setError('Failed to start timer');
     }
   };
 
@@ -604,11 +644,16 @@ function Dashboard() {
         projectTasks={projectTasks}
         isOpen={editModalOpen}
         showRate={isAdmin}
+        members={members}
+        canAssign={isAdmin}
+        currentUserAuth0Id={appUser?.auth0Id}
+        isTimerRunning={Boolean(activeTimer?.isRunning)}
         onClose={() => {
           setEditModalOpen(false);
           setEditingEntry(null);
         }}
         onSave={handleSaveEdit}
+        onStartTimer={handleStartTimerFromModal}
       />
     </div>
   );

@@ -10,7 +10,7 @@ import { MemberContributionsPanel } from '../components/reports/MemberContributi
 import { ReportFilterRail } from '../components/reports/ReportFilterRail';
 import { ReportEntriesTable } from '../components/reports/ReportEntriesTable';
 import { CreateInvoiceModal } from '../components/invoices/CreateInvoiceModal';
-import { EntryModal } from '../components/entries/EntryModal';
+import { EntryModal, type EntryModalSaveData } from '../components/entries/EntryModal';
 import {
   clientsApi,
   projectsApi,
@@ -46,6 +46,7 @@ import {
   payStubItemsFromCostBreakdown,
   payStubTotal,
 } from '../utils/payStub';
+import { assignableWorkspaceUsers } from '../utils/timeEntries';
 import type {
   Client,
   Project,
@@ -83,7 +84,7 @@ function asBillingModes(modes: string[]): ProjectBillingMode[] {
 
 function Reports() {
   const navigate = useNavigate();
-  const { isAdmin } = useUserRole();
+  const { isAdmin, user } = useUserRole();
   const [clients, setClients] = useState<Client[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [users, setUsers] = useState<User[]>([]);
@@ -178,15 +179,7 @@ function Reports() {
     setEditModalOpen(true);
   };
 
-  const handleSaveEntry = async (data: {
-    projectId: string;
-    taskTypeId: string;
-    projectTaskId?: string;
-    description?: string;
-    startTime: string;
-    endTime: string;
-    duration: number;
-  }) => {
+  const handleSaveEntry = async (data: EntryModalSaveData) => {
     if (!editingEntry) return;
     try {
       await timeEntriesApi.update(editingEntry._id, data);
@@ -1188,6 +1181,9 @@ function Reports() {
         projectTasks={projectTasks}
         isOpen={editModalOpen}
         showRate={true}
+        members={assignableWorkspaceUsers(users)}
+        canAssign={isAdmin}
+        currentUserAuth0Id={user?.auth0Id}
         onClose={() => {
           setEditModalOpen(false);
           setEditingEntry(null);

@@ -129,7 +129,7 @@ export function EntryRow({
           <button
             onClick={() => onContinue(entry)}
             className="p-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded transition-colors"
-            title="Continue this task"
+            title="Start timer"
           >
             <Play className="w-3.5 h-3.5" />
           </button>

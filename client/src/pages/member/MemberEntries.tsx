@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Plus, Filter, Play, Square } from 'lucide-react';
 import { EntryList } from '../../components/entries/EntryList';
-import { EntryModal } from '../../components/entries/EntryModal';
+import { EntryModal, type EntryModalSaveData, type EntryModalStartData } from '../../components/entries/EntryModal';
 import { StartTaskPickerModal } from '../../components/timer/StartTaskPickerModal';
 import { TimerDisplay } from '../../components/timer/TimerDisplay';
 import { AdminPageHeader } from '../../components/admin/AdminPageHeader';
@@ -19,6 +19,7 @@ import {
   toUTCEndOfDay,
 } from '../../utils/calculations';
 import { projectClientId, uniqueClientsFromProjects } from '../../utils/projectClient';
+import { populatedRefId } from '../../utils/timeEntries';
 import type { TimeEntry, Project, TaskType, ProjectTask } from '../../types';
 
 function MemberEntries() {
@@ -103,15 +104,7 @@ function MemberEntries() {
     }
   };
 
-  const handleSave = async (data: {
-    projectId: string;
-    taskTypeId: string;
-    projectTaskId?: string;
-    description?: string;
-    startTime: string;
-    endTime: string;
-    duration: number;
-  }) => {
+  const handleSave = async (data: EntryModalSaveData) => {
     try {
       if (editingEntry) {
         const res = await timeEntriesApi.update(editingEntry._id, data);
@@ -143,6 +136,20 @@ function MemberEntries() {
     }
   };
 
+  const markTaskInProgress = async (projectTaskId?: string) => {
+    if (!projectTaskId) return;
+    const task = projectTasks.find((item) => item._id === projectTaskId);
+    if (task?.status !== 'TODO') return;
+    try {
+      const statusRes = await projectTasksApi.updateStatus(projectTaskId, 'IN_PROGRESS');
+      setProjectTasks((prev) =>
+        prev.map((item) => (item._id === projectTaskId ? statusRes.data : item))
+      );
+    } catch (err) {
+      console.error('Could not mark task in progress:', err);
+    }
+  };
+
   const handleStartTask = async (
     projectId: string,
     taskTypeId: string,
@@ -157,22 +164,49 @@ function MemberEntries() {
         description,
       });
       setActiveTimer(res.data);
-      const task = projectTasks.find((item) => item._id === projectTaskId);
-      if (task?.status === 'TODO') {
-        try {
-          const statusRes = await projectTasksApi.updateStatus(projectTaskId, 'IN_PROGRESS');
-          setProjectTasks((prev) =>
-            prev.map((item) => (item._id === projectTaskId ? statusRes.data : item))
-          );
-        } catch (err) {
-          console.error('Could not mark task in progress:', err);
-        }
-      }
+      await markTaskInProgress(projectTaskId);
       setStartTaskOpen(false);
       setError(null);
     } catch (err) {
       console.error('Failed to start task:', err);
       setError('Failed to start task');
+    }
+  };
+
+  const handleContinueEntry = async (entry: TimeEntry) => {
+    try {
+      const res = await timeEntriesApi.continue(entry._id);
+      setActiveTimer(res.data);
+      setEntries((prev) => prev.filter((e) => e._id !== entry._id));
+      setError(null);
+    } catch (err) {
+      console.error('Failed to start timer:', err);
+      setError('Failed to start timer');
+    }
+  };
+
+  const handleStartTimerFromModal = async (data: EntryModalStartData) => {
+    try {
+      const sameWork =
+        Boolean(editingEntry) &&
+        populatedRefId(editingEntry?.projectId) === data.projectId &&
+        populatedRefId(editingEntry?.taskTypeId) === data.taskTypeId &&
+        (populatedRefId(editingEntry?.projectTaskId) || undefined) === data.projectTaskId;
+      const res =
+        sameWork && editingEntry
+          ? await timeEntriesApi.continue(editingEntry._id)
+          : await timeEntriesApi.start(data);
+      setActiveTimer(res.data);
+      if (sameWork && editingEntry) {
+        setEntries((prev) => prev.filter((e) => e._id !== editingEntry._id));
+      }
+      await markTaskInProgress(data.projectTaskId);
+      setModalOpen(false);
+      setEditingEntry(null);
+      setError(null);
+    } catch (err) {
+      console.error('Failed to start timer:', err);
+      setError('Failed to start timer');
     }
   };
 
@@ -332,6 +366,7 @@ function MemberEntries() {
           entries={entries}
           onEdit={handleEdit}
           onDelete={handleDelete}
+          onContinue={!activeTimer?.isRunning ? handleContinueEntry : undefined}
           loading={loading}
           showAmount={false}
         />
@@ -344,11 +379,13 @@ function MemberEntries() {
         projectTasks={projectTasks}
         isOpen={modalOpen}
         showRate={false}
+        isTimerRunning={Boolean(activeTimer?.isRunning)}
         onClose={() => {
           setModalOpen(false);
           setEditingEntry(null);
         }}
         onSave={handleSave}
+        onStartTimer={handleStartTimerFromModal}
       />
 
       <StartTaskPickerModal

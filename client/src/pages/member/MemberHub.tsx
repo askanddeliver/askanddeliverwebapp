@@ -10,7 +10,7 @@ import { AdminPageHeader } from '../../components/admin/AdminPageHeader';
 import { AdminStatStrip } from '../../components/admin/AdminStatStrip';
 import { AdminPanel } from '../../components/admin/AdminPanel';
 import { EntryList } from '../../components/entries/EntryList';
-import { EntryModal } from '../../components/entries/EntryModal';
+import { EntryModal, type EntryModalSaveData, type EntryModalStartData } from '../../components/entries/EntryModal';
 import {
   memberApi,
   timeEntriesApi,
@@ -18,6 +18,7 @@ import {
   projectTasksApi,
 } from '../../services/api';
 import { formatDurationHuman, getDashboardPeriodParams } from '../../utils/calculations';
+import { populatedRefId } from '../../utils/timeEntries';
 import type { TimeEntry, Project, TaskType, ProjectTask, MemberDashboardStats } from '../../types';
 
 function MemberHub() {
@@ -174,15 +175,7 @@ function MemberHub() {
     }
   };
 
-  const handleSaveEdit = async (data: {
-    projectId: string;
-    taskTypeId: string;
-    projectTaskId?: string;
-    description?: string;
-    startTime: string;
-    endTime: string;
-    duration: number;
-  }) => {
+  const handleSaveEdit = async (data: EntryModalSaveData) => {
     if (!editingEntry) return;
     try {
       const res = await timeEntriesApi.update(editingEntry._id, data);
@@ -193,6 +186,30 @@ function MemberHub() {
     } catch (err) {
       console.error('Failed to update entry:', err);
       setError('Failed to update entry');
+    }
+  };
+
+  const handleStartTimerFromModal = async (data: EntryModalStartData) => {
+    try {
+      const sameWork =
+        Boolean(editingEntry) &&
+        populatedRefId(editingEntry?.projectId) === data.projectId &&
+        populatedRefId(editingEntry?.taskTypeId) === data.taskTypeId &&
+        (populatedRefId(editingEntry?.projectTaskId) || undefined) === data.projectTaskId;
+      const res =
+        sameWork && editingEntry
+          ? await timeEntriesApi.continue(editingEntry._id)
+          : await timeEntriesApi.start(data);
+      setActiveTimer(res.data);
+      if (sameWork && editingEntry) {
+        setAllEntries((prev) => prev.filter((e) => e._id !== editingEntry._id));
+      }
+      setEditModalOpen(false);
+      setEditingEntry(null);
+      setError(null);
+    } catch (err) {
+      console.error('Failed to start timer:', err);
+      setError('Failed to start timer');
     }
   };
 
@@ -352,11 +369,13 @@ function MemberHub() {
         projectTasks={projectTasks}
         isOpen={editModalOpen}
         showRate={false}
+        isTimerRunning={Boolean(activeTimer?.isRunning)}
         onClose={() => {
           setEditModalOpen(false);
           setEditingEntry(null);
         }}
         onSave={handleSaveEdit}
+        onStartTimer={handleStartTimerFromModal}
       />
     </div>
   );

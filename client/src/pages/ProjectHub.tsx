@@ -13,7 +13,7 @@ import ProjectDocumentsPanel from '../components/projects/ProjectDocumentsPanel'
 import ProjectTaskSuggestionsPanel from '../components/projects/ProjectTaskSuggestionsPanel';
 import ProjectJumpNav, { hubJumpSections } from '../components/projects/ProjectJumpNav';
 import { ProjectModal, type ProjectModalSaveData } from '../components/projects/ProjectModal';
-import { EntryModal } from '../components/entries/EntryModal';
+import { EntryModal, type EntryModalSaveData, type EntryModalStartData } from '../components/entries/EntryModal';
 import { StartTaskTimerModal } from '../components/timer/StartTaskTimerModal';
 import SanitizedBrief from '../components/portal/SanitizedBrief';
 import {
@@ -22,9 +22,16 @@ import {
   projectTasksApi,
   taskTypesApi,
   timeEntriesApi,
+  usersApi,
 } from '../services/api';
 import { sortProjectTasksByOrder } from '../utils/projectTasks';
 import { getBurnDateRange, type BurnPeriod } from '../utils/projectBilling';
+import {
+  assignableWorkspaceUsers,
+  isOwnTimeEntry,
+  populatedRefId,
+  startPayloadFromEntry,
+} from '../utils/timeEntries';
 import type {
   Client,
   MessageComposeFromTask,
@@ -33,6 +40,7 @@ import type {
   ProjectTask,
   TaskType,
   TimeEntry,
+  User,
 } from '../types';
 
 function ProjectHub() {
@@ -67,6 +75,7 @@ function ProjectHub() {
     null
   );
   const [startTask, setStartTask] = useState<ProjectTask | null>(null);
+  const [members, setMembers] = useState<User[]>([]);
 
   const loadProject = useCallback(async () => {
     if (!id) return;
@@ -123,6 +132,13 @@ function ProjectHub() {
         isAdmin
           ? clientsApi.getAll().then((res) => {
               if (!cancelled) setClients(res.data || []);
+            })
+          : Promise.resolve(),
+        isAdmin
+          ? usersApi.getAll().then((res) => {
+              if (!cancelled) setMembers(assignableWorkspaceUsers(res.data || []));
+            }).catch(() => {
+              if (!cancelled) setMembers([]);
             })
           : Promise.resolve(),
       ]);
@@ -348,9 +364,20 @@ function ProjectHub() {
 
   const handleContinueEntry = async (entry: TimeEntry) => {
     try {
-      const res = await timeEntriesApi.continue(entry._id);
-      setActiveTimer(res.data);
-      setEntries((prev) => prev.filter((e) => e._id !== entry._id));
+      if (isOwnTimeEntry(entry, user?.auth0Id)) {
+        const res = await timeEntriesApi.continue(entry._id);
+        setActiveTimer(res.data);
+        setEntries((prev) => prev.filter((e) => e._id !== entry._id));
+      } else {
+        const payload = startPayloadFromEntry(entry);
+        if (!payload) {
+          setError('Could not start timer from this entry');
+          return;
+        }
+        const res = await timeEntriesApi.start(payload);
+        setActiveTimer(res.data);
+      }
+      setError(null);
     } catch (err) {
       console.error('Failed to continue entry:', err);
       setError('Failed to continue entry');
@@ -366,15 +393,7 @@ function ProjectHub() {
     }
   };
 
-  const handleSaveEntry = async (data: {
-    projectId: string;
-    taskTypeId: string;
-    projectTaskId?: string;
-    description?: string;
-    startTime: string;
-    endTime: string;
-    duration: number;
-  }) => {
+  const handleSaveEntry = async (data: EntryModalSaveData) => {
     try {
       if (editingEntry) {
         const res = await timeEntriesApi.update(editingEntry._id, data);
@@ -388,6 +407,31 @@ function ProjectHub() {
     } catch (err) {
       console.error('Failed to save entry:', err);
       setError('Failed to save time entry');
+    }
+  };
+
+  const handleStartTimerFromModal = async (data: EntryModalStartData) => {
+    try {
+      const own = editingEntry && isOwnTimeEntry(editingEntry, user?.auth0Id);
+      const sameWork =
+        Boolean(own) &&
+        populatedRefId(editingEntry?.projectId) === data.projectId &&
+        populatedRefId(editingEntry?.taskTypeId) === data.taskTypeId &&
+        (populatedRefId(editingEntry?.projectTaskId) || undefined) === data.projectTaskId;
+      const res =
+        sameWork && editingEntry
+          ? await timeEntriesApi.continue(editingEntry._id)
+          : await timeEntriesApi.start(data);
+      setActiveTimer(res.data);
+      if (sameWork && editingEntry) {
+        setEntries((prev) => prev.filter((e) => e._id !== editingEntry._id));
+      }
+      setEntryModalOpen(false);
+      setEditingEntry(null);
+      setError(null);
+    } catch (err) {
+      console.error('Failed to start timer:', err);
+      setError('Failed to start timer');
     }
   };
 
@@ -621,11 +665,16 @@ function ProjectHub() {
         isOpen={entryModalOpen}
         showRate={isAdmin}
         defaultProjectId={project._id}
+        members={members}
+        canAssign={isAdmin}
+        currentUserAuth0Id={user?.auth0Id}
+        isTimerRunning={Boolean(activeTimer?.isRunning)}
         onClose={() => {
           setEntryModalOpen(false);
           setEditingEntry(null);
         }}
         onSave={handleSaveEntry}
+        onStartTimer={handleStartTimerFromModal}
       />
 
       <StartTaskTimerModal

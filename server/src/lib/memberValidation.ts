@@ -49,3 +49,26 @@ export async function validateOptionalWorkspaceMemberAuth0Id(
   const [valid] = await validateWorkspaceMemberAuth0Ids(workspaceOwnerId, [auth0Id.trim()]);
   return valid;
 }
+
+/** Active workspace admin or member who can own a time entry. */
+export async function validateAssignableTimeEntryUserId(
+  workspaceOwnerId: string,
+  auth0Id: unknown
+): Promise<string> {
+  if (typeof auth0Id !== 'string' || !auth0Id.trim()) {
+    throw createError('Assigned user is required', 400);
+  }
+  const id = auth0Id.trim();
+  const target = await User.findOne({
+    auth0Id: id,
+    $or: [{ auth0Id: workspaceOwnerId }, { workspaceOwnerId }],
+    role: { $in: ['admin', 'member'] },
+    status: 'active',
+  })
+    .select('auth0Id')
+    .lean();
+  if (!target) {
+    throw createError('Assigned user is not an active workspace member', 400);
+  }
+  return id;
+}

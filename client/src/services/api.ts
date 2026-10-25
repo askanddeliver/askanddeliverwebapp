@@ -299,6 +299,7 @@ export const timeEntriesApi = {
     endTime?: string;
     duration?: number;
     blockId?: string;
+    userId?: string;
   }) => api.post<TimeEntry>('/time-entries', data),
   update: (id: string, data: Partial<TimeEntry>) =>
     api.put<TimeEntry>(`/time-entries/${id}`, data),

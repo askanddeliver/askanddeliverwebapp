@@ -1,7 +1,25 @@
 import { useState, useEffect } from 'react';
-import { X } from 'lucide-react';
-import type { TimeEntry, Project, TaskType, ProjectTask } from '../../types';
+import { Play, X } from 'lucide-react';
+import type { TimeEntry, Project, TaskType, ProjectTask, User } from '../../types';
 import { projectClientId, uniqueClientsFromProjects } from '../../utils/projectClient';
+
+export interface EntryModalSaveData {
+  projectId: string;
+  taskTypeId: string;
+  projectTaskId?: string;
+  description?: string;
+  startTime: string;
+  endTime: string;
+  duration: number;
+  userId?: string;
+}
+
+export interface EntryModalStartData {
+  projectId: string;
+  taskTypeId: string;
+  projectTaskId?: string;
+  description?: string;
+}
 
 interface EntryModalProps {
   entry?: TimeEntry | null;
@@ -11,16 +29,13 @@ interface EntryModalProps {
   isOpen: boolean;
   showRate?: boolean;
   defaultProjectId?: string;
+  members?: User[];
+  canAssign?: boolean;
+  currentUserAuth0Id?: string;
+  isTimerRunning?: boolean;
   onClose: () => void;
-  onSave: (data: {
-    projectId: string;
-    taskTypeId: string;
-    projectTaskId?: string;
-    description?: string;
-    startTime: string;
-    endTime: string;
-    duration: number;
-  }) => void;
+  onSave: (data: EntryModalSaveData) => void;
+  onStartTimer?: (data: EntryModalStartData) => void;
 }
 
 export function EntryModal({
@@ -31,13 +46,19 @@ export function EntryModal({
   isOpen,
   showRate = true,
   defaultProjectId,
+  members = [],
+  canAssign = false,
+  currentUserAuth0Id,
+  isTimerRunning = false,
   onClose,
   onSave,
+  onStartTimer,
 }: EntryModalProps) {
   const [clientId, setClientId] = useState('');
   const [projectId, setProjectId] = useState('');
   const [taskTypeId, setTaskTypeId] = useState('');
   const [projectTaskId, setProjectTaskId] = useState('');
+  const [assignedUserId, setAssignedUserId] = useState('');
   const [description, setDescription] = useState('');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [hours, setHours] = useState('');
@@ -50,6 +71,23 @@ export function EntryModal({
         return pid === projectId;
       })
     : [];
+
+  const assignedOptions = (() => {
+    const list = [...members];
+    if (assignedUserId && !list.some((m) => m.auth0Id === assignedUserId)) {
+      list.push({
+        _id: assignedUserId,
+        auth0Id: assignedUserId,
+        email: '',
+        name: 'Assigned user',
+        role: 'member',
+        status: 'active',
+        createdAt: '',
+        updatedAt: '',
+      });
+    }
+    return list;
+  })();
 
   useEffect(() => {
     if (entry) {
@@ -74,6 +112,7 @@ export function EntryModal({
       setProjectTaskId(
         projectTask?._id || (entry.projectTaskId as string) || ''
       );
+      setAssignedUserId(entry.userId || currentUserAuth0Id || '');
       setDescription(entry.description || '');
 
       // Extract date from startTime
@@ -92,12 +131,13 @@ export function EntryModal({
       setProjectId(defaultProjectId || '');
       setTaskTypeId('');
       setProjectTaskId('');
+      setAssignedUserId(currentUserAuth0Id || '');
       setDescription('');
       setDate(new Date().toISOString().split('T')[0]);
       setHours('');
       setMinutes('');
     }
-  }, [entry, isOpen, defaultProjectId]);
+  }, [entry, isOpen, defaultProjectId, currentUserAuth0Id]);
 
   // Reset project task when project changes (only for new entries)
   useEffect(() => {
@@ -106,9 +146,22 @@ export function EntryModal({
     }
   }, [projectId, entry]);
 
+  const applyProjectTask = (nextTaskId: string) => {
+    setProjectTaskId(nextTaskId);
+    if (entry || !canAssign || !nextTaskId) return;
+    const task = filteredTasks.find((t) => t._id === nextTaskId);
+    if (
+      task?.assigneeAuth0Id &&
+      members.some((m) => m.auth0Id === task.assigneeAuth0Id)
+    ) {
+      setAssignedUserId(task.assigneeAuth0Id);
+    }
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!projectId || !taskTypeId) return;
+    if (canAssign && members.length > 0 && !assignedUserId) return;
 
     const totalMinutes =
       parseInt(hours || '0') * 60 + parseInt(minutes || '0');
@@ -128,6 +181,17 @@ export function EntryModal({
       startTime: startTime.toISOString(),
       endTime: endTime.toISOString(),
       duration: durationSeconds,
+      ...(canAssign && assignedUserId ? { userId: assignedUserId } : {}),
+    });
+  };
+
+  const handleStartTimer = () => {
+    if (!onStartTimer || !projectId || !taskTypeId || isTimerRunning) return;
+    onStartTimer({
+      projectId,
+      taskTypeId,
+      projectTaskId: projectTaskId || undefined,
+      description: description.trim() || undefined,
     });
   };
 
@@ -223,13 +287,35 @@ export function EntryModal({
               </label>
               <select
                 value={projectTaskId}
-                onChange={(e) => setProjectTaskId(e.target.value)}
+                onChange={(e) => applyProjectTask(e.target.value)}
                 className="input"
               >
                 <option value="">No specific task</option>
                 {filteredTasks.map((task) => (
                   <option key={task._id} value={task._id}>
                     {task.title}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {canAssign && assignedOptions.length > 0 && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Assigned *
+              </label>
+              <select
+                value={assignedUserId}
+                onChange={(e) => setAssignedUserId(e.target.value)}
+                className="input"
+                required
+              >
+                <option value="">Select teammate...</option>
+                {assignedOptions.map((member) => (
+                  <option key={member.auth0Id} value={member.auth0Id}>
+                    {member.name || member.email}
+                    {member.auth0Id === currentUserAuth0Id ? ' (you)' : ''}
                   </option>
                 ))}
               </select>
@@ -293,17 +379,37 @@ export function EntryModal({
             />
           </div>
 
-          <div className="flex gap-3 pt-2">
-            <button type="submit" className="btn-primary flex-1">
-              {entry ? 'Save Changes' : 'Create Entry'}
-            </button>
-            <button
-              type="button"
-              onClick={onClose}
-              className="btn-secondary flex-1"
-            >
-              Cancel
-            </button>
+          <div className="flex flex-col gap-3 pt-2">
+            {onStartTimer && (
+              <button
+                type="button"
+                onClick={handleStartTimer}
+                disabled={!projectId || !taskTypeId || isTimerRunning}
+                className="btn-secondary flex w-full items-center justify-center gap-2 disabled:cursor-not-allowed disabled:opacity-50"
+                title={
+                  isTimerRunning
+                    ? 'Stop the current timer first'
+                    : !projectId || !taskTypeId
+                      ? 'Select a project and task type'
+                      : 'Start a timer for yourself with these details'
+                }
+              >
+                <Play className="w-4 h-4" />
+                Start timer
+              </button>
+            )}
+            <div className="flex gap-3">
+              <button type="submit" className="btn-primary flex-1">
+                {entry ? 'Save Changes' : 'Create Entry'}
+              </button>
+              <button
+                type="button"
+                onClick={onClose}
+                className="btn-secondary flex-1"
+              >
+                Cancel
+              </button>
+            </div>
           </div>
         </form>
       </div>

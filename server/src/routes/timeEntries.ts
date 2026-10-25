@@ -5,6 +5,7 @@ import { asyncHandler, createError } from '../middleware/errorHandler';
 import { TimeEntry, Project, Invoice } from '../models';
 import { User } from '../models';
 import { parseDateStart, parseDateEnd } from '../utils/calculations';
+import { validateAssignableTimeEntryUserId } from '../lib/memberValidation';
 
 const router = Router();
 
@@ -323,6 +324,7 @@ router.post(
       endTime,
       duration,
       blockId,
+      userId: assignedUserId,
     } = req.body;
 
     if (!projectId) throw createError('Project is required', 400);
@@ -330,6 +332,12 @@ router.post(
     if (!startTime) throw createError('Start time is required', 400);
 
     await ensureProjectInWorkspace(projectId, workspaceOwnerId);
+
+    const admin = await isAdmin(userId);
+    const entryUserId =
+      admin && assignedUserId
+        ? await validateAssignableTimeEntryUserId(workspaceOwnerId, assignedUserId)
+        : userId;
 
     // Calculate duration if not provided
     let entryDuration = duration;
@@ -345,7 +353,7 @@ router.post(
         : undefined;
 
     const entry = await TimeEntry.create({
-      userId,
+      userId: entryUserId,
       projectId,
       taskTypeId,
       projectTaskId: projectTaskId || undefined,
@@ -380,8 +388,16 @@ router.put(
     const existing = await TimeEntry.findOne(entryFilter);
     if (!existing) throw createError('Time entry not found', 404);
 
-    const { projectId, taskTypeId, projectTaskId, description, startTime, endTime, duration } =
-      req.body;
+    const {
+      projectId,
+      taskTypeId,
+      projectTaskId,
+      description,
+      startTime,
+      endTime,
+      duration,
+      userId: assignedUserId,
+    } = req.body;
 
     if (projectId !== undefined) {
       await ensureProjectInWorkspace(projectId, workspaceOwnerId);
@@ -395,6 +411,12 @@ router.put(
     if (startTime !== undefined) update.startTime = new Date(startTime);
     if (endTime !== undefined) update.endTime = new Date(endTime);
     if (duration !== undefined) update.duration = duration;
+    if (admin && assignedUserId) {
+      update.userId = await validateAssignableTimeEntryUserId(
+        workspaceOwnerId,
+        assignedUserId
+      );
+    }
 
     const updateFilter = admin
       ? { _id: req.params.id, projectId: { $in: await Project.find({ userId: workspaceOwnerId }).distinct('_id') } }
