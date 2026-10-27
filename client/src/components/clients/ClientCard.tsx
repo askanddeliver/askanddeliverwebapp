@@ -1,5 +1,6 @@
-import { Pencil, Trash2, Building2, Mail, UserPlus } from 'lucide-react';
+import { Pencil, Trash2, Mail, User, UserPlus } from 'lucide-react';
 import type { Client } from '../../types';
+import { clientOptionLabel, clientOwnerName, clientPrimaryName } from '../../utils/clientDisplay';
 
 interface ClientCardProps {
   client: Client;
@@ -12,6 +13,8 @@ export function ClientCard({ client, onEdit, onDelete, onInvitePortal }: ClientC
   const discountCount = Object.values(client.taskDiscounts || {}).filter(
     (d) => d > 0
   ).length;
+  const primary = clientPrimaryName(client);
+  const owner = clientOwnerName(client);
 
   return (
     <div className="card hover:shadow-md transition-shadow">
@@ -19,7 +22,7 @@ export function ClientCard({ client, onEdit, onDelete, onInvitePortal }: ClientC
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap min-w-0">
             <h3 className="text-lg font-bold text-gray-900 truncate">
-              {client.name}
+              {primary}
             </h3>
             {client.isInternal && (
               <span className="text-[10px] font-semibold uppercase tracking-wide bg-indigo-100 text-indigo-800 px-2 py-0.5 rounded-full flex-shrink-0">
@@ -27,10 +30,10 @@ export function ClientCard({ client, onEdit, onDelete, onInvitePortal }: ClientC
               </span>
             )}
           </div>
-          {client.company && (
+          {owner && (
             <div className="flex items-center gap-1.5 text-sm text-gray-500 mt-1">
-              <Building2 className="w-3.5 h-3.5" />
-              <span>{client.company}</span>
+              <User className="w-3.5 h-3.5" />
+              <span>{owner}</span>
             </div>
           )}
           {client.email && (
@@ -62,7 +65,7 @@ export function ClientCard({ client, onEdit, onDelete, onInvitePortal }: ClientC
             onClick={() => {
               if (
                 window.confirm(
-                  `Are you sure you want to delete "${client.name}"?`
+                  `Are you sure you want to delete "${clientOptionLabel(client)}"?`
                 )
               ) {
                 onDelete(client._id);

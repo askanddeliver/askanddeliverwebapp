@@ -1,6 +1,7 @@
 import type { TimeEntry, Project, TaskType, Client, ProjectTask, InvoiceLineItem } from '../../types';
 import { formatCurrency, formatDate, secondsToHours } from '../../utils/calculations';
 import { payStubRateByTaskType, payStubRateForEntry } from '../../utils/payStub';
+import { clientPrimaryName } from '../../utils/clientDisplay';
 
 interface PayStubEntriesTableProps {
   entries: TimeEntry[];
@@ -62,7 +63,7 @@ export function PayStubEntriesTable({
                 <td className="py-2 pr-2 text-gray-700 whitespace-nowrap">
                   {formatDate(entry.startTime)}
                 </td>
-                <td className="py-2 pr-2 text-gray-700">{client?.name || '—'}</td>
+                <td className="py-2 pr-2 text-gray-700">{client ? clientPrimaryName(client) : '—'}</td>
                 <td className="py-2 pr-2 text-gray-900">
                   {project?.title || 'Unknown project'}
                   {projectTask?.title ? (

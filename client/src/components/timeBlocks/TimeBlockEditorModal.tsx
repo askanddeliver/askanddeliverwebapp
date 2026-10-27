@@ -5,6 +5,7 @@ import {
   contrastTextOnHex,
   KIND_PILL_COLORS,
 } from '../../utils/blockColors';
+import { clientOptionLabel, clientPrimaryName, compareClientDisplay } from '../../utils/clientDisplay';
 import { HOUR_END, HOUR_START, shiftBlockToCalendarDate } from './calendarUtils';
 import {
   emptyWeeklyDays,
@@ -228,7 +229,7 @@ export function TimeBlockEditorModal({
                 <option value="">— None —</option>
                 {clientProjects.map((p) => (
                   <option key={p._id} value={p._id}>
-                    {typeof p.clientId === 'object' ? `${p.clientId.name} · ` : ''}
+                    {typeof p.clientId === 'object' ? `${clientPrimaryName(p.clientId)} · ` : ''}
                     {p.title}
                   </option>
                 ))}
@@ -260,10 +261,10 @@ export function TimeBlockEditorModal({
                   }}
                 >
                   <option value="">— None —</option>
-                  {clients.map((c) => (
+                  {[...clients].sort(compareClientDisplay).map((c) => (
                     <option key={c._id} value={c._id}>
-                      {c.name}
-                      {c.isInternal ? ' (Internal)' : ''}
+                      {clientOptionLabel(c)}
+                      {c.isInternal ? ' · Internal' : ''}
                     </option>
                   ))}
                 </select>

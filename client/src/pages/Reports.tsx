@@ -35,6 +35,7 @@ import {
   matchReportDatePreset,
 } from '../utils/calculations';
 import { projectClientId } from '../utils/projectClient';
+import { clientPrimaryName } from '../utils/clientDisplay';
 import {
   DEFAULT_REPORT_COLUMN_IDS,
   sanitizeReportColumnIds,
@@ -306,7 +307,7 @@ function Reports() {
           const getClientName = (e: TimeEntry) => {
             const proj = typeof e.projectId === 'object' ? e.projectId : null;
             const c = proj?.clientId;
-            return c && typeof c === 'object' ? c.name : '';
+            return c && typeof c === 'object' ? clientPrimaryName(c) : '';
           };
           cmp = getClientName(a).localeCompare(getClientName(b));
           break;

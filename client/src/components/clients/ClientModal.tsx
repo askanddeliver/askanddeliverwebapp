@@ -102,29 +102,32 @@ export function ClientModal({
         <form onSubmit={handleSubmit} className="p-6 space-y-5">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Client Name *
-            </label>
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className="input"
-              placeholder="e.g., Acme Corp"
-              required
-              autoFocus
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Company
+              Client company
             </label>
             <input
               type="text"
               value={company}
               onChange={(e) => setCompany(e.target.value)}
               className="input"
-              placeholder="Company name (optional)"
+              placeholder="e.g., Restaurants Inc."
+              autoFocus
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              Shown first in lists, project pickers, and reports.
+            </p>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Owner name *
+            </label>
+            <input
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="input"
+              placeholder="e.g., John Wade"
+              required
             />
           </div>
 

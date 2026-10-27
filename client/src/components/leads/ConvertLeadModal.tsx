@@ -75,7 +75,7 @@ export function ConvertLeadModal({
     e.preventDefault();
 
     if (!clientName.trim()) {
-      setError('Client name is required');
+      setError('Owner name is required');
       return;
     }
     if (!projectTitle.trim()) {
@@ -143,27 +143,30 @@ export function ConvertLeadModal({
             <div className="space-y-3">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Name <span className="text-red-400">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={clientName}
-                  onChange={(e) => setClientName(e.target.value)}
-                  className="input"
-                  placeholder="Client name"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Company
+                  Client company
                 </label>
                 <input
                   type="text"
                   value={clientCompany}
                   onChange={(e) => setClientCompany(e.target.value)}
                   className="input"
-                  placeholder="Company name (optional)"
+                  placeholder="e.g., Restaurants Inc."
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Shown first in lists and project pickers.
+                </p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Owner name <span className="text-red-400">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={clientName}
+                  onChange={(e) => setClientName(e.target.value)}
+                  className="input"
+                  placeholder="e.g., John Wade"
+                  required
                 />
               </div>
               <div>

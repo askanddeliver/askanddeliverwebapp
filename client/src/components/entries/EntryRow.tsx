@@ -7,6 +7,7 @@ import {
   getEffectiveRate,
   secondsToHours,
 } from '../../utils/calculations';
+import { clientPrimaryName } from '../../utils/clientDisplay';
 
 interface EntryRowProps {
   entry: TimeEntry;
@@ -56,7 +57,7 @@ export function EntryRow({
 
   const metaLine = (
     <>
-      {client && <span>{client.name}</span>}
+      {client && <span>{clientPrimaryName(client)}</span>}
       {taskType && <span>{client ? ` (${taskType.name})` : taskType.name}</span>}
       <span> &middot; {formatDate(entry.startTime)}</span>
     </>

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { X } from 'lucide-react';
 import type { Client } from '../../types';
+import { clientOptionLabel, compareClientDisplay } from '../../utils/clientDisplay';
 
 interface CreateProposalModalProps {
   clients: Client[];
@@ -65,9 +66,9 @@ export function CreateProposalModal({ clients, onClose, onCreate }: CreatePropos
               {clients.length === 0 ? (
                 <option value="">No clients — add one first</option>
               ) : (
-                clients.map((c) => (
+                [...clients].sort(compareClientDisplay).map((c) => (
                   <option key={c._id} value={c._id}>
-                    {c.name}
+                    {clientOptionLabel(c)}
                   </option>
                 ))
               )}

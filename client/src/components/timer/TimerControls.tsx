@@ -2,6 +2,7 @@ import { Play, Square } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import type { Project, TaskType, ProjectTask } from '../../types';
 import { projectClientId, uniqueClientsFromProjects } from '../../utils/projectClient';
+import { clientOptionLabel } from '../../utils/clientDisplay';
 
 interface TimerControlsProps {
   projects: Project[];
@@ -85,7 +86,7 @@ export function TimerControls({
             <option value="">Select client...</option>
             {clients.map((client) => (
               <option key={client._id} value={client._id}>
-                {client.name}
+                {clientOptionLabel(client)}
               </option>
             ))}
           </select>

@@ -25,6 +25,7 @@ import {
   calculateAmount,
   secondsToHours,
 } from '../utils/calculations';
+import { clientPrimaryName } from '../utils/clientDisplay';
 import {
   sanitizeReportCsvColumns,
   REPORT_CSV_HEADERS,
@@ -460,7 +461,7 @@ router.post(
         case 'member':
           return member?.name || '';
         case 'client':
-          return project?.clientId?.name || 'Unknown';
+          return clientPrimaryName(entryClient) || clientPrimaryName(project?.clientId) || 'Unknown';
         case 'project':
           return project?.title || 'Unknown';
         case 'billingMode':
@@ -516,12 +517,12 @@ router.post(
     }
 
     const fixedItems = await LineItem.find(lineItemQuery)
-      .populate('clientId', 'name')
+      .populate('clientId', 'name company')
       .populate('projectId', 'title')
       .sort({ date: -1 });
 
     const fixedRows = fixedItems.map((fi) => {
-      const fiClient = fi.clientId as unknown as { name: string } | null;
+      const fiClient = fi.clientId as unknown as { name?: string; company?: string } | null;
       const fiProject = fi.projectId as unknown as { title: string } | null;
       const cells: Record<ReportCsvColumnId, string> = {
         date: new Date(fi.date).toLocaleDateString(),
@@ -530,7 +531,7 @@ router.post(
         hours: '',
         durationHuman: '',
         member: '',
-        client: fiClient?.name || 'Unknown',
+        client: clientPrimaryName(fiClient) || 'Unknown',
         project: fiProject?.title || '',
         billingMode: '',
         projectTask: '',

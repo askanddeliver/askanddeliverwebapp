@@ -11,6 +11,7 @@ import { useNavigate } from 'react-router-dom';
 import { FolderOpen, Search, Users, X } from 'lucide-react';
 import { clientsApi, projectsApi } from '../services/api';
 import type { Client, Project } from '../types';
+import { clientOwnerName, clientPrimaryName } from '../utils/clientDisplay';
 
 interface CommandPaletteContextValue {
   open: () => void;
@@ -79,7 +80,7 @@ export function CommandPaletteProvider({ children }: { children: ReactNode }) {
           kind: 'project',
           id: p._id,
           label: p.title,
-          sub: typeof p.clientId === 'object' ? p.clientId.name : undefined,
+          sub: typeof p.clientId === 'object' ? clientPrimaryName(p.clientId) : undefined,
           to: '/projects',
         });
       }
@@ -91,8 +92,8 @@ export function CommandPaletteProvider({ children }: { children: ReactNode }) {
         items.push({
           kind: 'client',
           id: c._id,
-          label: c.name,
-          sub: c.company,
+          label: clientPrimaryName(c),
+          sub: clientOwnerName(c) || undefined,
           to: '/clients',
         });
       }

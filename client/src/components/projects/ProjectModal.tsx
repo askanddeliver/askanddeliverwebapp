@@ -3,6 +3,7 @@ import { X, Plus, Trash2 } from 'lucide-react';
 import type { Client, Project, ProjectBillingMode, ProjectStatus, User } from '../../types';
 import { usersApi } from '../../services/api';
 import { BriefEditor } from './BriefEditor';
+import { clientOptionLabel, compareClientDisplay } from '../../utils/clientDisplay';
 
 interface ProjectModalProps {
   project?: Project | null;
@@ -305,10 +306,9 @@ export function ProjectModal({
                     required
                   >
                     <option value="">Select client...</option>
-                    {clients.map((c) => (
+                    {[...clients].sort(compareClientDisplay).map((c) => (
                       <option key={c._id} value={c._id}>
-                        {c.name}
-                        {c.company ? ` (${c.company})` : ''}
+                        {clientOptionLabel(c)}
                       </option>
                     ))}
                   </select>

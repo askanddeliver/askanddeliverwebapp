@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Play, X } from 'lucide-react';
 import type { Project, ProjectTask, TaskType } from '../../types';
+import { clientPrimaryName } from '../../utils/clientDisplay';
 
 const STORAGE_KEY_PREFIX = 'aad_last_task_type_project_';
 
@@ -49,7 +50,7 @@ export function StartTaskTimerModal({
   if (!isOpen || !project || !projectTask) return null;
 
   const clientLabel =
-    typeof project.clientId === 'object' ? project.clientId.name : null;
+    typeof project.clientId === 'object' ? clientPrimaryName(project.clientId) : null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

@@ -4,6 +4,7 @@ import { Archive } from 'lucide-react';
 import { InvoiceDetail } from '../components/invoices/InvoiceDetail';
 import { invoicesApi, reportsApi } from '../services/api';
 import { formatDate } from '../utils/calculations';
+import { clientPrimaryName } from '../utils/clientDisplay';
 import type { InvoiceDocumentKind, SavedInvoice, UnfiledRetainerHoursRow } from '../types';
 
 type KindFilter = 'ALL' | 'RETAINER_REPORT' | 'DATA_REPORT' | 'BUDGET_REPORT';
@@ -182,7 +183,7 @@ function SavedReports() {
                     </span>
                   </div>
                   <p className="text-sm text-gray-600 truncate">
-                    {doc.clientInfo.name}
+                    {clientPrimaryName(doc.clientInfo)}
                   </p>
                   {doc.notes && (
                     <p className="text-xs text-gray-400 truncate mt-0.5">

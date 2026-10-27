@@ -5,6 +5,7 @@ import { ProposalDetail } from '../components/proposals/ProposalDetail';
 import { CreateProposalModal } from '../components/proposals/CreateProposalModal';
 import { proposalsApi, clientsApi } from '../services/api';
 import { formatDate } from '../utils/calculations';
+import { clientOptionLabel, clientPrimaryName, compareClientDisplay } from '../utils/clientDisplay';
 import type { SavedProposal, Client } from '../types';
 
 type TabFilter = 'ALL' | 'DRAFT' | 'FINALIZED';
@@ -166,9 +167,9 @@ function Proposals() {
             className="input text-sm py-1.5 max-w-[200px]"
           >
             <option value="">All clients</option>
-            {clients.map((c) => (
+            {[...clients].sort(compareClientDisplay).map((c) => (
               <option key={c._id} value={c._id}>
-                {c.name}
+                {clientOptionLabel(c)}
               </option>
             ))}
           </select>
@@ -207,7 +208,7 @@ function Proposals() {
                     <ProposalStatusBadge status={p.status} />
                   </div>
                   <p className="font-semibold text-gray-900 text-sm truncate">{p.title}</p>
-                  <p className="text-sm text-gray-600 truncate">{p.clientInfo.name}</p>
+                  <p className="text-sm text-gray-600 truncate">{clientPrimaryName(p.clientInfo)}</p>
                 </div>
                 <div className="text-xs text-gray-400 flex-shrink-0 w-24 text-right">
                   {formatDate(p.updatedAt)}

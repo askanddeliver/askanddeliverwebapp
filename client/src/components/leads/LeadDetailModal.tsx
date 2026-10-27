@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { leadsApi, siteConfigApi, usersApi } from '../../services/api';
 import type { Lead, LeadStatus, LeadPriority, Client, Project, IntakeAttachment, DisciplineDefinition, User } from '../../types';
+import { clientOptionLabel } from '../../utils/clientDisplay';
 
 interface LeadDetailModalProps {
   lead: Lead;
@@ -391,7 +392,7 @@ export function LeadDetailModal({
                     className="inline-flex items-center gap-1 text-green-700 hover:text-green-900 underline"
                   >
                     <ExternalLink className="w-3.5 h-3.5" />
-                    {convertedClient.name}
+                    {clientOptionLabel(convertedClient)}
                   </a>
                 )}
                 {convertedProject && (

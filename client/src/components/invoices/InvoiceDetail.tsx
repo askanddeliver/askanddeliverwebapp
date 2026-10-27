@@ -20,6 +20,7 @@ import { PayStubEntriesTable } from '../reports/PayStubEntriesTable';
 import { EntryRow } from '../entries/EntryRow';
 import { invoicesApi, timeEntriesApi } from '../../services/api';
 import { formatCurrency, formatDate, getTodayString } from '../../utils/calculations';
+import { clientPrimaryName } from '../../utils/clientDisplay';
 import { formatPayoutMethod, PAYOUT_METHODS, PAYOUT_METHOD_LABELS } from '../../utils/payout';
 import type { SavedInvoice, Invoice, InvoiceDocumentKind, InvoiceStatus, TimeEntry, PayoutMethod } from '../../types';
 
@@ -307,7 +308,7 @@ export function InvoiceDetail({ invoice, onClose, onUpdated, onDeleted, libraryM
                   </div>
                 )}
                 <p className="text-sm text-gray-500">
-                  {invoice.clientInfo.name} &middot; Created {formatDate(invoice.createdAt)}
+                  {isPayStub ? invoice.clientInfo.name : clientPrimaryName(invoice.clientInfo)} &middot; Created {formatDate(invoice.createdAt)}
                 </p>
               </div>
               {isPayStub ? (

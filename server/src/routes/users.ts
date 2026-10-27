@@ -8,6 +8,7 @@ import { getAuth0UsersByEmail } from '../lib/auth0Management';
 import { notifyClientPortalInvite } from '../lib/email';
 import { validateMemberProfileFields } from '../lib/userProfile';
 import { parsePayoutPreference } from '../utils/payoutPreference';
+import { clientPrimaryName } from '../utils/clientDisplay';
 import {
   mergeNotificationPreferences,
   parseNotificationPreferencesUpdate,
@@ -432,7 +433,7 @@ router.post(
     notifyClientPortalInvite({
       workspaceOwnerId: auth0Id,
       inviteeEmail: normalizedEmail,
-      clientName: client.name,
+      clientName: clientPrimaryName(client),
     });
 
     res.json(updated);

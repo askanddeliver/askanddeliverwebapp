@@ -19,6 +19,7 @@ import {
   toUTCEndOfDay,
 } from '../../utils/calculations';
 import { projectClientId, uniqueClientsFromProjects } from '../../utils/projectClient';
+import { clientOptionLabel } from '../../utils/clientDisplay';
 import { populatedRefId } from '../../utils/timeEntries';
 import type { TimeEntry, Project, TaskType, ProjectTask } from '../../types';
 
@@ -305,7 +306,7 @@ function MemberEntries() {
                 <option value="">All Clients</option>
                 {uniqueClientsFromProjects(projects).map((c) => (
                   <option key={c._id} value={c._id}>
-                    {c.name}
+                    {clientOptionLabel(c)}
                   </option>
                 ))}
               </select>

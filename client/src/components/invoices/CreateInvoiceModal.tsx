@@ -8,6 +8,7 @@ import {
   payStubTotal,
 } from '../../utils/payStub';
 import type { Invoice, InvoiceDocumentKind, TimeEntry, LineItem } from '../../types';
+import { clientPrimaryName } from '../../utils/clientDisplay';
 
 interface CreateInvoiceModalProps {
   isOpen: boolean;
@@ -69,7 +70,7 @@ export function CreateInvoiceModal({
     typeof invoice.client?._id === 'string' ? invoice.client._id : '';
   const clientName = isPayStub
     ? (payeeName || 'Team member')
-    : invoice.client?.name || (isDataReport ? 'Multiple clients' : 'Unknown Client');
+    : (invoice.client ? clientPrimaryName(invoice.client) : '') || (isDataReport ? 'Multiple clients' : 'Unknown Client');
   const dateStart = invoice.dateRange?.start;
   const dateEnd = invoice.dateRange?.end;
   const dateLabel =

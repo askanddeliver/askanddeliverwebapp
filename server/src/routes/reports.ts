@@ -8,6 +8,7 @@ import {
   getDiscountPercent,
   getEffectiveRate,
 } from '../utils/calculations';
+import { clientPrimaryName } from '../utils/clientDisplay';
 
 const router = Router();
 
@@ -692,7 +693,7 @@ router.get(
       userId: workspaceOwnerId,
       billingMode: 'HOUR_RETAINER',
     })
-      .populate('clientId', 'name')
+      .populate('clientId', 'name company')
       .lean();
 
     if (retainerProjects.length === 0) {
@@ -744,14 +745,14 @@ router.get(
             unfiledEntryCount += 1;
           }
         }
-        const client =
+        const populated =
           project.clientId && typeof project.clientId === 'object'
-            ? (project.clientId as { name?: string }).name
+            ? (project.clientId as { name?: string; company?: string })
             : undefined;
         return {
           projectId: pid,
           title: project.title,
-          clientName: client || '',
+          clientName: clientPrimaryName(populated),
           unfiledHours: Math.round((unfiledSeconds / 3600) * 100) / 100,
           unfiledEntryCount,
         };

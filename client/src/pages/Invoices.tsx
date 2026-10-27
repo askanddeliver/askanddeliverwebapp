@@ -5,6 +5,7 @@ import { InvoiceStatusBadge } from '../components/invoices/InvoiceStatusBadge';
 import { InvoiceDetail } from '../components/invoices/InvoiceDetail';
 import { invoicesApi, clientsApi } from '../services/api';
 import { formatCurrency, formatDate } from '../utils/calculations';
+import { clientOptionLabel, clientPrimaryName, compareClientDisplay } from '../utils/clientDisplay';
 import type { SavedInvoice, InvoiceStatus, InvoiceStats, Client } from '../types';
 
 type TabFilter = 'ALL' | InvoiceStatus;
@@ -169,8 +170,8 @@ function Invoices() {
           className="input text-sm py-1.5 max-w-[200px]"
         >
           <option value="">All Clients</option>
-          {clients.map((c) => (
-            <option key={c._id} value={c._id}>{c.name}</option>
+          {[...clients].sort(compareClientDisplay).map((c) => (
+            <option key={c._id} value={c._id}>{clientOptionLabel(c)}</option>
           ))}
         </select>
 
@@ -212,7 +213,7 @@ function Invoices() {
                   <InvoiceStatusBadge status={inv.status} />
                 </div>
                 <p className="text-sm text-gray-600 truncate">
-                  {inv.clientInfo.name}
+                  {clientPrimaryName(inv.clientInfo)}
                 </p>
                 {inv.notes && (
                   <p className="text-xs text-gray-400 truncate mt-0.5">

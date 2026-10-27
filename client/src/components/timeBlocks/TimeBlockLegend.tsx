@@ -1,5 +1,6 @@
 import type { Client } from '../../types';
 import { blockKindLabel, clientCalendarColor, KIND_PILL_COLORS } from '../../utils/blockColors';
+import { clientOptionLabel, clientPrimaryName, compareClientDisplay } from '../../utils/clientDisplay';
 
 const NON_WORK_KINDS = ['PERSONAL', 'DOWNTIME', 'MEETING', 'ADMIN'] as const;
 
@@ -8,9 +9,7 @@ interface TimeBlockLegendProps {
 }
 
 export function TimeBlockLegend({ clients }: TimeBlockLegendProps) {
-  const sorted = [...clients].sort((a, b) =>
-    a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })
-  );
+  const sorted = [...clients].sort(compareClientDisplay);
 
   return (
     <aside className="w-full shrink-0 lg:w-52 border border-gray-200/80 rounded-xl bg-white/90 p-4 h-fit lg:sticky lg:top-4">
@@ -23,10 +22,10 @@ export function TimeBlockLegend({ clients }: TimeBlockLegendProps) {
             <span
               className="w-2.5 h-2.5 rounded-full shrink-0 ring-1 ring-black/5"
               style={{ backgroundColor: clientCalendarColor(c) }}
-              title={c.name}
+              title={clientOptionLabel(c)}
             />
             <span className="truncate">
-              {c.name}
+              {clientPrimaryName(c)}
               {c.isInternal && (
                 <span className="text-gray-400 font-medium"> · Internal</span>
               )}

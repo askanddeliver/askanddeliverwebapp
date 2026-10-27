@@ -1,4 +1,5 @@
 import type { Client, Project } from '../../types';
+import { clientOptionLabel, compareClientDisplay } from '../../utils/clientDisplay';
 import { getDaysAgoString, getTodayString } from '../../utils/calculations';
 
 interface ReportFiltersProps {
@@ -56,9 +57,9 @@ export function ReportFilters({
             className="input"
           >
             <option value="">All Clients</option>
-            {clients.map((c) => (
+            {[...clients].sort(compareClientDisplay).map((c) => (
               <option key={c._id} value={c._id}>
-                {c.name}
+                {clientOptionLabel(c)}
               </option>
             ))}
           </select>

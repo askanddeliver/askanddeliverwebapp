@@ -5,6 +5,7 @@ import {
   type ReportDatePreset,
 } from '../../utils/calculations';
 import { projectClientId } from '../../utils/projectClient';
+import { clientOptionLabel, clientPrimaryName, compareClientDisplay } from '../../utils/clientDisplay';
 import type { ReportColumnId } from '../../utils/reportColumns';
 import { ReportColumnCatalog } from './ReportColumnCatalog';
 import { ReportFilterPresets } from './ReportFilterPresets';
@@ -153,7 +154,7 @@ export function ReportFilterRail({
   onUpdatePreset,
   onDeletePreset,
 }: ReportFilterRailProps) {
-  const sortedClients = [...clients].sort((a, b) => a.name.localeCompare(b.name));
+  const sortedClients = [...clients].sort(compareClientDisplay);
   const scopedProjects =
     clientIds.length > 0
       ? projects.filter((p) => clientIds.includes(projectClientId(p)))
@@ -210,7 +211,7 @@ export function ReportFilterRail({
             items={sortedClients}
             selectedIds={clientIds}
             onChange={onClientIdsChange}
-            getLabel={(c) => c.name}
+            getLabel={(c) => clientOptionLabel(c)}
           />
           <p className="text-xs text-gray-500 mt-1">Empty = all clients</p>
         </section>
@@ -222,7 +223,8 @@ export function ReportFilterRail({
             selectedIds={projectIds}
             onChange={onProjectIdsChange}
             getLabel={(p) => {
-              const clientName = typeof p.clientId === 'object' ? p.clientId.name : null;
+              const clientName =
+                typeof p.clientId === 'object' ? clientPrimaryName(p.clientId) : null;
               const mode = billingModeLabel(p.billingMode);
               const prefix = clientName && clientIds.length !== 1 ? `${clientName} — ` : '';
               return `${prefix}${p.title} (${mode})`;

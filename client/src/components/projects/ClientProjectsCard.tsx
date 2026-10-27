@@ -18,6 +18,7 @@ import { formatCurrency } from '../../utils/calculations';
 import { projectBillingSummary } from '../../utils/projectBilling';
 import { sortProjectTasksByOrder } from '../../utils/projectTasks';
 import type { ClientProjectGroup } from '../../utils/projectClient';
+import { clientOwnerName, clientPrimaryName } from '../../utils/clientDisplay';
 import UnreadCountBadge from './UnreadCountBadge';
 
 const projectStatusStyles: Record<string, string> = {
@@ -62,6 +63,14 @@ export function ClientProjectsCard({
 }: ClientProjectsCardProps) {
   const projectCount = group.projects.length;
   const isPinned = group.pinned === true;
+  const primary = clientPrimaryName({
+    name: group.clientName,
+    company: group.clientCompany,
+  });
+  const owner = clientOwnerName({
+    name: group.clientName,
+    company: group.clientCompany,
+  });
   const [expandedTaskIds, setExpandedTaskIds] = useState<Set<string>>(
     () => new Set()
   );
@@ -83,10 +92,10 @@ export function ClientProjectsCard({
         </span>
         <div className="min-w-0 flex-1">
           <h2 className="truncate text-base font-semibold text-gray-900">
-            {group.clientName}
+            {primary}
           </h2>
           <p className="mt-0.5 text-xs text-gray-500">
-            {group.clientCompany ? `${group.clientCompany} · ` : ''}
+            {owner ? `${owner} · ` : ''}
             {projectCount} {projectCount === 1 ? 'project' : 'projects'}
             {group.isInternal ? ' · Internal' : ''}
             {isPinned ? ' · Pinned' : ''}

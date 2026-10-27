@@ -1,6 +1,7 @@
 import type { CSSProperties } from 'react';
 import type { CompanyInfo, ProposalInvestment, ProposalPhase, ThemeColors } from '../../types';
 import { formatCurrency, formatDate } from '../../utils/calculations';
+import { clientDocumentLines } from '../../utils/clientDisplay';
 import { ProposalMarkdownBody } from './ProposalMarkdownBody';
 import { ProposalWordmark } from './ProposalWordmark';
 
@@ -56,6 +57,7 @@ function formatContactBlock(info: CompanyInfo): string[] {
 export function ProposalPreview({ model }: ProposalPreviewProps) {
   const { companyInfo, clientInfo, accentSnapshot } = model;
   const contactLines = formatContactBlock(companyInfo);
+  const preparedFor = clientDocumentLines(clientInfo);
   const year = new Date().getFullYear();
 
   const phaseShowHours = model.phases.some((p) => p.estimatedHours != null);
@@ -371,12 +373,11 @@ export function ProposalPreview({ model }: ProposalPreviewProps) {
                   Prepared for
                 </p>
                 <p className="font-semibold text-gray-900 text-base">
-                  {clientInfo.businessEntity || clientInfo.name}
+                  {preparedFor.primary}
                 </p>
-                {clientInfo.businessEntity && clientInfo.name !== clientInfo.businessEntity && (
-                  <p className="text-gray-700 mt-1">{clientInfo.name}</p>
-                )}
-                {clientInfo.company && <p className="text-gray-600 mt-1">{clientInfo.company}</p>}
+                {preparedFor.secondary.map((line) => (
+                  <p key={line} className="text-gray-700 mt-1">{line}</p>
+                ))}
                 {clientInfo.address && (
                   <p className="text-gray-700 mt-2 whitespace-pre-line">{clientInfo.address}</p>
                 )}

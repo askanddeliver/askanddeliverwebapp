@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Play, X } from 'lucide-react';
 import type { Project, ProjectTask, TaskType } from '../../types';
 import { projectClientId, uniqueClientsFromProjects } from '../../utils/projectClient';
+import { clientOptionLabel } from '../../utils/clientDisplay';
 import { sortProjectTasksByOrder, taskProjectId } from '../../utils/projectTasks';
 
 const STORAGE_KEY_PREFIX = 'aad_last_task_type_project_';
@@ -150,7 +151,7 @@ export function StartTaskPickerModal({
                   <option value="">Select client...</option>
                   {clients.map((client) => (
                     <option key={client._id} value={client._id}>
-                      {client.name}
+                      {clientOptionLabel(client)}
                     </option>
                   ))}
                 </select>

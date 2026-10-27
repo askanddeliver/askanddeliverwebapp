@@ -30,6 +30,7 @@ import {
 } from 'lucide-react';
 import type { Project, ProjectTask } from '../../types';
 import { sortProjectTasksByOrder } from '../../utils/projectTasks';
+import { clientPrimaryName } from '../../utils/clientDisplay';
 
 interface DashboardTaskListProps {
   projects: Project[];
@@ -110,7 +111,7 @@ function buildGroups(projects: Project[], tasks: ProjectTask[]): ClientGroup[] {
         : `__noclient__${project._id}`;
     const clientName =
       typeof project.clientId === 'object'
-        ? project.clientId.name
+        ? clientPrimaryName(project.clientId) || 'Unknown client'
         : 'Unknown client';
 
     if (!byClient.has(clientSortKey)) {

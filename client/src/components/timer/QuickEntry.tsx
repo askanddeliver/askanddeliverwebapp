@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Plus } from 'lucide-react';
 import type { Project, TaskType, ProjectTask } from '../../types';
 import { projectClientId, uniqueClientsFromProjects } from '../../utils/projectClient';
+import { clientOptionLabel } from '../../utils/clientDisplay';
 
 interface QuickEntryProps {
   projects: Project[];
@@ -120,7 +121,7 @@ export function QuickEntry({ projects, taskTypes, projectTasks, showRate = true,
               <option value="">Select client...</option>
               {clients.map((c) => (
                 <option key={c._id} value={c._id}>
-                  {c.name}
+                  {clientOptionLabel(c)}
                 </option>
               ))}
             </select>

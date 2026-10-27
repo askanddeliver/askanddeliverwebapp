@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { ArrowLeft, Archive, Pencil, Trash2 } from 'lucide-react';
 import type { Client, Project } from '../../types';
 import { projectBillingSummary } from '../../utils/projectBilling';
+import { clientOptionLabel } from '../../utils/clientDisplay';
 
 const statusStyles: Record<string, string> = {
   ACTIVE: 'bg-green-50 text-green-700 border-green-200',
@@ -50,7 +51,7 @@ export function ProjectHubHeader({
             {project.title}
           </h1>
           {client && (
-            <p className="mt-0.5 text-sm text-[var(--admin-text-2)]">{client.name}</p>
+            <p className="mt-0.5 text-sm text-[var(--admin-text-2)]">{clientOptionLabel(client)}</p>
           )}
           {project.excerpt && (
             <p className="mt-2 text-sm text-[var(--admin-text-3)]">{project.excerpt}</p>

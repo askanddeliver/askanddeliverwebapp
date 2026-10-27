@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Play, X } from 'lucide-react';
 import type { TimeEntry, Project, TaskType, ProjectTask, User } from '../../types';
 import { projectClientId, uniqueClientsFromProjects } from '../../utils/projectClient';
+import { clientOptionLabel } from '../../utils/clientDisplay';
 
 export interface EntryModalSaveData {
   projectId: string;
@@ -229,7 +230,7 @@ export function EntryModal({
               <option value="">Select client...</option>
               {uniqueClientsFromProjects(projects).map((c) => (
                 <option key={c._id} value={c._id}>
-                  {c.name}
+                  {clientOptionLabel(c)}
                 </option>
               ))}
             </select>

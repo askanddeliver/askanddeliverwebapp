@@ -1,4 +1,5 @@
 import type { Client, ExpandedTimeBlock, Project, TimeBlockKind } from '../types';
+import { clientPrimaryName } from './clientDisplay';
 
 /**
  * Kind colors — match Claude Design prototype (`docs/block time ui ux updates/bt-data.jsx`).
@@ -106,7 +107,7 @@ export function clientLabel(block: ExpandedTimeBlock): string {
   if (p && typeof p === 'object') {
     const raw = (p as Project).clientId;
     if (typeof raw === 'object' && raw !== null && 'name' in raw) {
-      return (raw as Client).name;
+      return clientPrimaryName(raw as Client);
     }
   }
   return '';

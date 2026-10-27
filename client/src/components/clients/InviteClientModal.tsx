@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { X, Copy, Check } from 'lucide-react';
 import type { Client } from '../../types';
+import { clientPrimaryName } from '../../utils/clientDisplay';
 
 interface InviteClientModalProps {
   client: Client | null;
@@ -79,7 +80,7 @@ export function InviteClientModal({
 
         <form onSubmit={handleSubmit} className="space-y-4 p-6">
           <p className="text-sm text-gray-600">
-            Grant portal access for <strong>{client.name}</strong>. The contact
+            Grant portal access for <strong>{clientPrimaryName(client)}</strong>. The contact
             must already have an account — share the login link below if needed,
             then enter their email.
           </p>

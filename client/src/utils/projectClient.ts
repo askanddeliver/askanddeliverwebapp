@@ -1,4 +1,5 @@
 import type { Project, ProjectTask } from '../types';
+import { clientPrimaryName, compareClientDisplay } from './clientDisplay';
 
 export function projectClientId(project: Project): string {
   return typeof project.clientId === 'object' && project.clientId
@@ -8,15 +9,18 @@ export function projectClientId(project: Project): string {
 
 export function uniqueClientsFromProjects(
   projects: Project[]
-): Array<{ _id: string; name: string }> {
-  const seen = new Map<string, string>();
+): Array<{ _id: string; name: string; company?: string }> {
+  const seen = new Map<string, { name: string; company?: string }>();
   for (const p of projects) {
     if (typeof p.clientId === 'object' && p.clientId) {
-      seen.set(p.clientId._id, p.clientId.name);
+      seen.set(p.clientId._id, {
+        name: p.clientId.name,
+        company: p.clientId.company,
+      });
     }
   }
-  return Array.from(seen, ([_id, name]) => ({ _id, name })).sort((a, b) =>
-    a.name.localeCompare(b.name)
+  return Array.from(seen, ([_id, client]) => ({ _id, ...client })).sort(
+    compareClientDisplay
   );
 }
 
@@ -55,7 +59,14 @@ export function groupProjectsByClient(projects: Project[]): ClientProjectGroup[]
     .map((id) => groups.get(id)!)
     .sort((a, b) => {
       if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
-      return a.clientName.localeCompare(b.clientName, undefined, { sensitivity: 'base' });
+      return clientPrimaryName({
+        name: a.clientName,
+        company: a.clientCompany,
+      }).localeCompare(
+        clientPrimaryName({ name: b.clientName, company: b.clientCompany }),
+        undefined,
+        { sensitivity: 'base' }
+      );
     });
 }
 

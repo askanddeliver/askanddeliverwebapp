@@ -1,5 +1,6 @@
 import type { Invoice, InvoiceLineItem } from '../../types';
 import { formatCurrency, formatDate } from '../../utils/calculations';
+import { clientDocumentLines } from '../../utils/clientDisplay';
 
 interface InvoicePreviewProps {
   invoice: Invoice;
@@ -22,6 +23,7 @@ export function InvoicePreview({ invoice }: InvoicePreviewProps) {
   const isRetainerDoc =
     invoice.invoiceKind === 'RETAINER_REPORT' || retainerUtilItems.length > 0;
   const retainerPeriodHours = retainerUtilItems.reduce((s, item) => s + item.hours, 0);
+  const billTo = clientDocumentLines(invoice.client);
 
   return (
     <div className="card print:border-0 print:shadow-none print:rounded-none print:p-0 print:overflow-visible" id="invoice-preview">
@@ -52,15 +54,12 @@ export function InvoicePreview({ invoice }: InvoicePreviewProps) {
         <div className="text-right flex-1 min-w-0">
           {invoice.client && (
             <div className="text-sm">
-              <p className="font-bold text-gray-900 text-base">
-                {invoice.client.businessEntity || invoice.client.name}
-              </p>
-              {invoice.client.businessEntity && invoice.client.name !== invoice.client.businessEntity && (
-                <p className="text-gray-600 mt-0.5">{invoice.client.name}</p>
-              )}
-              {invoice.client.company && (
-                <p className="text-gray-500">{invoice.client.company}</p>
-              )}
+              <p className="font-bold text-gray-900 text-base">{billTo.primary}</p>
+              {billTo.secondary.map((line) => (
+                <p key={line} className="text-gray-600 mt-0.5">
+                  {line}
+                </p>
+              ))}
               {invoice.client.address && (
                 <p className="text-gray-600 mt-1 whitespace-pre-line">{invoice.client.address}</p>
               )}

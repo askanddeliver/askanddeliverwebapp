@@ -14,6 +14,7 @@ import {
 } from '../services/api';
 import { formatDurationHuman, getDaysAgoString, getTodayString, toUTCStartOfDay, toUTCEndOfDay } from '../utils/calculations';
 import { projectClientId, uniqueClientsFromProjects } from '../utils/projectClient';
+import { clientOptionLabel } from '../utils/clientDisplay';
 import {
   assignableWorkspaceUsers,
   isOwnTimeEntry,
@@ -331,7 +332,7 @@ function TimeEntries() {
                 <option value="">All Clients</option>
                 {uniqueClientsFromProjects(projects).map((c) => (
                   <option key={c._id} value={c._id}>
-                    {c.name}
+                    {clientOptionLabel(c)}
                   </option>
                 ))}
               </select>

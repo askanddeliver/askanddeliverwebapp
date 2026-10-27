@@ -119,6 +119,7 @@ router.get(
         $or: [
           { invoiceNumber: { $regex: search as string, $options: 'i' } },
           { 'clientInfo.name': { $regex: search as string, $options: 'i' } },
+          { 'clientInfo.company': { $regex: search as string, $options: 'i' } },
         ],
       };
       if (query.$or) {

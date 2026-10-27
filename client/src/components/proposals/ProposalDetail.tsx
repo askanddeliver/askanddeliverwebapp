@@ -15,6 +15,7 @@ import { ProposalPreview, type ProposalPreviewModel } from './ProposalPreview';
 import { proposalsApi, projectsApi, siteConfigApi, clientsApi } from '../../services/api';
 import { formatCurrency, formatDate } from '../../utils/calculations';
 import { parseProposalMarkdown } from '../../utils/proposalMarkdown';
+import { clientOptionLabel, clientPrimaryName, compareClientDisplay } from '../../utils/clientDisplay';
 import type {
   SavedProposal,
   ProposalStatus,
@@ -336,7 +337,7 @@ export function ProposalDetail({ proposal, onClose, onUpdated, onDeleted }: Prop
                 <ProposalStatusBadge status={record.status} />
               </div>
               <p className="text-sm text-gray-500">
-                {record.clientInfo.name}
+                {clientPrimaryName(record.clientInfo)}
                 {record.projectTitle ? ` · ${record.projectTitle}` : ''} · Updated{' '}
                 {formatDate(record.updatedAt)}
               </p>
@@ -516,11 +517,11 @@ export function ProposalDetail({ proposal, onClose, onUpdated, onDeleted }: Prop
                       disabled={!draft}
                     >
                       {clientId && !clients.some((c) => c._id === clientId) && (
-                        <option value={clientId}>{record.clientInfo.name} (unavailable)</option>
+                        <option value={clientId}>{clientPrimaryName(record.clientInfo)} (unavailable)</option>
                       )}
-                      {clients.map((c) => (
+                      {[...clients].sort(compareClientDisplay).map((c) => (
                         <option key={c._id} value={c._id}>
-                          {c.name}
+                          {clientOptionLabel(c)}
                         </option>
                       ))}
                     </select>

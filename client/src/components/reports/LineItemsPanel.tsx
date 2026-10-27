@@ -3,6 +3,7 @@ import { Plus, Trash2, Package, X, Pencil } from 'lucide-react';
 import { lineItemsApi } from '../../services/api';
 import { formatCurrency, formatDate, toUTCStartOfDay } from '../../utils/calculations';
 import type { LineItem, Client, Project } from '../../types';
+import { clientOptionLabel, clientPrimaryName, compareClientDisplay } from '../../utils/clientDisplay';
 
 interface LineItemsPanelProps {
   lineItems: LineItem[];
@@ -195,8 +196,8 @@ export function LineItemsPanel({
                 className="input text-sm"
               >
                 <option value="">Select client...</option>
-                {clients.map((c) => (
-                  <option key={c._id} value={c._id}>{c.name}</option>
+                {[...clients].sort(compareClientDisplay).map((c) => (
+                  <option key={c._id} value={c._id}>{clientOptionLabel(c)}</option>
                 ))}
               </select>
             </div>
@@ -326,7 +327,7 @@ export function LineItemsPanel({
                     )}
                   </div>
                   <div className="flex items-center gap-2 text-xs text-gray-400 mt-0.5">
-                    {client && <span>{client.name}</span>}
+                    {client && <span>{clientPrimaryName(client)}</span>}
                     {project && (
                       <>
                         <span>&middot;</span>

@@ -6,6 +6,7 @@ import { ProjectModal, type ProjectModalSaveData } from '../components/projects/
 import { projectsApi, clientsApi, projectTasksApi } from '../services/api';
 import type { Project, Client, ProjectStatus, ProjectCounts, ProjectBudgetBurn, ProjectTask } from '../types';
 import { getBurnDateRange, type BurnPeriod } from '../utils/projectBilling';
+import { clientOptionLabel, compareClientDisplay } from '../utils/clientDisplay';
 
 type StatusTab = ProjectStatus | 'ALL';
 
@@ -326,10 +327,9 @@ function Projects() {
             className="appearance-none pl-3 pr-8 py-2.5 border border-gray-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
           >
             <option value="">All Clients</option>
-            {clients.map((c) => (
+            {[...clients].sort(compareClientDisplay).map((c) => (
               <option key={c._id} value={c._id}>
-                {c.name}
-                {c.company ? ` (${c.company})` : ''}
+                {clientOptionLabel(c)}
               </option>
             ))}
           </select>

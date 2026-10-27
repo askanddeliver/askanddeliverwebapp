@@ -7,6 +7,7 @@ import {
   secondsToHours,
 } from '../../utils/calculations';
 import type { ReportColumnDef } from '../../utils/reportColumns';
+import { clientPrimaryName } from '../../utils/clientDisplay';
 import { Pencil, Trash2 } from 'lucide-react';
 
 interface ReportEntriesTableProps {
@@ -71,7 +72,7 @@ function cellValue(
     case 'member':
       return member?.name || '';
     case 'client':
-      return client?.name || '';
+      return client ? clientPrimaryName(client) : '';
     case 'project':
       return project?.title || 'Unknown project';
     case 'billingMode':

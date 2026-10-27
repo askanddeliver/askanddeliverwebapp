@@ -170,6 +170,7 @@ router.get(
         { proposalNumber: { $regex: q, $options: 'i' } },
         { title: { $regex: q, $options: 'i' } },
         { 'clientInfo.name': { $regex: q, $options: 'i' } },
+        { 'clientInfo.company': { $regex: q, $options: 'i' } },
       ];
     }
 
