@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import type { Client, Project, ProjectBillingMode, User } from '../../types';
 import {
   getReportDateRange,
@@ -154,6 +155,7 @@ export function ReportFilterRail({
   onUpdatePreset,
   onDeletePreset,
 }: ReportFilterRailProps) {
+  const [showArchivedProjects, setShowArchivedProjects] = useState(false);
   const sortedClients = [...clients].sort(compareClientDisplay);
   const scopedProjects =
     clientIds.length > 0
@@ -164,6 +166,20 @@ export function ReportFilterRail({
       ? scopedProjects.filter((p) => billingModes.includes(p.billingMode ?? 'HOURLY'))
       : scopedProjects;
   const sortedProjects = [...visibleProjects].sort((a, b) => a.title.localeCompare(b.title));
+  const openProjects = sortedProjects.filter((p) => p.status !== 'ARCHIVED');
+  const archivedProjects = sortedProjects.filter((p) => p.status === 'ARCHIVED');
+  const listedProjects = showArchivedProjects
+    ? [...openProjects, ...archivedProjects]
+    : openProjects;
+  const archivedSelectionKey = projectIds
+    .filter((id) => archivedProjects.some((p) => p._id === id))
+    .sort()
+    .join(',');
+  const selectedArchivedCount = archivedSelectionKey ? archivedSelectionKey.split(',').length : 0;
+
+  useEffect(() => {
+    if (archivedSelectionKey) setShowArchivedProjects(true);
+  }, [archivedSelectionKey]);
   const activePreset = matchReportDatePreset(startDate, endDate);
   const hasFilters =
     clientIds.length > 0 ||
@@ -219,7 +235,7 @@ export function ReportFilterRail({
         <section>
           <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">Project</h3>
           <CheckboxMultiSelect
-            items={sortedProjects}
+            items={listedProjects}
             selectedIds={projectIds}
             onChange={onProjectIdsChange}
             getLabel={(p) => {
@@ -227,10 +243,28 @@ export function ReportFilterRail({
                 typeof p.clientId === 'object' ? clientPrimaryName(p.clientId) : null;
               const mode = billingModeLabel(p.billingMode);
               const prefix = clientName && clientIds.length !== 1 ? `${clientName} — ` : '';
-              return `${prefix}${p.title} (${mode})`;
+              const archived = p.status === 'ARCHIVED' ? ' · Archived' : '';
+              return `${prefix}${p.title} (${mode})${archived}`;
             }}
-            emptyHint="No projects match the client / billing type filters."
+            emptyHint={
+              archivedProjects.length > 0
+                ? 'Archived projects are hidden.'
+                : 'No projects match the client / billing type filters.'
+            }
           />
+          {archivedProjects.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setShowArchivedProjects((open) => !open)}
+              className="text-xs text-primary-600 hover:text-primary-700 mt-1"
+            >
+              {showArchivedProjects
+                ? 'Hide archived projects'
+                : selectedArchivedCount > 0
+                  ? `Show archived projects (${selectedArchivedCount} selected)`
+                  : `Show archived projects (${archivedProjects.length})`}
+            </button>
+          )}
           <p className="text-xs text-gray-500 mt-1">Empty = all projects in scope</p>
         </section>
 
